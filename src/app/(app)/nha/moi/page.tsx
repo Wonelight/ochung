@@ -9,7 +9,7 @@ export default async function NewHousePage() {
   const { current } = await getHouseContext()
   return (
     <main className="flex flex-col gap-4 px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(58px,env(safe-area-inset-top))]">
-      <PageHeader title="Tạo nhà mới" backHref={current ? '/' : undefined} />
+      <PageHeader title="Tạo nhà mới" backHref={current ? '/' : '/vao-nha'} />
       <CreateHouseForm />
     </main>
   )

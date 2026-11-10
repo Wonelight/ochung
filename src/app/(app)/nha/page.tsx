@@ -3,15 +3,20 @@ import { db } from '@/db'
 import { PageHeader } from '@/components/PageHeader'
 import { requireCurrentHouse } from '@/server/current-house'
 import { getHouse, listMembers } from '@/server/houses'
+import { listInviteLinks, listJoinRequests } from '@/server/invites'
+import { timeAgoVi } from '@/lib/time-ago'
+import { AddByCode } from './_ui/add-by-code'
 import { ArchiveHouseButton } from './_ui/archive-house-button'
 import { CopyCodeButton } from './_ui/copy-code-button'
 import { HouseNameEditor } from './_ui/house-name-editor'
+import { InviteShare } from './_ui/invite-share'
+import { JoinRequests } from './_ui/join-requests'
 import { MembersList } from './_ui/members-list'
 
 export const metadata = { title: 'Quản lý nhà' }
 
-// Màn Quản lý nhà theo mockup. Các khối "Chia sẻ link mời", "Chờ duyệt", "Thêm bằng mã tài khoản" (Task 9)
-// sẽ chèn vào đúng chỗ đã đánh dấu; cùng khoảng cách gap-4 của cột.
+// Màn Quản lý nhà theo mockup. Các khối "Chia sẻ link mời", "Chờ duyệt", "Thêm bằng mã tài khoản" chỉ chủ nhà
+// của nhà đang dùng thấy (thành viên và nhà đã lưu trữ thì ẩn).
 export default async function HouseManagePage() {
   const { actor, current } = await requireCurrentHouse()
 
@@ -23,6 +28,14 @@ export default async function HouseManagePage() {
   if (!me) redirect('/')
   const isOwner = me.role === 'owner'
   const canManage = isOwner && !house.archived
+
+  const now = new Date()
+  const [links, requests] = canManage
+    ? await Promise.all([listInviteLinks(db, actor, house.id), listJoinRequests(db, actor, house.id)])
+    : [[], []]
+  const activeLinks = links
+    .filter((l) => !l.revoked && l.expiresAt > now)
+    .map((l) => ({ id: l.id, url: l.url, expiresAt: l.expiresAt.toISOString() }))
 
   return (
     <main className="flex flex-col gap-4 px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(58px,env(safe-area-inset-top))]">
@@ -54,11 +67,21 @@ export default async function HouseManagePage() {
           </div>
           <CopyCodeButton code={house.code} />
         </div>
-        {/* Task 9: nút "Chia sẻ link mời" và dòng giải thích đi ở đây (chỉ chủ nhà, nhà đang dùng) */}
+        {canManage && <InviteShare houseId={house.id} houseName={house.name} links={activeLinks} />}
       </section>
 
-      {/* Task 9: khối "Chờ duyệt · N" (chủ nhà) */}
-      {/* Task 9: khối "Thêm bằng mã tài khoản" (chủ nhà) */}
+      {canManage && (
+        <>
+          <JoinRequests
+            requests={requests.map((r) => ({
+              id: r.id,
+              name: r.displayName,
+              note: `Nhập mã nhà · ${timeAgoVi(r.createdAt, now)}`,
+            }))}
+          />
+          <AddByCode houseId={house.id} />
+        </>
+      )}
 
       <section className="flex flex-col gap-2">
         <h2 className="m-0 text-[12px] font-semibold uppercase tracking-[0.12em] text-muted">

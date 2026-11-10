@@ -215,8 +215,30 @@ export async function listMembers(db: Db, actor: Actor, houseId: string): Promis
     .orderBy(asc(houseMembers.sortOrder), asc(houseMembers.joinedAt))
 }
 
-/** Thêm một người vào nhà trong transaction của người gọi (không kiểm quyền: người gọi phải kiểm). sortOrder = lớn nhất + 1. */
+/** Vi phạm ràng buộc duy nhất của Postgres (23505); drizzle bọc lỗi gốc trong `cause`. */
+export function isUniqueViolation(e: unknown): boolean {
+  for (let cur: unknown = e, depth = 0; cur && typeof cur === 'object' && depth < 4; depth++) {
+    if ((cur as { code?: unknown }).code === '23505') return true
+    cur = (cur as { cause?: unknown }).cause
+  }
+  return false
+}
+
+/**
+ * Thêm một người vào nhà trong transaction của người gọi (không kiểm quyền: người gọi phải kiểm).
+ * Khóa dòng nhà (`FOR UPDATE`) trước khi tính sortOrder = lớn nhất + 1, nên nhiều người vào cùng lúc được xếp tuần tự;
+ * khóa này cũng làm việc kiểm tra "nhà đã lưu trữ" không lọt qua khi chủ nhà vừa lưu trữ.
+ * Chỉ mục duy nhất (nhà, người dùng đang ở) vẫn là chốt chặn cuối: vi phạm → ALREADY_MEMBER.
+ */
 export async function addMemberTx(tx: Tx, houseId: string, userId: string): Promise<Member> {
+  const [house] = await tx
+    .select({ archivedAt: houses.archivedAt })
+    .from(houses)
+    .where(eq(houses.id, houseId))
+    .for('update')
+    .limit(1)
+  if (!house) throw new AppError('NOT_FOUND', 'HOUSE_NOT_FOUND', 'Không tìm thấy nhà')
+  if (house.archivedAt) throw new AppError('FORBIDDEN', 'HOUSE_ARCHIVED', 'Nhà đã được lưu trữ, không thêm thành viên được')
   const [target] = await tx.select({ name: user.name }).from(user).where(eq(user.id, userId)).limit(1)
   if (!target) throw new AppError('NOT_FOUND', 'USER_NOT_FOUND', 'Không tìm thấy người dùng')
   const [already] = await tx
@@ -231,11 +253,16 @@ export async function addMemberTx(tx: Tx, houseId: string, userId: string): Prom
     .where(eq(houseMembers.houseId, houseId))
     .orderBy(desc(houseMembers.sortOrder))
     .limit(1)
-  const [row] = await tx
-    .insert(houseMembers)
-    .values({ id: newId(), houseId, userId, role: 'member', sortOrder: (last?.sortOrder ?? -1) + 1 })
-    .returning()
-  return { id: row.id, houseId, userId, role: 'member', sortOrder: row.sortOrder, displayName: target.name, leftAt: null }
+  try {
+    const [row] = await tx
+      .insert(houseMembers)
+      .values({ id: newId(), houseId, userId, role: 'member', sortOrder: (last?.sortOrder ?? -1) + 1 })
+      .returning()
+    return { id: row.id, houseId, userId, role: 'member', sortOrder: row.sortOrder, displayName: target.name, leftAt: null }
+  } catch (e) {
+    if (isUniqueViolation(e)) throw new AppError('CONFLICT', 'ALREADY_MEMBER', 'Người này đã ở trong nhà')
+    throw e
+  }
 }
 
 /** Chủ nhà cho một thành viên rời nhà (đặt leftAt, giữ dòng để lịch sử các tháng đã chốt còn nguyên). */

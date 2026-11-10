@@ -2,8 +2,19 @@
 
 import { useEffect, useRef, useState } from 'react'
 
-/** Nút sao chép mã nhà (44px, icon chép từ mockup `Quản lý nhà`). */
-export function CopyCodeButton({ code }: { code: string }) {
+/**
+ * Nút sao chép một mã (44px, icon chép từ mockup `Quản lý nhà`). Mặc định là mã nhà (bo 14px);
+ * màn `Vào nhà` dùng cho mã tài khoản (bo 12px).
+ */
+export function CopyCodeButton({
+  code,
+  label = 'mã nhà',
+  radius = 14,
+}: {
+  code: string
+  label?: string
+  radius?: 12 | 14
+}) {
   const [copied, setCopied] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -24,9 +35,9 @@ export function CopyCodeButton({ code }: { code: string }) {
     <>
       <button
         type="button"
-        aria-label="Sao chép mã nhà"
+        aria-label={`Sao chép ${label}`}
         onClick={copy}
-        className="flex size-11 cursor-pointer items-center justify-center rounded-[14px] border border-line2 bg-card p-0 text-text"
+        className={`flex size-11 cursor-pointer items-center justify-center border border-line2 bg-card p-0 text-text ${radius === 12 ? 'rounded-[12px]' : 'rounded-[14px]'}`}
       >
         {copied ? (
           <svg
@@ -60,7 +71,7 @@ export function CopyCodeButton({ code }: { code: string }) {
         )}
       </button>
       <span role="status" className="sr-only">
-        {copied ? 'Đã sao chép mã nhà' : ''}
+        {copied ? `Đã sao chép ${label}` : ''}
       </span>
     </>
   )
