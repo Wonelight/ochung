@@ -10,6 +10,7 @@
  *    vd bg-bg, bg-card, text-muted, border-line, bg-paid-bg, text-paid-fg,
  *    text-accent-text. Màu nhấn cố định: bg-accent / text-accent (#E8833A).
  *  - --c-sun-op là độ mờ (không phải màu), dùng trực tiếp var(--c-sun-op).
+ *  - --c-bar-fill, --c-bar-shadow, --c-bar-edge-op: nền, bóng và độ mờ viền của thanh dưới Dione (D/L riêng của mockup đó).
  *  - --c-dune1, --c-dune2, --c-halo-op (độ mờ), --c-login-input: đồi cát, quầng sáng và nền ô nhập của màn Đăng nhập (D/L riêng của mockup đó).
  *  - Font: next/font đặt --font-body (Be Vietnam Pro) và --font-num (Lexend Exa) trên <html>;
  *    Tailwind: font-sans (mặc định, = body) và font-numeric (số lớn).
@@ -58,6 +59,9 @@
   --c-dune2: #17120D;
   --c-halo-op: 0.35;
   --c-login-input: #17120D;
+  --c-bar-fill: #15100B;
+  --c-bar-shadow: rgba(0,0,0,0.55);
+  --c-bar-edge-op: 0.10;
 }
 
 @media (prefers-color-scheme: light) {
@@ -104,6 +108,9 @@
   --c-dune2: #ECDDC2;
   --c-halo-op: 0.45;
   --c-login-input: #FFFDF8;
+  --c-bar-fill: #FFFDF8;
+  --c-bar-shadow: rgba(110,80,40,0.20);
+  --c-bar-edge-op: 0.08;
   }
 }
 
@@ -150,6 +157,9 @@
   --c-dune2: #17120D;
   --c-halo-op: 0.35;
   --c-login-input: #17120D;
+  --c-bar-fill: #15100B;
+  --c-bar-shadow: rgba(0,0,0,0.55);
+  --c-bar-edge-op: 0.10;
 }
 
 :root[data-theme="light"] {
@@ -195,6 +205,9 @@
   --c-dune2: #ECDDC2;
   --c-halo-op: 0.45;
   --c-login-input: #FFFDF8;
+  --c-bar-fill: #FFFDF8;
+  --c-bar-shadow: rgba(110,80,40,0.20);
+  --c-bar-edge-op: 0.08;
 }
 
 @theme inline {
