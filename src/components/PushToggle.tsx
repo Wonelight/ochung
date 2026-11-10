@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { ErrorText, Switch } from '@/app/(app)/nha/_ui/settings-parts'
+import { PUSH_API as API, claimPushSubscription } from '@/lib/push-client'
 import { canSubscribePush, urlBase64ToBytes } from '@/lib/pwa-env'
 
 type State = 'checking' | 'unsupported' | 'blocked' | 'off' | 'on'
 
-const API = '/api/push/subscribe'
 const json = { 'Content-Type': 'application/json' }
 
 /**
@@ -26,7 +26,13 @@ export function PushToggle() {
         try {
           const reg = await navigator.serviceWorker.ready
           const sub = await reg.pushManager.getSubscription()
-          next = sub && Notification.permission === 'granted' ? 'on' : Notification.permission === 'denied' ? 'blocked' : 'off'
+          if (sub && Notification.permission === 'granted') {
+            // subscription của trình duyệt có thể còn từ người đăng nhập trước trên máy này: gắn lại cho người hiện tại
+            // (máy chủ ghi đè chủ sở hữu theo endpoint); chỉ hiện "bật" khi gắn được.
+            next = (await claimPushSubscription().catch(() => false)) ? 'on' : 'off'
+          } else {
+            next = Notification.permission === 'denied' ? 'blocked' : 'off'
+          }
         } catch {
           next = 'off'
         }

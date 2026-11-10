@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition, type FormEvent } from 'react'
 import { authClient } from '@/lib/auth-client'
+import { detachPushSubscription } from '@/lib/push-client'
 import { createUserAction, resetPasswordAction, setBannedAction } from './actions'
 
 type UserRow = {
@@ -82,6 +83,7 @@ export function AdminPanel({ users, currentUserId }: { users: UserRow[]; current
   }
 
   async function onSignOut() {
+    await detachPushSubscription() // trước signOut: cần cookie phiên để xóa subscription của thiết bị này
     await authClient.signOut()
     router.replace('/login')
     router.refresh()

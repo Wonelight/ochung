@@ -324,6 +324,65 @@ describe('thông báo và web push', () => {
     })
   })
 
+  describe('lỗi ở pha push sau commit', () => {
+    /** db mà truy vấn bảng push_subscriptions luôn lỗi (mô phỏng DB chập chờn sau khi đã ghi thông báo). */
+    function flakySubscriptions(real: Db): Db {
+      return new Proxy(real, {
+        get(target, prop) {
+          const value = Reflect.get(target, prop, target)
+          if (prop !== 'select' || typeof value !== 'function') return typeof value === 'function' ? value.bind(target) : value
+          return (...args: unknown[]) => {
+            const builder = (value as (...a: unknown[]) => { from: (t: unknown) => unknown }).apply(target, args)
+            return new Proxy(builder, {
+              get(b, p) {
+                const v = Reflect.get(b, p, b)
+                if (p !== 'from') return typeof v === 'function' ? v.bind(b) : v
+                return (table: unknown) => {
+                  if (table === pushSubscriptions) throw new Error('DB chập chờn')
+                  return (v as (t: unknown) => unknown).call(b, table)
+                }
+              },
+            })
+          }
+        },
+      }) as Db
+    }
+
+    it('remindMember: lỗi truy vấn subscription sau commit không làm hàm thất bại; thông báo ghi đúng 1 lần', async () => {
+      const h = await closedHouse()
+      const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+      await expect(remindMember(flakySubscriptions(db), fakeSender().send, h.linh, h.periodId, h.anId)).resolves.toBeUndefined()
+      expect(await mine(h.an, 'reminder')).toHaveLength(1)
+      expect(err).toHaveBeenCalled()
+    })
+
+    it('sendHouseMessage: lỗi pha push không làm hàm thất bại; mỗi người nhận đúng 1 thông báo', async () => {
+      const h = await closedHouse()
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+      await expect(
+        sendHouseMessage(flakySubscriptions(db), fakeSender().send, h.linh, h.houseId, { body: 'Xin chào', audience: 'all' }),
+      ).resolves.toEqual({ recipients: 3 })
+      for (const who of [h.an, h.binh, h.chi]) expect(await mine(who, 'owner_message')).toHaveLength(1)
+    })
+
+    it('xóa subscription "gone" bị lỗi cũng không ném', async () => {
+      const a = await newUser('A')
+      const dead = await subscribe(a)
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+      const brokenDelete = new Proxy(db, {
+        get(target, prop) {
+          const v = Reflect.get(target, prop, target)
+          if (prop === 'delete') return () => { throw new Error('DB chập chờn') }
+          return typeof v === 'function' ? v.bind(target) : v
+        },
+      }) as Db
+      await expect(
+        notify(brokenDelete, fakeSender([dead]).send, { userIds: [a.userId], houseId: null, kind: 'owner_message', title: 't', body: 'b', url: '/', push: true }),
+      ).resolves.toBeUndefined()
+      expect(await mine(a, 'owner_message')).toHaveLength(1)
+    })
+  })
+
   describe('thông báo trong app (không gửi đẩy)', () => {
     it('requestJoinByCode → chủ nhà có join_request, PushSender không được gọi; duyệt/từ chối → người xin nhận kết quả', async () => {
       const h = await draft54()

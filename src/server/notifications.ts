@@ -51,8 +51,20 @@ async function insertItems(w: Writer, items: DeliveryItem[]): Promise<void> {
   )
 }
 
-/** Gửi push tới mọi subscription của các người nhận; 'gone' → xóa subscription. Không bao giờ ném lỗi. */
+/**
+ * Gửi push tới mọi subscription của các người nhận; 'gone' → xóa subscription. Không bao giờ ném lỗi: pha này chạy SAU khi thông báo
+ * trong app đã được ghi/commit, nên lỗi DB hay lỗi gửi chỉ được ghi log (nếu ném, người dùng thấy "thất bại" dù dữ liệu đã lưu
+ * và bấm lại sẽ ghi trùng hoặc bị chặn bởi giới hạn nhắc).
+ */
 async function pushItems(db: Db, send: PushSender, items: DeliveryItem[]): Promise<void> {
+  try {
+    await pushItemsUnsafe(db, send, items)
+  } catch (e) {
+    console.error('Gửi web push thất bại', e)
+  }
+}
+
+async function pushItemsUnsafe(db: Db, send: PushSender, items: DeliveryItem[]): Promise<void> {
   const pushable = items.filter((i) => i.push && PUSH_KINDS.has(i.kind))
   if (pushable.length === 0) return
   const subs = await db
