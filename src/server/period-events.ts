@@ -8,6 +8,9 @@ export type PushSender = (
 
 export type PeriodEventDeps = { send?: PushSender }
 
+// TODO(Task 14): hai hook chạy SAU khi transaction đã commit. Khi nối thông báo, bắt và ghi log mọi lỗi BÊN TRONG hook
+// (gửi push hỏng, ghi thông báo lỗi...): lỗi sau commit không được nổi lên thành "lưu thất bại" vì số liệu đã được lưu.
+
 /**
  * Gọi SAU khi transaction chốt sổ đã commit (không gọi bên trong transaction).
  * Task 14 nối vào thông báo trong app và web push; ở Task 11 chưa làm gì.

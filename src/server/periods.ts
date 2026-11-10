@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, ne, sql } from 'drizzle-orm'
 import type { Db } from '@/db'
 import { newId } from '@/db/ids'
 import {
@@ -260,17 +260,31 @@ export async function syncDraftPeriods(tx: Tx, houseId: string): Promise<void> {
 
 /**
  * Thêm thành viên vừa vào nhà vào mọi tháng nháp (đủ số ngày của tháng, được tính). Tháng đã chốt giữ nguyên.
+ * Người từng ở rồi rời nhà nay vào lại có id thành viên mới: dòng của lần ở trước trong các tháng nháp được tắt
+ * "Tính tháng này" (giữ số ngày để chủ nhà bật lại nếu muốn tính tách tháng), để một người không bị tính hai lần.
  * Gọi trong transaction của `addMemberTx` (dòng nhà đã bị khóa ở đó).
  */
 export async function addMemberToDraftsTx(tx: Tx, houseId: string, memberId: string): Promise<void> {
   const [m] = await tx
-    .select({ name: user.name, role: houseMembers.role, sortOrder: houseMembers.sortOrder })
+    .select({ userId: houseMembers.userId, name: user.name, role: houseMembers.role, sortOrder: houseMembers.sortOrder })
     .from(houseMembers)
     .innerJoin(user, eq(user.id, houseMembers.userId))
     .where(and(eq(houseMembers.id, memberId), eq(houseMembers.houseId, houseId)))
     .limit(1)
   if (!m) throw new AppError('NOT_FOUND', 'MEMBER_NOT_FOUND', 'Không tìm thấy thành viên')
+  const earlier = (
+    await tx
+      .select({ id: houseMembers.id })
+      .from(houseMembers)
+      .where(and(eq(houseMembers.houseId, houseId), eq(houseMembers.userId, m.userId), ne(houseMembers.id, memberId)))
+  ).map((r) => r.id)
   for (const draft of await lockDrafts(tx, houseId)) {
+    if (earlier.length > 0) {
+      await tx
+        .update(periodMembers)
+        .set({ included: false })
+        .where(and(eq(periodMembers.periodId, draft.id), inArray(periodMembers.memberId, earlier)))
+    }
     await tx
       .insert(periodMembers)
       .values({
@@ -408,10 +422,26 @@ async function computeComplete(tx: Tx, period: PeriodRow): Promise<PeriodResult>
   return computePeriod(input)
 }
 
-/** Sau một lần ghi lên tháng (đã khóa): tháng đã chốt thì tính lại result và tăng revision 1. Trả true nếu là sửa sau chốt. */
+/** So sánh cấu trúc hai giá trị JSON (jsonb không giữ thứ tự khóa nên không so bằng JSON.stringify). */
+function sameJson(a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false
+  if (Array.isArray(a) !== Array.isArray(b)) return false
+  const ka = Object.keys(a)
+  const kb = Object.keys(b)
+  if (ka.length !== kb.length) return false
+  return ka.every((k) => Object.hasOwn(b, k) && sameJson((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]))
+}
+
+/**
+ * Sau một lần ghi lên tháng (đã khóa): tháng đã chốt thì tính lại result và tăng revision 1.
+ * Trả true nếu là sửa sau chốt làm phiếu thay đổi. Số liệu đổi mà phiếu không đổi (ví dụ sửa ngày ở của người
+ * không được tính) thì vẫn lưu số liệu nhưng không tăng revision và không báo cả nhà.
+ */
 export async function recomputeIfClosedTx(tx: Tx, period: PeriodRow): Promise<boolean> {
   if (period.status !== 'closed') return false
   const result = await computeComplete(tx, period)
+  if (sameJson(result, period.result)) return false
   await tx
     .update(periods)
     .set({ result, revision: sql`${periods.revision} + 1` })
@@ -422,7 +452,7 @@ export async function recomputeIfClosedTx(tx: Tx, period: PeriodRow): Promise<bo
 /**
  * Khung chung của mọi thao tác ghi lên một tháng: khóa dòng tháng, chỉ chủ nhà (nhà chưa lưu trữ), ghi,
  * rồi nếu tháng đã chốt thì tính lại + revision += 1 trong cùng transaction và gọi `onPeriodUpdated` SAU khi commit.
- * `write` trả false khi không có gì thay đổi (không tính là một lần sửa).
+ * `write` trả false khi không có gì thay đổi (ghi lại đúng giá trị cũ): không tính là một lần sửa, không báo cả nhà.
  */
 export async function writePeriod(
   db: Db,
@@ -500,6 +530,7 @@ export async function setUtilityReading(
       curr: curr === undefined ? row.curr : curr,
       total: total === undefined ? row.total : total,
     }
+    if (next.prev === row.prev && next.curr === row.curr && next.total === row.total) return false
     if (next.prev !== null && next.curr !== null && next.curr < next.prev) {
       throw new AppError('INVALID', 'READING_DECREASED', 'Chỉ số mới phải ≥ chỉ số cũ')
     }
@@ -519,7 +550,7 @@ export async function setPeriodMember(
 ): Promise<void> {
   await writePeriod(db, actor, periodId, async (tx, period) => {
     const where = and(eq(periodMembers.periodId, period.id), eq(periodMembers.memberId, memberId))
-    const [row] = await tx.select({ memberId: periodMembers.memberId }).from(periodMembers).where(where).limit(1)
+    const [row] = await tx.select({ days: periodMembers.days, included: periodMembers.included }).from(periodMembers).where(where).limit(1)
     if (!row) throw new AppError('NOT_FOUND', 'MEMBER_NOT_IN_PERIOD', 'Thành viên này không có trong tháng')
     const set: { days?: number; included?: boolean } = {}
     if (input.days !== undefined) {
@@ -527,11 +558,11 @@ export async function setPeriodMember(
       if (!Number.isInteger(input.days) || input.days < 0 || input.days > N) {
         throw new AppError('INVALID', 'DAYS_INVALID', `Số ngày ở phải là số nguyên từ 0 đến ${N}`)
       }
-      set.days = input.days
+      if (input.days !== row.days) set.days = input.days
     }
     if (input.included !== undefined) {
       if (typeof input.included !== 'boolean') throw new AppError('INVALID', 'INCLUDED_INVALID', 'Giá trị "Tính tháng này" không hợp lệ')
-      set.included = input.included
+      if (input.included !== row.included) set.included = input.included
     }
     if (Object.keys(set).length === 0) return false
     await tx.update(periodMembers).set(set).where(where)
@@ -545,9 +576,11 @@ export async function setPeriodItemEnabled(db: Db, actor: Actor, periodItemId: s
   if (!item) throw new AppError('NOT_FOUND', 'ITEM_NOT_FOUND', 'Không tìm thấy khoản này')
   await writePeriod(db, actor, item.periodId, async (tx) => {
     if (typeof enabled !== 'boolean') throw new AppError('INVALID', 'ENABLED_INVALID', 'Giá trị bật/tắt không hợp lệ')
-    const updated = await tx.update(periodItems).set({ enabled }).where(eq(periodItems.id, periodItemId)).returning({ id: periodItems.id })
+    const [row] = await tx.select({ enabled: periodItems.enabled }).from(periodItems).where(eq(periodItems.id, periodItemId)).limit(1)
     // khoản vừa bị gỡ khỏi tháng nháp bởi lần đồng bộ cài đặt
-    if (updated.length === 0) throw new AppError('NOT_FOUND', 'ITEM_NOT_FOUND', 'Không tìm thấy khoản này')
+    if (!row) throw new AppError('NOT_FOUND', 'ITEM_NOT_FOUND', 'Không tìm thấy khoản này')
+    if (row.enabled === enabled) return false
+    await tx.update(periodItems).set({ enabled }).where(eq(periodItems.id, periodItemId))
     return true
   })
 }

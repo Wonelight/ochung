@@ -157,6 +157,15 @@ describe('chi phát sinh', () => {
     expect(await db.select().from(expenses).where(eq(expenses.id, s.expenseId))).toEqual([])
   })
 
+  it('updateExpense ghi lại đúng giá trị cũ ở tháng đã chốt → revision giữ nguyên, không gọi hook', async () => {
+    const s = await closedT11()
+    const spy = vi.spyOn(events, 'onPeriodUpdated')
+    await updateExpense(db, s.owner, s.expenseId, { description: ' Nước giặt ', amount: 40_000, spentOn: '2026-11-03', paidByMemberId: s.anId })
+    await updateExpense(db, s.owner, s.expenseId, {})
+    expect((await periodRow(s.periodId)).revision).toBe(0)
+    expect(spy).not.toHaveBeenCalled()
+  })
+
   it('sửa/xóa khoản chi ở tháng nháp → không đổi revision, không gọi hook', async () => {
     const s = await setup()
     const spy = vi.spyOn(events, 'onPeriodUpdated')

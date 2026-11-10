@@ -215,11 +215,13 @@ describe('vòng đời tháng', () => {
       expect(after.result.grandTotal).toBe(10_855_000)
       const rowsAfter = await db.select().from(periodItems).where(eq(periodItems.periodId, h.periodId))
       expect(rowsAfter).toEqual(rowsBefore)
-      // sửa sau chốt vẫn tính bằng bản chụp của tháng, không dùng cấu hình mới
-      await setUtilityReading(db, h.linh, h.periodId, 'water', { total: 315_000 })
+      // sửa sau chốt vẫn tính bằng bản chụp của tháng (tiền nhà 8tr, điện "Nhập tổng"), không dùng cấu hình mới
+      await setUtilityReading(db, h.linh, h.periodId, 'water', { total: 420_000 })
       const edited = await getPeriodView(db, h.linh, h.periodId)
-      expect(edited.result).toEqual(before.result)
+      expect(edited.result.grandTotal).toBe(10_855_000 + 105_000)
+      expect(slipOf(edited.result, h.binhId).due).toBe(2_680_000 + 30_000)
       expect(edited.utilities.electricity.mode).toBe('total')
+      expect(edited.items.find((i) => i.name === 'Tiền nhà')!.amount).toBe(8_000_000)
     })
   })
 
@@ -345,6 +347,22 @@ describe('vòng đời tháng', () => {
       expect(v11.result.payslips.map((p) => p.memberId)).not.toContain(dungId)
     })
 
+    it('người đã rời nay vào lại → dòng cũ trong tháng nháp tắt "Tính tháng này" (giữ ngày ở), chỉ tính một lần', async () => {
+      const h = await draft54()
+      await removeMember(db, h.linh, h.houseId, h.chiId)
+      const newChiId = await join(h.houseId, h.chi)
+      const view = await getPeriodView(db, h.linh, h.periodId)
+      expect(view.members.find((m) => m.memberId === h.chiId)).toMatchObject({ included: false, days: 15 })
+      expect(view.members.find((m) => m.memberId === newChiId)).toMatchObject({ included: true, days: 30, name: 'Chi' })
+      expect(view.members.filter((m) => m.included)).toHaveLength(4)
+      // M = 4 như cũ: Bình vẫn 2.000.000 tiền nhà; Σd = 30 × 4 = 120
+      const binhNha = view.result.payslips.find((p) => p.memberId === h.binhId)!.lines.find((l) => l.label === 'Tiền nhà')!
+      expect(binhNha.amount).toBe(2_000_000)
+      const binhDien = view.result.payslips.find((p) => p.memberId === h.binhId)!.lines.find((l) => l.key === 'electricity')!
+      expect(binhDien.amount).toBe(1_260_000 * 30 / 120)
+      expect(view.result.payslips.map((p) => p.memberId)).not.toContain(h.chiId)
+    })
+
     it('setPeriodMember: ngày ở 0..số ngày của tháng; thành viên không thuộc tháng → NOT_FOUND', async () => {
       const h = await house54()
       const { periodId } = await getOrCreateDraftPeriod(db, h.linh, h.houseId, T11)
@@ -378,6 +396,33 @@ describe('vòng đời tháng', () => {
       expect(row.status).toBe('closed')
       expect(spy).toHaveBeenCalledTimes(3)
       expect(row.result).toEqual(await previewPeriod(db, h.linh, h.periodId))
+    })
+
+    it('ghi lại đúng giá trị cũ (hoặc patch rỗng) → revision giữ nguyên, không gọi onPeriodUpdated', async () => {
+      const h = await draft54()
+      await closePeriod(db, h.linh, h.periodId)
+      const before = await getPeriodView(db, h.linh, h.periodId)
+      const dv = (await db.select().from(periodItems).where(eq(periodItems.periodId, h.periodId))).find((i) => i.sourceItemId === h.items.dv)!
+      const spy = vi.spyOn(events, 'onPeriodUpdated')
+      await setUtilityReading(db, h.linh, h.periodId, 'water', { total: 315_000 })
+      await setUtilityReading(db, h.linh, h.periodId, 'electricity', {})
+      await setPeriodMember(db, h.linh, h.periodId, h.chiId, { days: 15, included: true })
+      await setPeriodMember(db, h.linh, h.periodId, h.chiId, {})
+      await setPeriodItemEnabled(db, h.linh, dv.id, true)
+      expect((await periodRow(h.periodId)).revision).toBe(0)
+      expect(spy).not.toHaveBeenCalled()
+      expect(await getPeriodView(db, h.linh, h.periodId)).toEqual(before)
+    })
+
+    it('sửa số liệu không làm phiếu đổi (ngày ở của người không được tính) → lưu nhưng không tăng revision, không báo', async () => {
+      const h = await draft54()
+      await setPeriodMember(db, h.linh, h.periodId, h.binhId, { included: false })
+      await closePeriod(db, h.linh, h.periodId)
+      const spy = vi.spyOn(events, 'onPeriodUpdated')
+      await setPeriodMember(db, h.linh, h.periodId, h.binhId, { days: 10 })
+      expect((await periodRow(h.periodId)).revision).toBe(0)
+      expect(spy).not.toHaveBeenCalled()
+      expect((await getPeriodView(db, h.linh, h.periodId)).members.find((m) => m.memberId === h.binhId)!.days).toBe(10)
     })
 
     it('thao tác sửa bị từ chối → revision giữ nguyên, không gọi onPeriodUpdated', async () => {

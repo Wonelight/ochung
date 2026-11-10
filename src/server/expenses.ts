@@ -112,16 +112,27 @@ export async function updateExpense(db: Db, actor: Actor, expenseId: string, pat
   const periodId = await periodOfExpense(db, expenseId)
   await writePeriod(db, actor, periodId, async (tx) => {
     const where = and(eq(expenses.id, expenseId), eq(expenses.periodId, periodId))
-    const [row] = await tx.select({ id: expenses.id }).from(expenses).where(where).limit(1)
+    const [row] = await tx
+      .select({ description: expenses.description, amount: expenses.amount, spentOn: expenses.spentOn, paidByMemberId: expenses.paidByMemberId })
+      .from(expenses)
+      .where(where)
+      .limit(1)
     if (!row) throw new AppError('NOT_FOUND', 'EXPENSE_NOT_FOUND', 'Không tìm thấy khoản chi')
+    // chỉ ghi trường thật sự đổi: ghi lại đúng giá trị cũ không tính là một lần sửa
     const set: Partial<typeof expenses.$inferInsert> = {}
-    if (patch.description !== undefined) set.description = cleanDescription(patch.description)
-    if (patch.amount !== undefined) set.amount = cleanAmount(patch.amount)
+    if (patch.description !== undefined) {
+      const description = cleanDescription(patch.description)
+      if (description !== row.description) set.description = description
+    }
+    if (patch.amount !== undefined) {
+      const amount = cleanAmount(patch.amount)
+      if (amount !== row.amount) set.amount = amount
+    }
     if (patch.spentOn !== undefined) {
       monthOfSpentOn(patch.spentOn)
-      set.spentOn = patch.spentOn
+      if (patch.spentOn !== row.spentOn) set.spentOn = patch.spentOn
     }
-    if (patch.paidByMemberId !== undefined) {
+    if (patch.paidByMemberId !== undefined && patch.paidByMemberId !== row.paidByMemberId) {
       await assertPayerInPeriod(tx, periodId, patch.paidByMemberId)
       set.paidByMemberId = patch.paidByMemberId
     }
