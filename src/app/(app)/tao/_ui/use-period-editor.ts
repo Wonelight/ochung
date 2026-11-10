@@ -25,7 +25,8 @@ const UTILITY_LABEL = { electricity: 'Điện', water: 'Nước' } as const
 /**
  * Số liệu đang sửa của màn Tạo hóa đơn.
  * - Tháng nháp: mỗi thay đổi được lưu (gom trong 300ms, chỉ gửi trường đã đổi) rồi tính thử bằng `previewPeriod`;
- *   các lần lưu chạy nối tiếp nhau, kết quả cũ về sau không đè kết quả mới.
+ *   các lần lưu chạy nối tiếp nhau, kết quả cũ về sau không đè kết quả mới. Server chỉ ghi khi tháng còn nháp:
+ *   tháng vừa bị chốt ở nơi khác thì hiện lời báo (tải lại trang) và ngừng lưu tự động.
  * - Tháng đã chốt: chưa lưu gì cho tới khi bấm "Cập nhật" (mỗi lần sửa sau chốt là một lần báo cả nhà);
  *   số tổng tính ngay trên máy bằng đúng hàm `computePeriod` của server, từ bản chụp + số đang sửa.
  */
@@ -47,6 +48,8 @@ export function usePeriodEditor({
   const chain = useRef<Promise<void>>(Promise.resolve())
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const seq = useRef(0)
+  /** Tháng vừa bị chốt ở nơi khác: ngừng hẳn lưu tự động (mỗi lần ghi vào tháng đã chốt là một lần báo cả nhà). */
+  const stopped = useRef(false)
   const [serverPreview, setServerPreview] = useState(initialPreview)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -62,6 +65,7 @@ export function usePeriodEditor({
         timer.current = null
       }
       const run = async (): Promise<boolean> => {
+        if (stopped.current) return false
         const target = latest.current
         const edits = diffEdits(saved.current, target)
         if (!edits && !force) return true
@@ -71,6 +75,11 @@ export function usePeriodEditor({
           const res = await saveDraftAction(periodId, edits)
           if (!res.ok) {
             setSaveError(res.message)
+            return false
+          }
+          if (res.data.closedElsewhere) {
+            stopped.current = true
+            setSaveError(res.data.closedElsewhere)
             return false
           }
           saved.current = target
@@ -96,7 +105,7 @@ export function usePeriodEditor({
       const next = fn(latest.current)
       latest.current = next
       setState(next)
-      if (closed) return
+      if (closed || stopped.current) return
       if (timer.current) clearTimeout(timer.current)
       timer.current = setTimeout(() => void save(), DEBOUNCE_MS)
     },

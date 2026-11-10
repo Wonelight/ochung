@@ -510,6 +510,22 @@ describe('vòng đời tháng', () => {
       expect(view.members.find((m) => m.memberId === h.chiId)!.days).toBe(15)
     })
 
+    it('expect draft (lưu tự động): tháng vừa bị chốt → CONFLICT PERIOD_CLOSED, không ghi, không tăng revision, không báo', async () => {
+      const h = await draft54()
+      await applyPeriodEdits(db, h.linh, h.periodId, { utilities: { water: { total: 316_000 } } }, { expect: 'draft' })
+      await closePeriod(db, h.linh, h.periodId)
+      const spy = vi.spyOn(events, 'onPeriodUpdated')
+      await expectApp(
+        applyPeriodEdits(db, h.linh, h.periodId, { utilities: { water: { total: 999_000 } } }, { expect: 'draft' }),
+        'CONFLICT',
+        'PERIOD_CLOSED',
+      )
+      const row = await periodRow(h.periodId)
+      expect(row.revision).toBe(0)
+      expect(spy).not.toHaveBeenCalled()
+      expect((await getPeriodView(db, h.linh, h.periodId)).utilities.water.total).toBe(316_000)
+    })
+
     it('khoản của tháng khác → NOT_FOUND; dữ liệu sai kiểu → INVALID; thành viên → FORBIDDEN', async () => {
       const h = await draft54()
       const { periodId: t12 } = await getOrCreateDraftPeriod(db, h.linh, h.houseId, T12)

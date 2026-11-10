@@ -591,9 +591,24 @@ const editsInvalid = () => new AppError('INVALID', 'EDITS_INVALID', 'Dữ liệu
  * Ghi nhiều số liệu của một tháng trong MỘT thao tác (màn Tạo hóa đơn): điện/nước, ngày ở và "Tính tháng này",
  * công tắc khoản. Cùng kiểm tra như từng hàm lẻ; một phần sai thì cả lần sửa bị từ chối. Tháng đã chốt: tính lại,
  * revision += 1 và `onPeriodUpdated` đúng một lần cho cả lần sửa (không phải mỗi trường một lần).
+ * `expect: 'draft'` (lưu tự động của tháng nháp): tháng đã bị chốt (ví dụ từ máy khác) → CONFLICT PERIOD_CLOSED,
+ * kiểm dưới khóa dòng tháng nên không có lần lưu tự động nào lọt thành "sửa sau chốt" (mỗi lần như thế là một lần báo cả nhà).
  */
-export async function applyPeriodEdits(db: Db, actor: Actor, periodId: string, edits: PeriodEdits): Promise<void> {
+export async function applyPeriodEdits(
+  db: Db,
+  actor: Actor,
+  periodId: string,
+  edits: PeriodEdits,
+  opts: { expect?: 'draft' } = {},
+): Promise<void> {
   await writePeriod(db, actor, periodId, async (tx, period) => {
+    if (opts.expect === 'draft' && period.status !== 'draft') {
+      throw new AppError(
+        'CONFLICT',
+        'PERIOD_CLOSED',
+        `Tháng ${period.month}/${period.year} vừa được chốt sổ ở nơi khác nên số vừa nhập chưa được lưu. Hãy tải lại trang để xem và sửa hóa đơn đã gửi`,
+      )
+    }
     if (typeof edits !== 'object' || edits === null) throw editsInvalid()
     const { utilities = {}, members = [], items = [] } = edits
     if (typeof utilities !== 'object' || utilities === null || !Array.isArray(members) || !Array.isArray(items)) throw editsInvalid()

@@ -16,11 +16,19 @@ const refreshApp = () => revalidatePath('/', 'layout')
 /**
  * Tháng nháp: lưu các trường vừa đổi rồi tính thử lại từ DB (`previewPeriod`). Số liệu đã lưu dù tháng chưa tính được
  * (ví dụ chưa ai được tính): khi đó trả `problem` để màn hình hiện lỗi ngay dưới số tổng.
+ * Chỉ ghi vào tháng còn nháp (`expect: 'draft'`); tháng vừa bị chốt ở nơi khác → `closedElsewhere` để màn hình ngừng lưu tự động.
  */
 export async function saveDraftAction(periodId: string, edits: PeriodEdits | null) {
-  return runAction(async (): Promise<{ result: PeriodResult | null; problem: string | null }> => {
+  return runAction(async (): Promise<{ result: PeriodResult | null; problem: string | null; closedElsewhere?: string }> => {
     const actor = await getActor()
-    if (edits) await applyPeriodEdits(db, actor, periodId, edits)
+    if (edits) {
+      try {
+        await applyPeriodEdits(db, actor, periodId, edits, { expect: 'draft' })
+      } catch (e) {
+        if (e instanceof AppError && e.reason === 'PERIOD_CLOSED') return { result: null, problem: null, closedElsewhere: e.message }
+        throw e
+      }
+    }
     try {
       return { result: await previewPeriod(db, actor, periodId), problem: null }
     } catch (e) {
