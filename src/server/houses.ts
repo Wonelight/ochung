@@ -32,7 +32,7 @@ const CODE_FALLBACK_PREFIX = 'NH'
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 
 /** Bảng giá khởi tạo: chế độ "Nhập tổng" không dùng bậc, chủ nhà cài bậc sau nếu chuyển sang "Theo bậc". */
-const DEFAULT_TARIFF: Tariff = { tiers: [], perPerson: false, registeredPeople: 1, vatPct: 0, surcharges: [] }
+export const DEFAULT_TARIFF: Tariff = { tiers: [], perPerson: false, registeredPeople: 1, vatPct: 0, surcharges: [] }
 
 /** Hai chữ cái đầu của mã nhà: chữ cái đầu của hai từ cuối tên (bỏ dấu), một từ thì lấy hai chữ đầu, không có chữ thì `NH`. */
 export function houseCodePrefix(name: string): string {

@@ -2,16 +2,22 @@ import { redirect } from 'next/navigation'
 import { db } from '@/db'
 import { PageHeader } from '@/components/PageHeader'
 import { requireCurrentHouse } from '@/server/current-house'
+import { getHouseSettings } from '@/server/house-settings'
 import { getHouse, listMembers } from '@/server/houses'
 import { listInviteLinks, listJoinRequests } from '@/server/invites'
 import { timeAgoVi } from '@/lib/time-ago'
 import { AddByCode } from './_ui/add-by-code'
 import { ArchiveHouseButton } from './_ui/archive-house-button'
+import { BankSettings, DueDaySetting } from './_ui/bank-settings'
 import { CopyCodeButton } from './_ui/copy-code-button'
+import { FixedCharges } from './_ui/fixed-charges'
 import { HouseNameEditor } from './_ui/house-name-editor'
 import { InviteShare } from './_ui/invite-share'
 import { JoinRequests } from './_ui/join-requests'
+import { MemberQty } from './_ui/member-qty'
 import { MembersList } from './_ui/members-list'
+import { SettingsSection } from './_ui/settings-parts'
+import { UtilitySettings } from './_ui/utility-settings'
 
 export const metadata = { title: 'Quản lý nhà' }
 
@@ -33,6 +39,8 @@ export default async function HouseManagePage() {
   const [links, requests] = canManage
     ? await Promise.all([listInviteLinks(db, actor, house.id), listJoinRequests(db, actor, house.id)])
     : [[], []]
+  const settings = canManage ? await getHouseSettings(db, actor, house.id) : null
+  const perUnitItems = settings?.items.filter((i) => i.kind === 'per_unit') ?? []
   const activeLinks = links
     .filter((l) => !l.revoked && l.expiresAt > now)
     .map((l) => ({ id: l.id, url: l.url, expiresAt: l.expiresAt.toISOString() }))
@@ -95,6 +103,62 @@ export default async function HouseManagePage() {
           archived={house.archived}
         />
       </section>
+
+      {settings && (
+        <>
+          <SettingsSection title="Khoản cố định" hint="Các khoản thu mỗi tháng như tiền nhà, internet, rác, tiền xe. Chạm vào một khoản để sửa.">
+            <FixedCharges
+              houseId={house.id}
+              items={settings.items.map((i) => ({ id: i.id, name: i.name, kind: i.kind, amount: i.amount }))}
+            />
+          </SettingsSection>
+
+          {perUnitItems.length > 0 && (
+            <SettingsSection title="Số lượng theo người" hint="Số lượng của từng người cho các khoản tính theo người, ví dụ số xe.">
+              <MemberQty
+                items={perUnitItems.map((i) => ({ id: i.id, name: i.name, amount: i.amount }))}
+                members={members.map((m) => ({ id: m.id, displayName: m.displayName }))}
+                qty={settings.qty}
+              />
+            </SettingsSection>
+          )}
+
+          <SettingsSection title="Điện" hint="Thay đổi chỉ áp dụng cho các tháng chưa chốt.">
+            <UtilitySettings
+              houseId={house.id}
+              utility="electricity"
+              title="Điện"
+              unit="kWh"
+              initialMode={settings.tariffs.electricity.mode}
+              initialTariff={settings.tariffs.electricity.tariff}
+            />
+          </SettingsSection>
+
+          <SettingsSection title="Nước" hint="Thay đổi chỉ áp dụng cho các tháng chưa chốt.">
+            <UtilitySettings
+              houseId={house.id}
+              utility="water"
+              title="Nước"
+              unit="m³"
+              initialMode={settings.tariffs.water.mode}
+              initialTariff={settings.tariffs.water.tariff}
+            />
+          </SettingsSection>
+
+          <SettingsSection title="Ngân hàng" hint="Dùng để tạo mã QR chuyển khoản cho thành viên.">
+            <BankSettings
+              houseId={house.id}
+              bankBin={settings.bank.bankBin}
+              accountNo={settings.bank.accountNo}
+              accountName={settings.bank.accountName}
+            />
+          </SettingsSection>
+
+          <SettingsSection title="Hạn đóng">
+            <DueDaySetting houseId={house.id} dueDay={settings.dueDay} />
+          </SettingsSection>
+        </>
+      )}
 
       {canManage && <ArchiveHouseButton houseId={house.id} houseName={house.name} />}
     </main>

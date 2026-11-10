@@ -6,10 +6,23 @@ import { AppError } from '@/lib/errors'
 import { runAction } from '@/server/action-result'
 import { getActor } from '@/server/actor'
 import { clearCurrentHouseCookie, setCurrentHouseCookie } from '@/server/current-house'
+import type { Tariff } from '@/lib/billing/types'
+import type { BankInfoInput } from '@/lib/validation'
+import {
+  deleteChargeItem,
+  reorderChargeItems,
+  setBankInfo,
+  setDueDay,
+  setMemberQty,
+  setUtilityTariff,
+  upsertChargeItem,
+} from '@/server/house-settings'
 import { archiveHouse, createHouse, leaveHouse, removeMember, requireMember, updateHouse } from '@/server/houses'
 
 // Layout (thanh dưới, danh sách nhà) giữ nguyên giữa các trang nên phải làm mới tường minh sau mỗi thay đổi.
 const refreshApp = () => revalidatePath('/', 'layout')
+// Cài đặt nhà chỉ hiện ở trang này; các trang đọc cấu hình (tạo tháng, hóa đơn) lấy dữ liệu mới khi mở.
+const refreshSettings = () => revalidatePath('/nha')
 
 export async function createHouseAction(input: { name: string }) {
   return runAction(async () => {
@@ -71,5 +84,69 @@ export async function archiveHouseAction(houseId: string, force = false) {
     await clearCurrentHouseCookie()
     refreshApp()
     return { archived: true }
+  })
+}
+
+export async function saveChargeItemAction(
+  houseId: string,
+  input: { id?: string; name: string; kind: 'equal' | 'per_unit'; amount: number; active: boolean },
+) {
+  return runAction(async () => {
+    const actor = await getActor()
+    const id = await upsertChargeItem(db, actor, houseId, input)
+    refreshSettings()
+    return { id }
+  })
+}
+
+export async function deleteChargeItemAction(itemId: string) {
+  return runAction(async () => {
+    const actor = await getActor()
+    await deleteChargeItem(db, actor, itemId)
+    refreshSettings()
+  })
+}
+
+export async function reorderChargeItemsAction(houseId: string, ids: string[]) {
+  return runAction(async () => {
+    const actor = await getActor()
+    await reorderChargeItems(db, actor, houseId, ids)
+    refreshSettings()
+  })
+}
+
+export async function setMemberQtyAction(memberId: string, itemId: string, qty: number) {
+  return runAction(async () => {
+    const actor = await getActor()
+    await setMemberQty(db, actor, memberId, itemId, qty)
+    refreshSettings()
+  })
+}
+
+export async function saveUtilityTariffAction(
+  houseId: string,
+  utility: 'electricity' | 'water',
+  cfg: { mode: 'tiered' | 'total'; tariff: Tariff | null },
+) {
+  return runAction(async () => {
+    const actor = await getActor()
+    await setUtilityTariff(db, actor, houseId, utility, cfg)
+    refreshSettings()
+  })
+}
+
+export async function saveBankInfoAction(houseId: string, input: BankInfoInput) {
+  return runAction(async () => {
+    const actor = await getActor()
+    await setBankInfo(db, actor, houseId, input)
+    refreshSettings()
+  })
+}
+
+export async function saveDueDayAction(houseId: string, dueDay: number) {
+  return runAction(async () => {
+    const actor = await getActor()
+    await setDueDay(db, actor, houseId, dueDay)
+    refreshSettings()
   })
 }
