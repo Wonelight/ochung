@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { ACCOUNT_NO_MAX, ACCOUNT_NO_MIN } from './banks'
 import { AppError } from './errors'
 import { buildVietQrPayload, crc16, transferNote } from './vietqr'
 
@@ -54,6 +55,14 @@ describe('buildVietQrPayload', () => {
     const p = buildVietQrPayload({ bankBin: '970436', accountNo: '0011001234567', amount: 1000, addInfo: 'AN T11' })
     const order = [p.indexOf('000201'), p.indexOf('010212'), p.indexOf('38'), p.indexOf('5303704'), p.indexOf('5404'), p.indexOf('5802VN'), p.indexOf('62'), p.indexOf('6304')]
     expect([...order].sort((a, b) => a - b)).toEqual(order)
+  })
+
+  it('số tài khoản theo đúng giới hạn của cài đặt nhà (biên MIN..MAX chấp nhận, ngoài biên từ chối)', () => {
+    const base = { bankBin: '970436', amount: 1000, addInfo: 'AN T11' }
+    expect(() => buildVietQrPayload({ ...base, accountNo: '1'.repeat(ACCOUNT_NO_MIN) })).not.toThrow()
+    expect(() => buildVietQrPayload({ ...base, accountNo: '1'.repeat(ACCOUNT_NO_MAX) })).not.toThrow()
+    expect(() => buildVietQrPayload({ ...base, accountNo: '1'.repeat(ACCOUNT_NO_MIN - 1) })).toThrow(AppError)
+    expect(() => buildVietQrPayload({ ...base, accountNo: '1'.repeat(ACCOUNT_NO_MAX + 1) })).toThrow(AppError)
   })
 
   it('từ chối đầu vào sai: BIN, số tài khoản, số tiền, nội dung', () => {

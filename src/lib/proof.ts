@@ -2,6 +2,17 @@
 // chỉ thuộc về đúng nhà, tháng và thành viên (chống gắn địa chỉ tùy ý vào bản ghi thanh toán).
 
 export const PROOF_MAX_BYTES = 1024 * 1024
+/** Phần thân form ngoài ảnh (tên trường, periodId, biên multipart). */
+const FORM_OVERHEAD_BYTES = 16 * 1024
+
+/** Kiểm giá trị header Content-Length của yêu cầu tải ảnh: thiếu / không phải số nguyên dương → 'missing'; quá trần → 'too_large'. */
+export function checkDeclaredLength(header: string | null): 'ok' | 'missing' | 'too_large' {
+  if (header === null || !/^\d+$/.test(header.trim())) return 'missing'
+  const n = Number(header)
+  if (n <= 0) return 'missing'
+  return !Number.isSafeInteger(n) || n > PROOF_MAX_BYTES + FORM_OVERHEAD_BYTES ? 'too_large' : 'ok'
+}
+
 export const PROOF_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'] as const
 export type ProofType = (typeof PROOF_TYPES)[number]
 

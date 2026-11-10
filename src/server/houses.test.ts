@@ -160,6 +160,8 @@ describe('nhà và thành viên', () => {
       await rejects(updateHouse(db, owner, houseId, { name: ' ' }), 'INVALID', 'HOUSE_NAME')
       await rejects(updateHouse(db, owner, houseId, { bankBin: '12ab' }), 'INVALID', 'BANK_FIELD')
       await rejects(updateHouse(db, owner, houseId, { bankAccountNo: '12 34' }), 'INVALID', 'BANK_FIELD')
+      await rejects(updateHouse(db, owner, houseId, { bankAccountNo: '1'.repeat(20) }), 'INVALID', 'BANK_FIELD')
+      await rejects(updateHouse(db, owner, houseId, { bankAccountNo: '12345' }), 'INVALID', 'BANK_FIELD')
     })
   })
 

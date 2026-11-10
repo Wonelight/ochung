@@ -4,6 +4,7 @@ import type { Db } from '@/db'
 import { newId } from '@/db/ids'
 import { houseMembers, houses, user, utilityTariffs } from '@/db/schema'
 import type { Tariff } from '@/lib/billing/types'
+import { ACCOUNT_NO_PATTERN } from '@/lib/banks'
 import { AppError } from '@/lib/errors'
 import type { Actor } from './actor'
 import { hasOutstandingBalance } from './payments'
@@ -152,7 +153,7 @@ export async function updateHouse(db: Db, actor: Actor, houseId: string, patch: 
     set.dueDay = patch.dueDay
   }
   if (patch.bankBin !== undefined) set.bankBin = cleanBank(patch.bankBin, 'Mã ngân hàng', /^\d{6}$/)
-  if (patch.bankAccountNo !== undefined) set.bankAccountNo = cleanBank(patch.bankAccountNo, 'Số tài khoản', /^\d{4,20}$/)
+  if (patch.bankAccountNo !== undefined) set.bankAccountNo = cleanBank(patch.bankAccountNo, 'Số tài khoản', ACCOUNT_NO_PATTERN)
   if (patch.bankAccountName !== undefined) {
     set.bankAccountName = cleanBank(patch.bankAccountName, 'Tên chủ tài khoản', /^.{1,100}$/)
   }

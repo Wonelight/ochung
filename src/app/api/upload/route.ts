@@ -2,7 +2,7 @@ import { put } from '@vercel/blob'
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
 import { AppError, type AppErrorCode } from '@/lib/errors'
-import { EXTENSION, PROOF_MAX_BYTES, proofPathPrefix, sniffImage } from '@/lib/proof'
+import { EXTENSION, PROOF_MAX_BYTES, checkDeclaredLength, proofPathPrefix, sniffImage } from '@/lib/proof'
 import { getActor } from '@/server/actor'
 import { authorizeProofUpload } from '@/server/payments'
 
@@ -21,9 +21,11 @@ export async function POST(request: Request) {
     const actor = await getActor()
     if (!process.env.BLOB_READ_WRITE_TOKEN) return fail(501, 'Chưa bật tính năng đính kèm ảnh')
 
-    // chặn sớm theo Content-Length để không đọc thân yêu cầu quá lớn (phần form có thêm vài trăm byte)
-    const declared = Number(request.headers.get('content-length') ?? '0')
-    if (declared > PROOF_MAX_BYTES + 16 * 1024) return fail(413, 'Ảnh quá lớn (tối đa 1 MB)')
+    // Chặn trước khi đọc thân: bắt buộc có Content-Length hợp lệ (thiếu/không phải số/≤ 0 → 411) và không quá trần (→ 413),
+    // nếu không formData() sẽ nạp cả thân yêu cầu vào bộ nhớ rồi mới kiểm file.size.
+    const declared = checkDeclaredLength(request.headers.get('content-length'))
+    if (declared === 'missing') return fail(411, 'Yêu cầu thiếu độ dài nội dung')
+    if (declared === 'too_large') return fail(413, 'Ảnh quá lớn (tối đa 1 MB)')
 
     const form = await request.formData()
     const file = form.get('file')

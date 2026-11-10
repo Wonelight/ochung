@@ -19,6 +19,8 @@ export type PayCta = {
   bank: { name: string; accountNo: string; accountName: string } | null
   /** Ảnh mã QR (data URL SVG), null khi chưa có tài khoản ngân hàng. */
   qrImage: string | null
+  /** Chủ nhà đã chọn ngân hàng nhưng ngân hàng đó không có trong danh sách hỗ trợ mã QR. */
+  bankUnsupported: boolean
   /** Có token Vercel Blob → hiện ô đính kèm ảnh. */
   uploadEnabled: boolean
   /** Đã báo "Tôi đã chuyển", đang chờ chủ nhà xác nhận. */
@@ -147,11 +149,13 @@ function QrSheet({ cta, onClose }: { cta: PayCta; onClose: () => void }) {
           <span className="text-center text-[12px] text-muted">Quét bằng app ngân hàng để chuyển, số tiền và nội dung đã điền sẵn</span>
         </div>
       ) : (
-        !cta.bank && (
-          <p role="status" className="m-0 rounded-[20px] border border-line bg-card p-4 text-center text-[14px] font-medium text-muted">
-            Chủ nhà chưa cài tài khoản ngân hàng
-          </p>
-        )
+        <p role="status" className="m-0 rounded-[20px] border border-line bg-card p-4 text-center text-[14px] font-medium text-muted">
+          {cta.bankUnsupported
+            ? 'Ngân hàng của chủ nhà chưa hỗ trợ mã QR'
+            : cta.bank
+              ? 'Chưa tạo được mã QR, hãy chuyển khoản theo thông tin bên dưới'
+              : 'Chủ nhà chưa cài tài khoản ngân hàng'}
+        </p>
       )}
 
       {cta.bank && (

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isProofUrlFor, proofPathPrefix, sniffImage } from './proof'
+import { PROOF_MAX_BYTES, checkDeclaredLength, isProofUrlFor, proofPathPrefix, sniffImage } from './proof'
 
 const bytes = (...b: number[]) => new Uint8Array(b)
 const text = (s: string) => Uint8Array.from(s, (c) => c.charCodeAt(0))
@@ -17,6 +17,21 @@ describe('sniffImage', () => {
     expect(sniffImage(text('<svg xmlns="http://www.w3.org/2000/svg"/>'))).toBeNull()
     expect(sniffImage(text('GIF89a......'))).toBeNull()
     expect(sniffImage(new Uint8Array())).toBeNull()
+  })
+})
+
+describe('checkDeclaredLength', () => {
+  it('thiếu header, rỗng, không phải số, âm, 0, NaN, thập phân → missing (411)', () => {
+    for (const h of [null, '', ' ', 'abc', '-5', '0', 'NaN', '1.5', '1e3', 'Infinity']) {
+      expect(checkDeclaredLength(h)).toBe('missing')
+    }
+  })
+
+  it('quá trần (1 MB + phần form) → too_large (413); trong trần → ok', () => {
+    expect(checkDeclaredLength(String(PROOF_MAX_BYTES + 16 * 1024 + 1))).toBe('too_large')
+    expect(checkDeclaredLength('99999999999999999999999')).toBe('too_large')
+    expect(checkDeclaredLength(String(PROOF_MAX_BYTES + 16 * 1024))).toBe('ok')
+    expect(checkDeclaredLength('200000')).toBe('ok')
   })
 })
 

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ACCOUNT_NAME_MAX, ACCOUNT_NO_MAX, ACCOUNT_NO_MIN, findBank, normalizeAccountName } from './banks'
+import { ACCOUNT_NAME_MAX, ACCOUNT_NO_MAX, ACCOUNT_NO_MIN, ACCOUNT_NO_PATTERN, findBank, normalizeAccountName } from './banks'
 import type { Tariff } from './billing/types'
 import { AppError } from './errors'
 
@@ -101,7 +101,7 @@ const accountNoSchema = z
   .pipe(
     z
       .string()
-      .regex(new RegExp(`^\\d{${ACCOUNT_NO_MIN},${ACCOUNT_NO_MAX}}$`), `Số tài khoản gồm ${ACCOUNT_NO_MIN}–${ACCOUNT_NO_MAX} chữ số`),
+      .regex(ACCOUNT_NO_PATTERN, `Số tài khoản gồm ${ACCOUNT_NO_MIN}–${ACCOUNT_NO_MAX} chữ số`),
   )
 
 const accountNameSchema = z

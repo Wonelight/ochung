@@ -1,3 +1,4 @@
+import { ACCOUNT_NO_PATTERN } from './banks'
 import type { YM } from './billing/types'
 import { AppError } from './errors'
 import { MAX_MONEY } from './validation'
@@ -34,7 +35,7 @@ export type VietQrInput = { bankBin: string; accountNo: string; amount: number; 
  */
 export function buildVietQrPayload(i: VietQrInput): string {
   if (!/^\d{6}$/.test(i.bankBin)) throw new AppError('INVALID', 'QR_BANK', 'Mã ngân hàng không hợp lệ')
-  if (!/^\d{4,19}$/.test(i.accountNo)) throw new AppError('INVALID', 'QR_ACCOUNT', 'Số tài khoản không hợp lệ')
+  if (!ACCOUNT_NO_PATTERN.test(i.accountNo)) throw new AppError('INVALID', 'QR_ACCOUNT', 'Số tài khoản không hợp lệ')
   if (!Number.isSafeInteger(i.amount) || i.amount <= 0 || i.amount > MAX_MONEY) {
     throw new AppError('INVALID', 'AMOUNT_INVALID', 'Số tiền phải là số nguyên đồng lớn hơn 0')
   }

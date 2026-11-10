@@ -37,6 +37,8 @@ export function findBank(bin: string | null | undefined): Bank | undefined {
 
 export const ACCOUNT_NO_MIN = 6
 export const ACCOUNT_NO_MAX = 19
+/** MỘT quy tắc số tài khoản cho cả cài đặt nhà, kiểm tra ở server và mã QR. */
+export const ACCOUNT_NO_PATTERN = new RegExp(String.raw`^\d{${ACCOUNT_NO_MIN},${ACCOUNT_NO_MAX}}$`)
 export const ACCOUNT_NAME_MAX = 50
 
 /** VietQR yêu cầu tên chủ tài khoản viết hoa, không dấu: "Nguyễn Văn Đạt" -> "NGUYEN VAN DAT". */

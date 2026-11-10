@@ -35,8 +35,10 @@ export async function loadPayCta(a: {
       const payload = buildVietQrPayload({ bankBin: bank.bin, accountNo: house.bankAccountNo, amount: status.balance, addInfo: note })
       const svg = await QRCode.toString(payload, { type: 'svg', errorCorrectionLevel: 'M', margin: 0, color: { dark: '#000000', light: '#ffffff' } })
       qrImage = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
-    } catch {
-      qrImage = null // dữ liệu ngân hàng cũ không hợp lệ: hiện thông tin chuyển tay, không làm hỏng trang
+    } catch (e) {
+      // dữ liệu ngân hàng không dựng được mã: ghi log để biết, vẫn hiện thông tin chuyển tay và không làm hỏng trang
+      console.error(`Không tạo được mã VietQR (nhà ${a.houseId}, tháng ${a.period.id})`, e)
+      qrImage = null
     }
   }
 
@@ -51,6 +53,7 @@ export async function loadPayCta(a: {
     note,
     bank: bank && house.bankAccountNo && house.bankAccountName ? { name: bank.short, accountNo: house.bankAccountNo, accountName: house.bankAccountName } : null,
     qrImage,
+    bankUnsupported: !bank && Boolean(house.bankBin),
     uploadEnabled: uploadEnabled(),
     pending,
     rejectedReason: !pending && latest?.status === 'rejected' ? latest.rejectReason : null,
