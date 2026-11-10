@@ -235,6 +235,14 @@ describe('cài đặt nhà', () => {
       await setUtilityTariff(db, owner, houseId, 'water', { mode: 'total', tariff: null })
       expect((await getHouseSettings(db, owner, houseId)).tariffs.water).toEqual({ mode: 'total', tariff: GOOD_TARIFF })
     })
+    it('VAT 8,5 và phụ phí 7,5 lưu rồi đọc lại đúng nguyên giá trị', async () => {
+      const { owner, houseId } = await setup()
+      const tariff: Tariff = { ...GOOD_TARIFF, vatPct: 8.5, surcharges: [{ name: 'Phí BVMT', pct: 7.5 }] }
+      await setUtilityTariff(db, owner, houseId, 'water', { mode: 'tiered', tariff })
+      const got = (await getHouseSettings(db, owner, houseId)).tariffs.water.tariff
+      expect(got.vatPct).toBe(8.5)
+      expect(got.surcharges).toEqual([{ name: 'Phí BVMT', pct: 7.5 }])
+    })
     it('chuẩn hóa tên phụ phí (cắt khoảng trắng) khi lưu', async () => {
       const { owner, houseId } = await setup()
       await setUtilityTariff(db, owner, houseId, 'water', {

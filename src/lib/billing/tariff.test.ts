@@ -97,6 +97,37 @@ describe('calcTieredAmount', () => {
   })
 })
 
+describe('calcTieredAmount: phần trăm 1 chữ số thập phân', () => {
+  const only = (price: number, vatPct: number, pct = 0): Tariff => ({
+    tiers: [{ upTo: null, price }],
+    perPerson: false,
+    registeredPeople: 1,
+    vatPct,
+    surcharges: [{ name: 'Phụ phí', pct }],
+  })
+
+  it('base 5500 × 0,7% = 38,5 → 39 (không bị float kéo xuống 38)', () => {
+    const r = calcTieredAmount(5500, only(1, 0.7, 0.7))
+    expect(r.base).toBe(5500)
+    expect(r.vat).toBe(39)
+    expect(r.surcharges[0].amount).toBe(39)
+  })
+  it('10500 × 0,7% → 74 và 2750 × 1,4% → 39', () => {
+    expect(calcTieredAmount(10500, only(1, 0.7)).vat).toBe(74)
+    expect(calcTieredAmount(2750, only(1, 1.4)).vat).toBe(39)
+  })
+  it('khớp tham chiếu BigInt (nửa lên) với base 1..3000 (bước 7) và mọi pct 0,0..100,0', () => {
+    const mismatches: string[] = []
+    for (let base = 1; base <= 3000; base += 7) {
+      for (let tenths = 0; tenths <= 1000; tenths++) {
+        const exact = Number((BigInt(2) * BigInt(base) * BigInt(tenths) + BigInt(1000)) / BigInt(2000))
+        if (calcTieredAmount(base, only(1, tenths / 10)).vat !== exact) mismatches.push(`${base} × ${tenths / 10}%`)
+      }
+    }
+    expect(mismatches).toEqual([])
+  })
+})
+
 describe('usageFromReadings', () => {
   it('trả hiệu hai chỉ số', () => {
     expect(usageFromReadings(452, 464)).toBe(12)

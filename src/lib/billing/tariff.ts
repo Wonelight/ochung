@@ -18,6 +18,15 @@ export function usageFromReadings(prev: number, curr: number): number {
 }
 
 /**
+ * base × pct / 100 làm tròn nửa lên, tính bằng số nguyên: pct có tối đa 1 chữ số thập phân nên đổi ra phần mười
+ * (t = pct × 10) rồi round(base × t / 1000) = floor((2 × base × t + 1000) / 2000). Không dùng float để 0,7% × 5.500 = 38,5 không bị lệch xuống 38.
+ */
+function percentOf(base: number, pct: number): number {
+  const tenths = Math.round(pct * 10)
+  return Math.floor((2 * base * tenths + 1000) / 2000)
+}
+
+/**
  * Tính tiền theo bậc. Mốc `upTo` cộng dồn; khi `perPerson` mỗi mốc nhân `registeredPeople`.
  * Chỉ trả các bậc có dùng (units > 0). VAT và từng phụ phí = round(base × pct / 100),
  * cùng tính trên `base` (phụ phí không chịu VAT và không chồng lên nhau).
@@ -42,10 +51,10 @@ export function calcTieredAmount(usage: number, tariff: Tariff): TariffResult {
   }
 
   const base = lines.reduce((sum, l) => sum + l.amount, 0)
-  const vat = Math.round((base * tariff.vatPct) / 100)
+  const vat = percentOf(base, tariff.vatPct)
   const surcharges = tariff.surcharges.map((s) => ({
     name: s.name,
-    amount: Math.round((base * s.pct) / 100),
+    amount: percentOf(base, s.pct),
   }))
   const total = base + vat + surcharges.reduce((sum, s) => sum + s.amount, 0)
 
