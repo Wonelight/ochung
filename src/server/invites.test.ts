@@ -203,6 +203,32 @@ describe('ba cách vào nhà', () => {
       expect(await acceptInvite(db, an, link.token)).toEqual({ houseId })
     })
 
+    it('acceptInvite: link bị hủy hoặc hết hạn sau lần đọc đầu nhưng trước khi vào nhà → bị chặn trong transaction', async () => {
+      const { owner, houseId } = await newHouse()
+      const revoked = await createInviteLink(db, owner, houseId)
+      const guest = await newUser()
+      await rejects(
+        acceptInvite(db, guest, revoked.token, { afterPrecheck: () => revokeInviteLink(db, owner, revoked.id) }),
+        'CONFLICT',
+        'INVITE_REVOKED',
+      )
+
+      const expiring = await createInviteLink(db, owner, houseId)
+      await rejects(
+        acceptInvite(db, guest, expiring.token, {
+          afterPrecheck: async () => {
+            await db
+              .update(inviteLinks)
+              .set({ expiresAt: new Date(Date.now() - 1000) })
+              .where(eq(inviteLinks.id, expiring.id))
+          },
+        }),
+        'CONFLICT',
+        'INVITE_EXPIRED',
+      )
+      expect(await activeMembers(houseId)).toHaveLength(1)
+    })
+
     it('acceptInvite: nhà đã lưu trữ → HOUSE_ARCHIVED', async () => {
       const { owner, houseId } = await newHouse()
       const link = await createInviteLink(db, owner, houseId)

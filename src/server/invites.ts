@@ -97,11 +97,26 @@ export async function listInviteLinks(
   return rows.map((l) => ({ id: l.id, url: inviteUrl(l.token), expiresAt: l.expiresAt, revoked: l.revokedAt !== null }))
 }
 
+function assertLinkUsable(link: { expiresAt: Date; revokedAt: Date | null }): void {
+  if (link.revokedAt) throw new AppError('CONFLICT', 'INVITE_REVOKED', 'Chủ nhà đã hủy link mời này')
+  if (link.expiresAt.getTime() <= Date.now()) {
+    throw new AppError('CONFLICT', 'INVITE_EXPIRED', 'Link mời đã hết hạn, hãy nhờ chủ nhà gửi link mới')
+  }
+}
+
 /**
  * Vào nhà bằng link mời, không cần duyệt. Link dùng được nhiều lần đến khi hết hạn hoặc bị hủy.
  * Người đã ở trong nhà bấm lại thì chỉ nhận lại houseId (kể cả khi link đã hết hạn).
+ * Trạng thái link được đọc lại trong transaction với khóa chia sẻ trên dòng link: lệnh hủy (UPDATE cùng dòng)
+ * hoặc đã xong trước khi ta thêm thành viên, hoặc phải chờ ta xong; không có chuyện hủy xong mà vẫn lọt vào nhà.
+ * `hooks.afterPrecheck` chỉ để test chen một lệnh hủy vào giữa lần đọc đầu và transaction.
  */
-export async function acceptInvite(db: Db, actor: Actor, token: string): Promise<{ houseId: string }> {
+export async function acceptInvite(
+  db: Db,
+  actor: Actor,
+  token: string,
+  hooks: { afterPrecheck?: () => Promise<void> } = {},
+): Promise<{ houseId: string }> {
   const [link] = await db
     .select({ houseId: inviteLinks.houseId, expiresAt: inviteLinks.expiresAt, revokedAt: inviteLinks.revokedAt })
     .from(inviteLinks)
@@ -110,12 +125,18 @@ export async function acceptInvite(db: Db, actor: Actor, token: string): Promise
   if (!link) throw new AppError('NOT_FOUND', 'INVITE_NOT_FOUND', 'Link mời không đúng hoặc đã bị xóa')
   const { houseId } = link
   if (await isActiveMember(db, houseId, actor.userId)) return { houseId }
-  if (link.revokedAt) throw new AppError('CONFLICT', 'INVITE_REVOKED', 'Chủ nhà đã hủy link mời này')
-  if (link.expiresAt.getTime() <= Date.now()) {
-    throw new AppError('CONFLICT', 'INVITE_EXPIRED', 'Link mời đã hết hạn, hãy nhờ chủ nhà gửi link mới')
-  }
+  assertLinkUsable(link)
+  await hooks.afterPrecheck?.()
   try {
     await db.transaction(async (tx) => {
+      const [fresh] = await tx
+        .select({ expiresAt: inviteLinks.expiresAt, revokedAt: inviteLinks.revokedAt })
+        .from(inviteLinks)
+        .where(eq(inviteLinks.token, token))
+        .for('share')
+        .limit(1)
+      if (!fresh) throw new AppError('NOT_FOUND', 'INVITE_NOT_FOUND', 'Link mời không đúng hoặc đã bị xóa')
+      assertLinkUsable(fresh)
       await addMemberTx(tx, houseId, actor.userId) // kiểm nhà đã lưu trữ ở đây, dưới khóa dòng nhà
       await settlePendingRequest(tx, houseId, actor.userId)
     })

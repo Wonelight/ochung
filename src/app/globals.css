@@ -6,3 +6,11 @@ body {
   color: var(--c-text);
   font-family: var(--font-body), system-ui, sans-serif;
 }
+
+/* Màu riêng của màn Vào nhà: ô mã tài khoản dùng `field` của mockup đó (#0E0B08 ở nền tối), khác --c-field dùng chung. */
+:root { --c-join-field: #0E0B08; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) { --c-join-field: var(--c-field); }
+}
+:root[data-theme="dark"] { --c-join-field: #0E0B08; }
+:root[data-theme="light"] { --c-join-field: var(--c-field); }

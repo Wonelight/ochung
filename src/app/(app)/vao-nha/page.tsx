@@ -63,7 +63,7 @@ export default async function JoinHousePage() {
 
       <section className="flex flex-col gap-2.5 rounded-[24px] border border-line bg-surface px-5 py-[18px]">
         <span className="text-[15px] font-semibold">Hoặc gửi mã tài khoản cho chủ nhà</span>
-        <div className="flex items-center gap-2.5 rounded-[14px] border border-line bg-field py-1.5 pl-4 pr-1.5">
+        <div className="flex items-center gap-2.5 rounded-[14px] border border-line bg-[var(--c-join-field)] py-1.5 pl-4 pr-1.5">
           <span className="flex-1 font-numeric text-[18px] font-semibold tracking-[0.08em]">{profile?.accountCode}</span>
           <CopyCodeButton code={profile?.accountCode ?? ''} label="mã tài khoản" radius={12} />
         </div>
