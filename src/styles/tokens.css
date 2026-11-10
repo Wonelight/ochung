@@ -1,0 +1,223 @@
+/*
+ * Design tokens, chép nguyên từ object D (tối) và L (sáng) trong tokens() của
+ * mockup "Trang chủ — tháng 11". Sinh từ mọi key của D/L.
+ *
+ * Quy ước:
+ *  - Biến thô: --c-<key-kebab> (vd accentText -> --c-accent-text), đổi theo theme.
+ *  - Mặc định theo prefers-color-scheme (mặc định tối); ghi đè bằng
+ *    <html data-theme="light|dark"> (cookie `theme`).
+ *  - Tailwind v4 (@theme inline): mỗi màu có tiện ích cùng tên key,
+ *    vd bg-bg, bg-card, text-muted, border-line, bg-paid-bg, text-paid-fg,
+ *    text-accent-text. Màu nhấn cố định: bg-accent / text-accent (#E8833A).
+ *  - --c-sun-op là độ mờ (không phải màu), dùng trực tiếp var(--c-sun-op).
+ *  - Font: next/font đặt --font-body (Be Vietnam Pro) và --font-num (Lexend Exa) trên <html>;
+ *    Tailwind: font-sans (mặc định, = body) và font-numeric (số lớn).
+ */
+
+:root {
+  color-scheme: dark;
+  --c-bg: #0E0B08;
+  --c-fade0: rgba(14,11,8,0);
+  --c-surface: #17120D;
+  --c-card: #1C1610;
+  --c-inner: #2A2118;
+  --c-deep: #1C1610;
+  --c-raised: #241C14;
+  --c-line: #2C2319;
+  --c-line2: #3A2E22;
+  --c-track: #2C2319;
+  --c-text: #F1E6D2;
+  --c-muted: #B3A58E;
+  --c-faint: #8F826D;
+  --c-disabled: #5E5446;
+  --c-accent-text: #F29A5B;
+  --c-input: #0E0B08;
+  --c-field: #17120D;
+  --c-ridge: #231B13;
+  --c-sun-op: 0.20;
+  --c-moon: #D9B26F;
+  --c-glow: rgba(232,131,58,0.6);
+  --c-elec-bg: #3A2A12;
+  --c-elec-fg: #F0B04F;
+  --c-water-bg: #142338;
+  --c-water-fg: #7DB3E8;
+  --c-net-bg: #251E3A;
+  --c-net-fg: #B9A4F2;
+  --c-trash-bg: #12302A;
+  --c-trash-fg: #7FC7B3;
+  --c-rent-bg: #3A3125;
+  --c-rent-fg: #E9D9B8;
+  --c-paid-bg: #F1E6D2;
+  --c-paid-fg: #120E0A;
+  --c-pend-bg: #16263A;
+  --c-pend-fg: #9CC4EE;
+  --c-unpaid-bg: #3D2112;
+  --c-unpaid-fg: #F5A46A;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --c-bg: #F4ECDD;
+    --c-fade0: rgba(244,236,221,0);
+    --c-surface: #FBF6EC;
+    --c-card: #EADBC0;
+    --c-inner: #F7F0E2;
+    --c-deep: #EFE4D0;
+    --c-raised: #F7F0E2;
+    --c-line: #E0D1B5;
+    --c-line2: #D3C2A2;
+    --c-track: #DCCBAA;
+    --c-text: #2A1E12;
+    --c-muted: #65563F;
+    --c-faint: #9A8A70;
+    --c-disabled: #B8A88C;
+    --c-accent-text: #A4490F;
+    --c-input: #FFFDF8;
+    --c-field: #EFE4D0;
+    --c-ridge: #E0CCA6;
+    --c-sun-op: 0.35;
+    --c-moon: #B5652E;
+    --c-glow: rgba(232,131,58,0.35);
+    --c-elec-bg: #F6E2BC;
+    --c-elec-fg: #8A5A0F;
+    --c-water-bg: #DCE8F7;
+    --c-water-fg: #1F4FA8;
+    --c-net-bg: #E6E0F7;
+    --c-net-fg: #4B3BA8;
+    --c-trash-bg: #D6EEE7;
+    --c-trash-fg: #0B6B5F;
+    --c-rent-bg: #EADBC0;
+    --c-rent-fg: #5A4630;
+    --c-paid-bg: #2A1E12;
+    --c-paid-fg: #F4ECDD;
+    --c-pend-bg: #DCE8F7;
+    --c-pend-fg: #1F4FA8;
+    --c-unpaid-bg: #F8DCC6;
+    --c-unpaid-fg: #9A3A0C;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --c-bg: #0E0B08;
+  --c-fade0: rgba(14,11,8,0);
+  --c-surface: #17120D;
+  --c-card: #1C1610;
+  --c-inner: #2A2118;
+  --c-deep: #1C1610;
+  --c-raised: #241C14;
+  --c-line: #2C2319;
+  --c-line2: #3A2E22;
+  --c-track: #2C2319;
+  --c-text: #F1E6D2;
+  --c-muted: #B3A58E;
+  --c-faint: #8F826D;
+  --c-disabled: #5E5446;
+  --c-accent-text: #F29A5B;
+  --c-input: #0E0B08;
+  --c-field: #17120D;
+  --c-ridge: #231B13;
+  --c-sun-op: 0.20;
+  --c-moon: #D9B26F;
+  --c-glow: rgba(232,131,58,0.6);
+  --c-elec-bg: #3A2A12;
+  --c-elec-fg: #F0B04F;
+  --c-water-bg: #142338;
+  --c-water-fg: #7DB3E8;
+  --c-net-bg: #251E3A;
+  --c-net-fg: #B9A4F2;
+  --c-trash-bg: #12302A;
+  --c-trash-fg: #7FC7B3;
+  --c-rent-bg: #3A3125;
+  --c-rent-fg: #E9D9B8;
+  --c-paid-bg: #F1E6D2;
+  --c-paid-fg: #120E0A;
+  --c-pend-bg: #16263A;
+  --c-pend-fg: #9CC4EE;
+  --c-unpaid-bg: #3D2112;
+  --c-unpaid-fg: #F5A46A;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --c-bg: #F4ECDD;
+  --c-fade0: rgba(244,236,221,0);
+  --c-surface: #FBF6EC;
+  --c-card: #EADBC0;
+  --c-inner: #F7F0E2;
+  --c-deep: #EFE4D0;
+  --c-raised: #F7F0E2;
+  --c-line: #E0D1B5;
+  --c-line2: #D3C2A2;
+  --c-track: #DCCBAA;
+  --c-text: #2A1E12;
+  --c-muted: #65563F;
+  --c-faint: #9A8A70;
+  --c-disabled: #B8A88C;
+  --c-accent-text: #A4490F;
+  --c-input: #FFFDF8;
+  --c-field: #EFE4D0;
+  --c-ridge: #E0CCA6;
+  --c-sun-op: 0.35;
+  --c-moon: #B5652E;
+  --c-glow: rgba(232,131,58,0.35);
+  --c-elec-bg: #F6E2BC;
+  --c-elec-fg: #8A5A0F;
+  --c-water-bg: #DCE8F7;
+  --c-water-fg: #1F4FA8;
+  --c-net-bg: #E6E0F7;
+  --c-net-fg: #4B3BA8;
+  --c-trash-bg: #D6EEE7;
+  --c-trash-fg: #0B6B5F;
+  --c-rent-bg: #EADBC0;
+  --c-rent-fg: #5A4630;
+  --c-paid-bg: #2A1E12;
+  --c-paid-fg: #F4ECDD;
+  --c-pend-bg: #DCE8F7;
+  --c-pend-fg: #1F4FA8;
+  --c-unpaid-bg: #F8DCC6;
+  --c-unpaid-fg: #9A3A0C;
+}
+
+@theme inline {
+  --color-accent: #E8833A;
+  --color-bg: var(--c-bg);
+  --color-fade0: var(--c-fade0);
+  --color-surface: var(--c-surface);
+  --color-card: var(--c-card);
+  --color-inner: var(--c-inner);
+  --color-deep: var(--c-deep);
+  --color-raised: var(--c-raised);
+  --color-line: var(--c-line);
+  --color-line2: var(--c-line2);
+  --color-track: var(--c-track);
+  --color-text: var(--c-text);
+  --color-muted: var(--c-muted);
+  --color-faint: var(--c-faint);
+  --color-disabled: var(--c-disabled);
+  --color-accent-text: var(--c-accent-text);
+  --color-input: var(--c-input);
+  --color-field: var(--c-field);
+  --color-ridge: var(--c-ridge);
+  --color-moon: var(--c-moon);
+  --color-glow: var(--c-glow);
+  --color-elec-bg: var(--c-elec-bg);
+  --color-elec-fg: var(--c-elec-fg);
+  --color-water-bg: var(--c-water-bg);
+  --color-water-fg: var(--c-water-fg);
+  --color-net-bg: var(--c-net-bg);
+  --color-net-fg: var(--c-net-fg);
+  --color-trash-bg: var(--c-trash-bg);
+  --color-trash-fg: var(--c-trash-fg);
+  --color-rent-bg: var(--c-rent-bg);
+  --color-rent-fg: var(--c-rent-fg);
+  --color-paid-bg: var(--c-paid-bg);
+  --color-paid-fg: var(--c-paid-fg);
+  --color-pend-bg: var(--c-pend-bg);
+  --color-pend-fg: var(--c-pend-fg);
+  --color-unpaid-bg: var(--c-unpaid-bg);
+  --color-unpaid-fg: var(--c-unpaid-fg);
+  --font-sans: var(--font-body), system-ui, sans-serif;
+  --font-numeric: var(--font-num), system-ui, sans-serif;
+}
