@@ -3,7 +3,7 @@
 import { useState } from 'react'
 
 const inputClass =
-  'h-[52px] w-full rounded-[14px] border border-line2 bg-input px-4 font-[inherit] text-[17px] text-text outline-none focus:border-accent'
+  'h-[52px] w-full rounded-[14px] border border-line2 bg-(--c-login-input) px-4 font-[inherit] text-[17px] text-text outline-none focus:border-accent'
 const labelClass = 'text-[13px] font-semibold text-muted'
 
 export function TextField({

@@ -41,6 +41,15 @@ describe('routeGuard', () => {
     expect(routeGuard(admin, '/admin/nguoi-dung')).toBeNull()
   })
 
+  it('đuôi tệp không mở cổng: /admin/x.json, /moi/abc.def vẫn bị chặn (miễn trừ tệp tĩnh chỉ ở proxy)', () => {
+    expect(routeGuard(member, '/admin/x.json')).toEqual({ redirect: '/' })
+    expect(routeGuard(anon, '/admin/x.json')).toEqual({ redirect: '/login' })
+    expect(routeGuard(anon, '/moi/abc.def')).toEqual({ redirect: '/login?next=%2Fmoi%2Fabc.def' })
+    expect(routeGuard(fresh, '/x.png')).toEqual({ redirect: '/doi-mat-khau' })
+    expect(routeGuard(anon, '/favicon.ico')).toBeNull()
+    expect(routeGuard(anon, '/manifest.webmanifest')).toBeNull()
+  })
+
   it('không nhầm đường dẫn có tiền tố giống /admin', () => {
     expect(routeGuard(member, '/administrator')).toBeNull()
   })

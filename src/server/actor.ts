@@ -9,12 +9,17 @@ type SessionUser = {
   role?: string | null
   banned?: boolean | null
   banExpires?: Date | null
+  mustChangePassword?: boolean | null
 }
 
-/** Chuyển user của session thành Actor; chặn tài khoản đang bị khóa. Tách riêng để test không cần request. */
+/** Chuyển user của session thành Actor; chặn tài khoản đang bị khóa hoặc chưa đổi mật khẩu tạm. Tách riêng để test không cần request. */
 export function actorFromUser(user: SessionUser, now: Date = new Date()): Actor {
   const banActive = user.banned === true && (!user.banExpires || user.banExpires > now)
   if (banActive) throw new AppError('FORBIDDEN', 'BANNED', 'Tài khoản đã bị khóa')
+  // layout guard không chạy với hành động server gọi thẳng, nên chặn ở đây cho mọi hàm ghi
+  if (user.mustChangePassword === true) {
+    throw new AppError('FORBIDDEN', 'MUST_CHANGE_PASSWORD', 'Bạn cần đổi mật khẩu trước khi tiếp tục')
+  }
   return { userId: user.id, role: user.role === 'admin' ? 'admin' : 'user' }
 }
 

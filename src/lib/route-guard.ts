@@ -7,9 +7,11 @@ export type GuardState = {
 const LOGIN = '/login'
 const CHANGE_PASSWORD = '/doi-mat-khau'
 
-/** Tệp tĩnh (có đuôi tệp) và nội bộ Next luôn đi qua; `/api/auth/*` là cổng đăng nhập của Better Auth. */
+const PUBLIC_FILES = new Set(['/favicon.ico', '/manifest.webmanifest', '/sw.js', '/robots.txt'])
+
+/** Luôn đi qua: nội bộ Next, cổng Better Auth `/api/auth/*` và vài tệp công khai có tên cố định. Không miễn trừ theo đuôi tệp (xem proxy.ts). */
 function isAlwaysOpen(path: string): boolean {
-  return path.startsWith('/api/auth/') || path.startsWith('/_next/') || /\.[a-z0-9]+$/i.test(path)
+  return path.startsWith('/api/auth/') || path.startsWith('/_next/') || PUBLIC_FILES.has(path)
 }
 
 function isUnder(path: string, prefix: string): boolean {

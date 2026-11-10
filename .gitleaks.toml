@@ -1,9 +1,22 @@
-# Mở rộng bộ luật mặc định của gitleaks; chỉ loại trừ các false positive đã biết.
+# Mở rộng bộ luật mặc định của gitleaks; chỉ loại trừ các false positive đã biết,
+# mỗi mục giới hạn theo luật (generic-api-key) VÀ theo đường dẫn VÀ theo mẫu dòng.
 [extend]
 useDefault = true
 
-[allowlist]
-description = "Mật khẩu giả trong test và bảng ký tự sinh mật khẩu tạm (không phải bí mật)"
+# Mật khẩu giả trong test (matkhau-..., sai-roi-nhe, chuỗi số ngắn) chỉ ở tệp *.test.ts(x)
+[[allowlists]]
+description = "Mật khẩu giả trong test"
+targetRules = ["generic-api-key"]
+condition = "AND"
 paths = ['''\.test\.tsx?$''']
+regexTarget = "line"
+regexes = ['''(?i)password\s*[:=]\s*'(matkhau-[a-z0-9-]+|sai-[a-z-]+|[0-9]{1,8}|a)\'''']
+
+# Bảng ký tự sinh mật khẩu tạm
+[[allowlists]]
+description = "Bảng ký tự sinh mật khẩu tạm, không phải bí mật"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''src/server/admin\.ts$''']
 regexTarget = "line"
 regexes = ['''TEMP_PASSWORD_ALPHABET\s*=''']

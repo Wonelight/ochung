@@ -1,4 +1,6 @@
+import { eq } from 'drizzle-orm'
 import { beforeAll, describe, expect, it } from 'vitest'
+import { user } from '@/db/schema'
 import { createTestDb } from '@/db/test-db'
 import type { Db } from '@/db'
 import { createAuth } from './auth'
@@ -54,4 +56,36 @@ describe('Better Auth trên PGlite', () => {
   it('không có cookie thì không có session', async () => {
     expect(await auth.api.getSession({ headers: new Headers() })).toBeNull()
   })
+})
+
+describe('endpoint /admin/* khi chưa đổi mật khẩu tạm', () => {
+  it('phiên của admin còn mustChangePassword bị chặn, đổi xong thì dùng được', async () => {
+    const db = await createTestDb()
+    const auth = createAuth(db)
+    const created = await auth.api.createUser({
+      body: {
+        email: 'quantri@nha.local',
+        password: 'matkhau-quan-tri-1',
+        name: 'Quản trị',
+        role: 'admin',
+        data: { username: 'quantri', accountCode: 'U-00001', mustChangePassword: true },
+      },
+    })
+    const login = await auth.api.signInUsername({
+      body: { username: 'quantri', password: 'matkhau-quan-tri-1' },
+      returnHeaders: true,
+    })
+    const headers = new Headers({ cookie: login.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ') })
+
+    await expect(auth.api.listUsers({ headers, query: {} })).rejects.toMatchObject({ body: { code: 'MUST_CHANGE_PASSWORD' } })
+    await expect(
+      auth.api.createUser({
+        headers,
+        body: { email: 'x@nha.local', password: 'matkhau-x-12345', name: 'X', role: 'user', data: { username: 'x', accountCode: 'U-00002' } },
+      }),
+    ).rejects.toMatchObject({ body: { code: 'MUST_CHANGE_PASSWORD' } })
+
+    await db.update(user).set({ mustChangePassword: false }).where(eq(user.id, created.user.id))
+    await expect(auth.api.listUsers({ headers, query: {} })).resolves.toBeDefined()
+  }, 30_000)
 })

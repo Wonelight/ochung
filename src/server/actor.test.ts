@@ -27,6 +27,13 @@ describe('actorFromUser', () => {
     expect(reasonOf(() => actorFromUser({ id: 'u1', role: 'user', banned: true }))).toBe('FORBIDDEN:BANNED')
   })
 
+  it('chưa đổi mật khẩu tạm: FORBIDDEN/MUST_CHANGE_PASSWORD (chặn cả hành động server gọi thẳng)', () => {
+    expect(reasonOf(() => actorFromUser({ id: 'u1', role: 'admin', mustChangePassword: true }))).toBe(
+      'FORBIDDEN:MUST_CHANGE_PASSWORD',
+    )
+    expect(actorFromUser({ id: 'u1', role: 'admin', mustChangePassword: false })).toEqual({ userId: 'u1', role: 'admin' })
+  })
+
   it('khóa có thời hạn: còn hạn thì chặn, hết hạn thì cho qua', () => {
     const now = new Date('2026-11-10T00:00:00Z')
     const later = new Date('2026-11-11T00:00:00Z')

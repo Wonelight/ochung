@@ -9,7 +9,10 @@ import { routeGuard } from '@/lib/route-guard'
  */
 export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname
-  if (!getSessionCookie(request)) {
+  // Tệp tĩnh trong public/ (có đuôi tệp) không cần đăng nhập. Chỉ miễn ở đây: layout vẫn áp routeGuard
+  // đầy đủ, nên /admin/x.json hay /moi/abc.def không lọt qua nhờ đuôi tệp.
+  const isStaticFile = /\.[a-z0-9]+$/i.test(path) && !path.startsWith('/admin') && !path.startsWith('/moi')
+  if (!isStaticFile && !getSessionCookie(request)) {
     const decision = routeGuard({ loggedIn: false, mustChangePassword: false, role: 'user' }, path)
     if (decision) return NextResponse.redirect(new URL(decision.redirect, request.url))
   }
@@ -19,6 +22,6 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // bỏ qua tài nguyên build của Next; tệp tĩnh trong public/ vẫn qua proxy nhưng routeGuard luôn cho đi
+  // bỏ qua tài nguyên build của Next; tệp tĩnh trong public/ vẫn qua proxy và được miễn ở hàm proxy bên trên
   matcher: ['/((?!_next/static|_next/image).*)'],
 }
