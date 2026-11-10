@@ -16,8 +16,9 @@ import {
 } from '@/db/schema'
 import { computePeriod } from '@/lib/billing/compute'
 import { daysInMonth, dueDateFor } from '@/lib/billing/period-month'
-import type { ExpenseInput, FixedItem, PeriodInput, PeriodMember, PeriodResult, Tariff, UtilityInput, YM } from '@/lib/billing/types'
+import type { ExpenseInput, FixedItem, PeriodInput, PeriodMember, PeriodResult, Tariff, YM } from '@/lib/billing/types'
 import { AppError } from '@/lib/errors'
+import { utilityInputOf, type PeriodEdits, type UtilityPatch } from '@/lib/period-edits'
 import { MAX_MONEY } from '@/lib/validation'
 import type { Actor } from './actor'
 import { DEFAULT_TARIFF, isUniqueViolation, requireMember, requireOwner, type Tx } from './houses'
@@ -339,13 +340,6 @@ export async function getOrCreateDraftPeriod(db: Db, actor: Actor, houseId: stri
 
 // ───────────────────────── Đọc bản chụp, tính tiền ─────────────────────────
 
-function utilityInput(row: UtilityView | undefined): UtilityInput | null {
-  if (!row) return null
-  if (row.mode === 'total') return row.total === null ? null : { mode: 'total', total: row.total }
-  if (row.prev === null || row.curr === null || !row.tariff) return null
-  return { mode: 'tiered', prev: row.prev, curr: row.curr, tariff: row.tariff }
-}
-
 async function loadSnapshot(db: Db, period: PeriodRow) {
   const memberRows = await db
     .select()
@@ -393,8 +387,8 @@ async function loadSnapshot(db: Db, period: PeriodRow) {
     daysInMonth: daysInMonth(ym),
     members,
     items,
-    electricity: utilityInput(utilities.electricity),
-    water: utilityInput(utilities.water),
+    electricity: utilityInputOf(utilities.electricity),
+    water: utilityInputOf(utilities.water),
     expenses: expenseRows,
   }
   return { input, utilities }
@@ -506,38 +500,57 @@ async function carryReadingForward(tx: Tx, period: PeriodRow, utility: Utility, 
     .where(and(eq(periodUtilities.periodId, next.id), eq(periodUtilities.utility, utility)))
 }
 
+async function writeUtilityTx(tx: Tx, period: PeriodRow, utility: Utility, input: UtilityPatch): Promise<boolean> {
+  if (utility !== 'electricity' && utility !== 'water') throw new AppError('INVALID', 'UTILITY', 'Loại tiện ích không hợp lệ')
+  if (typeof input !== 'object' || input === null) throw editsInvalid()
+  const prev = readingValue(input.prev)
+  const curr = readingValue(input.curr)
+  const total = totalValue(input.total)
+  const where = and(eq(periodUtilities.periodId, period.id), eq(periodUtilities.utility, utility))
+  const [row] = await tx.select().from(periodUtilities).where(where).limit(1)
+  if (!row) throw new AppError('NOT_FOUND', 'UTILITY_NOT_FOUND', 'Không tìm thấy số liệu điện nước của tháng này')
+  const next = {
+    prev: prev === undefined ? row.prev : prev,
+    curr: curr === undefined ? row.curr : curr,
+    total: total === undefined ? row.total : total,
+  }
+  if (next.prev === row.prev && next.curr === row.curr && next.total === row.total) return false
+  if (next.prev !== null && next.curr !== null && next.curr < next.prev) {
+    throw new AppError('INVALID', 'READING_DECREASED', 'Chỉ số mới phải ≥ chỉ số cũ')
+  }
+  await tx.update(periodUtilities).set(next).where(where)
+  if (next.curr !== null && next.curr !== row.curr) await carryReadingForward(tx, period, utility, row.curr, next.curr)
+  return true
+}
+
 /**
  * Nhập chỉ số đầu/cuối hoặc tổng tiền điện/nước. `undefined` = giữ nguyên, `null` = xóa.
  * Chỉ số cuối < chỉ số đầu → INVALID READING_DECREASED. Chế độ của tháng đã chốt giữ như lúc chụp.
  */
-export async function setUtilityReading(
-  db: Db,
-  actor: Actor,
-  periodId: string,
-  utility: Utility,
-  input: { prev?: number | null; curr?: number | null; total?: number | null },
-): Promise<void> {
-  await writePeriod(db, actor, periodId, async (tx, period) => {
-    if (utility !== 'electricity' && utility !== 'water') throw new AppError('INVALID', 'UTILITY', 'Loại tiện ích không hợp lệ')
-    const prev = readingValue(input.prev)
-    const curr = readingValue(input.curr)
-    const total = totalValue(input.total)
-    const where = and(eq(periodUtilities.periodId, period.id), eq(periodUtilities.utility, utility))
-    const [row] = await tx.select().from(periodUtilities).where(where).limit(1)
-    if (!row) throw new AppError('NOT_FOUND', 'UTILITY_NOT_FOUND', 'Không tìm thấy số liệu điện nước của tháng này')
-    const next = {
-      prev: prev === undefined ? row.prev : prev,
-      curr: curr === undefined ? row.curr : curr,
-      total: total === undefined ? row.total : total,
+export async function setUtilityReading(db: Db, actor: Actor, periodId: string, utility: Utility, input: UtilityPatch): Promise<void> {
+  await writePeriod(db, actor, periodId, (tx, period) => writeUtilityTx(tx, period, utility, input))
+}
+
+async function writeMemberTx(tx: Tx, period: PeriodRow, memberId: string, input: { days?: number; included?: boolean }): Promise<boolean> {
+  if (typeof memberId !== 'string' || typeof input !== 'object' || input === null) throw editsInvalid()
+  const where = and(eq(periodMembers.periodId, period.id), eq(periodMembers.memberId, memberId))
+  const [row] = await tx.select({ days: periodMembers.days, included: periodMembers.included }).from(periodMembers).where(where).limit(1)
+  if (!row) throw new AppError('NOT_FOUND', 'MEMBER_NOT_IN_PERIOD', 'Thành viên này không có trong tháng')
+  const set: { days?: number; included?: boolean } = {}
+  if (input.days !== undefined) {
+    const N = daysInMonth(ymOf(period))
+    if (!Number.isInteger(input.days) || input.days < 0 || input.days > N) {
+      throw new AppError('INVALID', 'DAYS_INVALID', `Số ngày ở phải là số nguyên từ 0 đến ${N}`)
     }
-    if (next.prev === row.prev && next.curr === row.curr && next.total === row.total) return false
-    if (next.prev !== null && next.curr !== null && next.curr < next.prev) {
-      throw new AppError('INVALID', 'READING_DECREASED', 'Chỉ số mới phải ≥ chỉ số cũ')
-    }
-    await tx.update(periodUtilities).set(next).where(where)
-    if (next.curr !== null && next.curr !== row.curr) await carryReadingForward(tx, period, utility, row.curr, next.curr)
-    return true
-  })
+    if (input.days !== row.days) set.days = input.days
+  }
+  if (input.included !== undefined) {
+    if (typeof input.included !== 'boolean') throw new AppError('INVALID', 'INCLUDED_INVALID', 'Giá trị "Tính tháng này" không hợp lệ')
+    if (input.included !== row.included) set.included = input.included
+  }
+  if (Object.keys(set).length === 0) return false
+  await tx.update(periodMembers).set(set).where(where)
+  return true
 }
 
 /** Số ngày ở (0..số ngày của tháng) và "Tính tháng này" của một thành viên trong tháng. */
@@ -548,40 +561,57 @@ export async function setPeriodMember(
   memberId: string,
   input: { days?: number; included?: boolean },
 ): Promise<void> {
-  await writePeriod(db, actor, periodId, async (tx, period) => {
-    const where = and(eq(periodMembers.periodId, period.id), eq(periodMembers.memberId, memberId))
-    const [row] = await tx.select({ days: periodMembers.days, included: periodMembers.included }).from(periodMembers).where(where).limit(1)
-    if (!row) throw new AppError('NOT_FOUND', 'MEMBER_NOT_IN_PERIOD', 'Thành viên này không có trong tháng')
-    const set: { days?: number; included?: boolean } = {}
-    if (input.days !== undefined) {
-      const N = daysInMonth(ymOf(period))
-      if (!Number.isInteger(input.days) || input.days < 0 || input.days > N) {
-        throw new AppError('INVALID', 'DAYS_INVALID', `Số ngày ở phải là số nguyên từ 0 đến ${N}`)
-      }
-      if (input.days !== row.days) set.days = input.days
-    }
-    if (input.included !== undefined) {
-      if (typeof input.included !== 'boolean') throw new AppError('INVALID', 'INCLUDED_INVALID', 'Giá trị "Tính tháng này" không hợp lệ')
-      if (input.included !== row.included) set.included = input.included
-    }
-    if (Object.keys(set).length === 0) return false
-    await tx.update(periodMembers).set(set).where(where)
-    return true
-  })
+  await writePeriod(db, actor, periodId, (tx, period) => writeMemberTx(tx, period, memberId, input))
+}
+
+/** Bật/tắt một khoản của chính tháng `period` (khoản của tháng khác → NOT_FOUND). */
+async function writeItemTx(tx: Tx, period: PeriodRow, periodItemId: string, enabled: boolean): Promise<boolean> {
+  if (typeof periodItemId !== 'string') throw editsInvalid()
+  if (typeof enabled !== 'boolean') throw new AppError('INVALID', 'ENABLED_INVALID', 'Giá trị bật/tắt không hợp lệ')
+  const where = and(eq(periodItems.id, periodItemId), eq(periodItems.periodId, period.id))
+  const [row] = await tx.select({ enabled: periodItems.enabled }).from(periodItems).where(where).limit(1)
+  // khoản vừa bị gỡ khỏi tháng nháp bởi lần đồng bộ cài đặt
+  if (!row) throw new AppError('NOT_FOUND', 'ITEM_NOT_FOUND', 'Không tìm thấy khoản này')
+  if (row.enabled === enabled) return false
+  await tx.update(periodItems).set({ enabled }).where(where)
+  return true
 }
 
 /** Bật/tắt một khoản cố định trong tháng. */
 export async function setPeriodItemEnabled(db: Db, actor: Actor, periodItemId: string, enabled: boolean): Promise<void> {
   const [item] = await db.select({ periodId: periodItems.periodId }).from(periodItems).where(eq(periodItems.id, periodItemId)).limit(1)
   if (!item) throw new AppError('NOT_FOUND', 'ITEM_NOT_FOUND', 'Không tìm thấy khoản này')
-  await writePeriod(db, actor, item.periodId, async (tx) => {
-    if (typeof enabled !== 'boolean') throw new AppError('INVALID', 'ENABLED_INVALID', 'Giá trị bật/tắt không hợp lệ')
-    const [row] = await tx.select({ enabled: periodItems.enabled }).from(periodItems).where(eq(periodItems.id, periodItemId)).limit(1)
-    // khoản vừa bị gỡ khỏi tháng nháp bởi lần đồng bộ cài đặt
-    if (!row) throw new AppError('NOT_FOUND', 'ITEM_NOT_FOUND', 'Không tìm thấy khoản này')
-    if (row.enabled === enabled) return false
-    await tx.update(periodItems).set({ enabled }).where(eq(periodItems.id, periodItemId))
-    return true
+  await writePeriod(db, actor, item.periodId, (tx, period) => writeItemTx(tx, period, periodItemId, enabled))
+}
+
+const EDITS_MAX = 200
+const editsInvalid = () => new AppError('INVALID', 'EDITS_INVALID', 'Dữ liệu sửa tháng không hợp lệ')
+
+/**
+ * Ghi nhiều số liệu của một tháng trong MỘT thao tác (màn Tạo hóa đơn): điện/nước, ngày ở và "Tính tháng này",
+ * công tắc khoản. Cùng kiểm tra như từng hàm lẻ; một phần sai thì cả lần sửa bị từ chối. Tháng đã chốt: tính lại,
+ * revision += 1 và `onPeriodUpdated` đúng một lần cho cả lần sửa (không phải mỗi trường một lần).
+ */
+export async function applyPeriodEdits(db: Db, actor: Actor, periodId: string, edits: PeriodEdits): Promise<void> {
+  await writePeriod(db, actor, periodId, async (tx, period) => {
+    if (typeof edits !== 'object' || edits === null) throw editsInvalid()
+    const { utilities = {}, members = [], items = [] } = edits
+    if (typeof utilities !== 'object' || utilities === null || !Array.isArray(members) || !Array.isArray(items)) throw editsInvalid()
+    if (members.length + items.length > EDITS_MAX) throw editsInvalid()
+    let changed = false
+    for (const u of UTILITIES) {
+      const patch = utilities[u]
+      if (patch !== undefined) changed = (await writeUtilityTx(tx, period, u, patch)) || changed
+    }
+    for (const m of members) {
+      if (typeof m !== 'object' || m === null) throw editsInvalid()
+      changed = (await writeMemberTx(tx, period, m.memberId, { days: m.days, included: m.included })) || changed
+    }
+    for (const i of items) {
+      if (typeof i !== 'object' || i === null) throw editsInvalid()
+      changed = (await writeItemTx(tx, period, i.itemId, i.enabled)) || changed
+    }
+    return changed
   })
 }
 
@@ -606,6 +636,19 @@ export async function closePeriod(db: Db, actor: Actor, periodId: string): Promi
   await onPeriodClosed(db, periodId)
 }
 
+function periodInfo(period: PeriodRow): PeriodView['period'] {
+  return {
+    id: period.id,
+    houseId: period.houseId,
+    year: period.year,
+    month: period.month,
+    status: period.status,
+    dueDate: period.dueDate,
+    closedAt: period.closedAt,
+    revision: period.revision,
+  }
+}
+
 /** Cả nhà xem được tháng đã chốt (kể cả nhà đã lưu trữ); tháng nháp chỉ chủ nhà xem. */
 export async function getPeriodView(db: Db, actor: Actor, periodId: string): Promise<PeriodView> {
   const period = await findPeriod(db, periodId)
@@ -616,22 +659,26 @@ export async function getPeriodView(db: Db, actor: Actor, periodId: string): Pro
   const { input, utilities } = await loadSnapshot(db, period)
   const result = period.status === 'closed' && period.result ? period.result : computePeriod(input)
   return {
-    period: {
-      id: period.id,
-      houseId: period.houseId,
-      year: period.year,
-      month: period.month,
-      status: period.status,
-      dueDate: period.dueDate,
-      closedAt: period.closedAt,
-      revision: period.revision,
-    },
+    period: periodInfo(period),
     result,
     members: input.members,
     items: input.items,
     utilities,
     expenses: input.expenses,
   }
+}
+
+export type PeriodEditor = Omit<PeriodView, 'result'>
+
+/**
+ * Bản chụp của một tháng (nháp hoặc đã chốt) cho màn Tạo hóa đơn, KHÔNG tính tiền: tháng nháp đang dở
+ * (ví dụ tắt hết "Tính tháng này") vẫn mở được để sửa. Chỉ chủ nhà của nhà chưa lưu trữ.
+ */
+export async function getPeriodEditor(db: Db, actor: Actor, periodId: string): Promise<PeriodEditor> {
+  const period = await findPeriod(db, periodId)
+  await requireOwner(db, actor, period.houseId)
+  const { input, utilities } = await loadSnapshot(db, period)
+  return { period: periodInfo(period), members: input.members, items: input.items, utilities, expenses: input.expenses }
 }
 
 /** Các tháng của nhà, mới nhất trước. Thành viên chỉ thấy tháng đã chốt; tháng nháp có grandTotal null. */

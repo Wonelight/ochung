@@ -14,3 +14,47 @@ body {
 }
 :root[data-theme="dark"] { --c-join-field: #0E0B08; }
 :root[data-theme="light"] { --c-join-field: var(--c-field); }
+
+/*
+ * Màu riêng của màn Tạo hóa đơn (tokens() của mockup "Tạo hóa đơn tháng" có key không có trong bộ chung):
+ * nền sau tấm (backdrop), tấm (sheet), quầng của tấm (sheetGlow), thẻ (panel), nền/ô chọn của tab (segBg/segOn).
+ * --c-knob là núm công tắc (dùng chung cho mọi công tắc, chép từ cùng mockup).
+ */
+:root {
+  --c-create-backdrop: #050403;
+  --c-create-sheet: #120E0A;
+  --c-create-glow: rgba(232,131,58,0.10);
+  --c-create-panel: #1C1610;
+  --c-create-seg-bg: #0E0B08;
+  --c-create-seg-on: #2A2118;
+  --c-knob: #F1E6D2;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --c-create-backdrop: #A89A80;
+    --c-create-sheet: #F4ECDD;
+    --c-create-glow: rgba(90,60,30,0.18);
+    --c-create-panel: #FBF6EC;
+    --c-create-seg-bg: #EFE4D0;
+    --c-create-seg-on: #FFFDF8;
+    --c-knob: #FFFFFF;
+  }
+}
+:root[data-theme="dark"] {
+  --c-create-backdrop: #050403;
+  --c-create-sheet: #120E0A;
+  --c-create-glow: rgba(232,131,58,0.10);
+  --c-create-panel: #1C1610;
+  --c-create-seg-bg: #0E0B08;
+  --c-create-seg-on: #2A2118;
+  --c-knob: #F1E6D2;
+}
+:root[data-theme="light"] {
+  --c-create-backdrop: #A89A80;
+  --c-create-sheet: #F4ECDD;
+  --c-create-glow: rgba(90,60,30,0.18);
+  --c-create-panel: #FBF6EC;
+  --c-create-seg-bg: #EFE4D0;
+  --c-create-seg-on: #FFFDF8;
+  --c-knob: #FFFFFF;
+}

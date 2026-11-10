@@ -2,7 +2,10 @@
 
 import { useEffect, useRef } from 'react'
 
-/** Hộp xác nhận (trước khi xóa/rời/lưu trữ). Nút nguy hiểm dùng màu "chưa trả" của bộ token. */
+/**
+ * Hộp xác nhận. `danger` (mặc định, trước khi xóa/rời/lưu trữ): nút dùng màu "chưa trả" của bộ token;
+ * `primary` (gửi hóa đơn, cập nhật): nút màu nhấn như nút chính của mockup.
+ */
 export function ConfirmSheet({
   title,
   body,
@@ -11,6 +14,7 @@ export function ConfirmSheet({
   error,
   onConfirm,
   onCancel,
+  tone = 'danger',
 }: {
   title: string
   body: string
@@ -19,6 +23,7 @@ export function ConfirmSheet({
   error: string | null
   onConfirm: () => void
   onCancel: () => void
+  tone?: 'danger' | 'primary'
 }) {
   const cancelRef = useRef<HTMLButtonElement>(null)
 
@@ -68,7 +73,9 @@ export function ConfirmSheet({
             type="button"
             disabled={pending}
             onClick={onConfirm}
-            className="h-[50px] flex-1 cursor-pointer rounded-[25px] border-0 bg-unpaid-bg font-[inherit] text-[15px] font-bold text-unpaid-fg disabled:cursor-default disabled:opacity-60"
+            className={`h-[50px] flex-1 cursor-pointer rounded-[25px] border-0 font-[inherit] text-[15px] font-bold disabled:cursor-default disabled:opacity-60 ${
+              tone === 'primary' ? 'bg-accent text-[#1A0F06]' : 'bg-unpaid-bg text-unpaid-fg'
+            }`}
           >
             {pending ? 'Đang xử lý…' : confirmLabel}
           </button>

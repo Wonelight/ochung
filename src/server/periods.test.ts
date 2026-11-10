@@ -12,9 +12,11 @@ import { deleteChargeItem, setDueDay, setMemberQty, setUtilityTariff, upsertChar
 import { addMemberTx, archiveHouse, createHouse, listMembers, removeMember } from './houses'
 import * as events from './period-events'
 import {
+  applyPeriodEdits,
   buildPeriodInput,
   closePeriod,
   getOrCreateDraftPeriod,
+  getPeriodEditor,
   getPeriodView,
   listPeriods,
   previewPeriod,
@@ -443,6 +445,98 @@ describe('vòng đời tháng', () => {
       await setUtilityReading(db, h.linh, h.periodId, 'water', { total: 1 })
       expect((await periodRow(h.periodId)).revision).toBe(0)
       expect(spy).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('sửa nhiều số liệu một lần (applyPeriodEdits)', () => {
+    async function itemsOf(periodId: string) {
+      return db.select().from(periodItems).where(eq(periodItems.periodId, periodId))
+    }
+
+    it('tháng nháp: ghi điện, nước, ngày ở, công tắc khoản trong một lần → preview ra đúng §5.4', async () => {
+      const h = await house54()
+      const { periodId } = await getOrCreateDraftPeriod(db, h.linh, h.houseId, T11)
+      await addExpense(db, h.linh, h.houseId, { description: 'Nước giặt', amount: 200_000, spentOn: '2026-11-05', paidByMemberId: h.anId })
+      await addExpense(db, h.linh, h.houseId, { description: 'Giấy', amount: 120_000, spentOn: '2026-11-12', paidByMemberId: h.linhId })
+      const dv = (await itemsOf(periodId)).find((i) => i.sourceItemId === h.items.dv)!
+      await applyPeriodEdits(db, h.linh, periodId, {
+        utilities: { electricity: { total: 1_260_000 }, water: { total: 315_000 } },
+        members: [{ memberId: h.chiId, days: 15 }],
+        items: [{ itemId: dv.id, enabled: false }],
+      })
+      await applyPeriodEdits(db, h.linh, periodId, { items: [{ itemId: dv.id, enabled: true }] })
+      const preview = await previewPeriod(db, h.linh, periodId)
+      expect(preview.grandTotal).toBe(10_855_000)
+      expect([h.anId, h.binhId, h.chiId].map((m) => slipOf(preview, m).due)).toEqual([2_600_000, 2_680_000, 2_575_000])
+      expect((await periodRow(periodId)).revision).toBe(0)
+    })
+
+    it('tháng đã chốt: nhiều thay đổi → revision tăng đúng 1, onPeriodUpdated gọi đúng 1 lần', async () => {
+      const h = await draft54()
+      await closePeriod(db, h.linh, h.periodId)
+      const spy = vi.spyOn(events, 'onPeriodUpdated')
+      await applyPeriodEdits(db, h.linh, h.periodId, {
+        utilities: { electricity: { total: 1_365_000 } },
+        members: [{ memberId: h.chiId, days: 30 }],
+      })
+      const row = await periodRow(h.periodId)
+      expect(row.revision).toBe(1)
+      expect(spy).toHaveBeenCalledTimes(1)
+      expect(row.result).toEqual(await previewPeriod(db, h.linh, h.periodId))
+    })
+
+    it('không đổi gì (giá trị cũ hoặc rỗng) → không tăng revision, không báo', async () => {
+      const h = await draft54()
+      await closePeriod(db, h.linh, h.periodId)
+      const spy = vi.spyOn(events, 'onPeriodUpdated')
+      await applyPeriodEdits(db, h.linh, h.periodId, {})
+      await applyPeriodEdits(db, h.linh, h.periodId, { utilities: { water: { total: 315_000 } }, members: [{ memberId: h.chiId, days: 15 }] })
+      expect((await periodRow(h.periodId)).revision).toBe(0)
+      expect(spy).not.toHaveBeenCalled()
+    })
+
+    it('một phần sai → cả lần sửa bị từ chối, không ghi gì', async () => {
+      const h = await draft54()
+      await expectApp(
+        applyPeriodEdits(db, h.linh, h.periodId, {
+          utilities: { water: { total: 1 } },
+          members: [{ memberId: h.chiId, days: 31 }],
+        }),
+        'INVALID',
+        'DAYS_INVALID',
+      )
+      const view = await getPeriodView(db, h.linh, h.periodId)
+      expect(view.utilities.water.total).toBe(315_000)
+      expect(view.members.find((m) => m.memberId === h.chiId)!.days).toBe(15)
+    })
+
+    it('khoản của tháng khác → NOT_FOUND; dữ liệu sai kiểu → INVALID; thành viên → FORBIDDEN', async () => {
+      const h = await draft54()
+      const { periodId: t12 } = await getOrCreateDraftPeriod(db, h.linh, h.houseId, T12)
+      const other = (await itemsOf(t12))[0]
+      await expectApp(applyPeriodEdits(db, h.linh, h.periodId, { items: [{ itemId: other.id, enabled: false }] }), 'NOT_FOUND', 'ITEM_NOT_FOUND')
+      await expectApp(
+        applyPeriodEdits(db, h.linh, h.periodId, { members: 'x' } as unknown as Parameters<typeof applyPeriodEdits>[3]),
+        'INVALID',
+        'EDITS_INVALID',
+      )
+      await expectApp(applyPeriodEdits(db, h.an, h.periodId, { utilities: { water: { total: 1 } } }), 'FORBIDDEN', 'NOT_OWNER')
+      expect((await itemsOf(t12)).find((i) => i.id === other.id)!.enabled).toBe(true)
+    })
+  })
+
+  describe('getPeriodEditor', () => {
+    it('chủ nhà đọc được bản chụp cả khi tháng nháp chưa tính được (NO_MEMBERS); thành viên → FORBIDDEN', async () => {
+      const h = await draft54()
+      for (const m of [h.linhId, h.anId, h.binhId, h.chiId]) await setPeriodMember(db, h.linh, h.periodId, m, { included: false })
+      await expectApp(previewPeriod(db, h.linh, h.periodId), 'INVALID', 'NO_MEMBERS')
+      const ed = await getPeriodEditor(db, h.linh, h.periodId)
+      expect(ed.period).toMatchObject({ id: h.periodId, houseId: h.houseId, month: 11, status: 'draft' })
+      expect(ed.members.map((m) => m.included)).toEqual([false, false, false, false])
+      expect(ed.utilities.electricity).toMatchObject({ mode: 'total', total: 1_260_000 })
+      expect(ed.expenses).toHaveLength(2)
+      expect(ed.items.map((i) => i.name)).toEqual(['Tiền nhà', 'Phí dịch vụ', 'Xe'])
+      await expectApp(getPeriodEditor(db, h.an, h.periodId), 'FORBIDDEN', 'NOT_OWNER')
     })
   })
 

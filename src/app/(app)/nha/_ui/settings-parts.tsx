@@ -121,7 +121,7 @@ export function Switch({ checked, onChange, label }: { checked: boolean; onChang
         className="box-border flex h-7 w-[46px] items-center rounded-[14px] p-0.5"
         style={{ background: checked ? '#E8833A' : 'var(--c-line2)', justifyContent: checked ? 'flex-end' : 'flex-start' }}
       >
-        <span className="size-6 rounded-full bg-[#F1E6D2] shadow-[0_1px_3px_rgba(0,0,0,0.3)]" />
+        <span className="size-6 rounded-full bg-[var(--c-knob)] shadow-[0_1px_3px_rgba(0,0,0,0.3)]" />
       </span>
     </button>
   )
