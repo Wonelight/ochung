@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { db } from '@/db'
 import { runAction } from '@/server/action-result'
 import { getActor } from '@/server/actor'
+import { remindMember } from '@/server/notifications'
+import { getPushSender } from '@/server/push'
 import { confirmPayment, recordCashPayment, recordRefund, rejectPayment, submitTransfer } from '@/server/payments'
 
 // Số liệu thanh toán hiện ở Trang chủ, Hóa đơn và Phiếu nên làm mới cả layout sau mỗi thay đổi.
@@ -44,5 +46,12 @@ export async function recordRefundAction(periodId: string, memberId: string, amo
   return runAction(async () => {
     await recordRefund(db, await getActor(), periodId, memberId, amount)
     refresh()
+  })
+}
+
+/** Chủ nhà bấm "Nhắc" một người còn nợ: thông báo trong app + web push; tối đa 1 lần mỗi 10 phút cho mỗi người mỗi tháng. */
+export async function remindMemberAction(periodId: string, memberId: string) {
+  return runAction(async () => {
+    await remindMember(db, getPushSender(), await getActor(), periodId, memberId)
   })
 }

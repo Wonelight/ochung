@@ -10,6 +10,7 @@ import { isProofUrlFor } from '@/lib/proof'
 import { MAX_MONEY } from '@/lib/validation'
 import type { Actor } from './actor'
 import { isUniqueViolation, requireMember, requireOwner, type Tx } from './houses'
+import { afterCommit, notifyPaymentRejected, notifyTransferSubmitted } from './notifications'
 
 // Mỗi lần trả là một bản ghi riêng; trạng thái của một phiếu luôn được TÍNH từ các bản ghi (xem paymentStatus), không lưu tay.
 //
@@ -174,7 +175,7 @@ export async function submitTransfer(
   input: { proofUrl?: string },
 ): Promise<{ paymentId: string }> {
   const proofUrl = input.proofUrl?.trim() || null
-  return db.transaction(async (tx) => {
+  const { paymentId, created } = await db.transaction(async (tx) => {
     const period = await lockPeriod(tx, periodId)
     const me = await requireMember(tx, actor, period.houseId)
     const [house] = await tx.select({ archivedAt: houses.archivedAt }).from(houses).where(eq(houses.id, period.houseId)).limit(1)
@@ -186,7 +187,7 @@ export async function submitTransfer(
 
     const mine = await recordsOfMember(tx, periodId, me.id)
     const pending = mine.find((r) => r.direction === 'in' && r.status === 'pending')
-    if (pending) return { paymentId: pending.id }
+    if (pending) return { paymentId: pending.id, created: false }
 
     const slip = payslipOf(period, me.id)
     const balance = slip ? paymentStatus(slip.due, mine.map(toRecord)).balance : 0
@@ -202,10 +203,13 @@ export async function submitTransfer(
       if (!isUniqueViolation(e)) throw e
       const [existing] = (await recordsOfMember(tx, periodId, me.id)).filter((r) => r.direction === 'in' && r.status === 'pending')
       if (!existing) throw e
-      return { paymentId: existing.id }
+      return { paymentId: existing.id, created: false }
     }
-    return { paymentId: id }
+    return { paymentId: id, created: true }
   })
+  // chỉ khi tạo khoản mới: gọi lại lúc đã có khoản chờ không báo thêm cho chủ nhà
+  if (created) await afterCommit('Thông báo báo chuyển khoản', () => notifyTransferSubmitted(db, paymentId))
+  return { paymentId }
 }
 
 /** Chủ nhà của tháng chứa bản ghi quyết định; khóa dòng bản ghi và trả bản ghi đã khóa. */
@@ -236,15 +240,17 @@ export async function rejectPayment(db: Db, actor: Actor, paymentId: string, rea
   if (cleaned.length < 1 || cleaned.length > REASON_MAX) {
     throw new AppError('INVALID', 'REASON_INVALID', `Lý do từ chối gồm 1–${REASON_MAX} ký tự`)
   }
-  await db.transaction(async (tx) => {
+  const changed = await db.transaction(async (tx) => {
     const pay = await lockPaymentAsOwner(tx, actor, paymentId)
-    if (pay.status === 'rejected') return
+    if (pay.status === 'rejected') return false
     if (pay.status !== 'pending') throw decided()
     await tx
       .update(payments)
       .set({ status: 'rejected', rejectReason: cleaned, decidedAt: new Date(), decidedBy: actor.userId })
       .where(eq(payments.id, paymentId))
+    return true
   })
+  if (changed) await afterCommit('Thông báo từ chối khoản chuyển', () => notifyPaymentRejected(db, paymentId))
 }
 
 /** Ghi trực tiếp một khoản đã xác nhận (tiền mặt: thành viên → chủ nhà; trả lại: chủ nhà → thành viên). */

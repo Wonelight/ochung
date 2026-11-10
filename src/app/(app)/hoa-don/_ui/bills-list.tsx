@@ -6,8 +6,8 @@ import { StatusPill } from '@/components/StatusPill'
 import type { PaymentStatus } from '@/lib/billing/types'
 import { formatVnd } from '@/lib/money'
 import type { BillFilter, PaymentRow } from '@/lib/payments-view'
-import { ErrorText, useSave } from '../../nha/_ui/settings-parts'
-import { confirmPaymentAction } from '../actions'
+import { ErrorText, NoticeText, useSave } from '../../nha/_ui/settings-parts'
+import { confirmPaymentAction, remindMemberAction } from '../actions'
 import { AmountSheet, RejectSheet } from './owner-sheets'
 
 // Bộ lọc 4 ô + danh sách của mockup `Hóa đơn tháng 11`. Số tiền riêng của từng người (spec §10).
@@ -42,7 +42,7 @@ const outlineBtn = `${hit} h-9 min-w-11 cursor-pointer rounded-[18px] border bor
 export function BillsList({ rows, showFilters, owner }: { rows: PaymentRow[]; showFilters: boolean; owner: OwnerBills | null }) {
   const [filter, setFilter] = useState<BillFilter>('all')
   const [sheet, setSheet] = useState<SheetState | null>(null)
-  const { busy, error, run } = useSave()
+  const { busy, error, notice, run } = useSave()
   const count = (f: BillFilter) => (f === 'all' ? rows.length : rows.filter((r) => r.filter === f).length)
   const shown = filter === 'all' ? rows : rows.filter((r) => r.filter === filter)
 
@@ -93,6 +93,7 @@ export function BillsList({ rows, showFilters, owner }: { rows: PaymentRow[]; sh
                     info={owner.info[r.memberId]}
                     busy={busy}
                     onConfirm={(id) => void run(() => confirmPaymentAction(id))}
+                    onRemind={() => void run(() => remindMemberAction(owner.periodId, r.memberId), `Đã nhắc ${r.name}`)}
                     onSheet={(kind, info) =>
                       setSheet(
                         kind === 'reject'
@@ -109,6 +110,7 @@ export function BillsList({ rows, showFilters, owner }: { rows: PaymentRow[]; sh
         {shown.length === 0 && <p className="m-0 py-7 text-center text-[14px] text-muted">Không có hóa đơn nào ở trạng thái này.</p>}
       </div>
       <ErrorText>{error}</ErrorText>
+      <NoticeText>{notice}</NoticeText>
 
       {owner && sheet?.type === 'reject' && <RejectSheet paymentId={sheet.paymentId} name={sheet.name} onClose={() => setSheet(null)} />}
       {owner && (sheet?.type === 'cash' || sheet?.type === 'refund') && (
@@ -129,11 +131,13 @@ function OwnerActions({
   info,
   busy,
   onConfirm,
+  onRemind,
   onSheet,
 }: {
   info: OwnerRowInfo
   busy: boolean
   onConfirm: (paymentId: string) => void
+  onRemind: () => void
   onSheet: (kind: 'reject' | 'cash' | 'refund', info: OwnerRowInfo) => void
 }) {
   if (info.pending) {
@@ -169,8 +173,7 @@ function OwnerActions({
   if (info.kind === 'unpaid' || info.kind === 'partial') {
     return (
       <>
-        {/* TODO(Task 14): nối "Nhắc" với thông báo (chuông + web push); chưa có nên nút chưa bấm được. */}
-        <button type="button" disabled className={outlineBtn}>
+        <button type="button" disabled={busy} onClick={onRemind} className={outlineBtn}>
           Nhắc
         </button>
         <button type="button" disabled={busy} onClick={() => onSheet('cash', info)} className={outlineBtn}>

@@ -6,6 +6,7 @@ import { houseMembers, houses, inviteLinks, joinRequests, user } from '@/db/sche
 import { AppError } from '@/lib/errors'
 import type { Actor } from './actor'
 import { addMemberTx, isUniqueViolation, requireOwner, type Member, type Tx } from './houses'
+import { afterCommit, notifyJoinDecided, notifyJoinRequested } from './notifications'
 
 const INVITE_DAYS = 7
 const TOKEN_LENGTH = 32
@@ -179,6 +180,7 @@ export async function requestJoinByCode(
     if (isUniqueViolation(e)) throw pending
     throw e
   }
+  await afterCommit('Thông báo xin vào nhà', () => notifyJoinRequested(db, requestId))
   return { requestId, houseName: house.name }
 }
 
@@ -257,6 +259,7 @@ export async function decideJoinRequest(
       if (!(e instanceof AppError && e.reason === 'ALREADY_MEMBER')) throw e
     }
   })
+  await afterCommit('Thông báo kết quả xin vào nhà', () => notifyJoinDecided(db, requestId, decision))
 }
 
 // ───────────────────────── Mã tài khoản ─────────────────────────

@@ -1,7 +1,9 @@
 import Link from 'next/link'
 import { db } from '@/db'
 import { Avatar } from '@/components/Avatar'
+import { Bell } from '@/components/Bell'
 import { HouseSwitcher } from '@/components/HouseSwitcher'
+import { InstallGuide } from '@/components/InstallGuide'
 import { MemberRow } from '@/components/MemberRow'
 import { Money } from '@/components/Money'
 import { MonthHeader } from '@/components/MonthHeader'
@@ -15,6 +17,7 @@ import { pickPeriod } from '@/lib/period-pick'
 import { greetingVi } from '@/lib/vn-time'
 import { requireCurrentHouse } from '@/server/current-house'
 import { listMembers } from '@/server/houses'
+import { unreadCount } from '@/server/notifications'
 import { getStatuses } from '@/server/payments'
 import { listPeriods } from '@/server/periods'
 import { loadPayCta } from './_lib/pay-data'
@@ -28,7 +31,11 @@ import { MonthTiles } from './_ui/month-tiles'
 export default async function Home({ searchParams }: PageProps<'/'>) {
   const { actor, current } = await requireCurrentHouse()
   const now = new Date()
-  const [members, periods] = await Promise.all([listMembers(db, actor, current.houseId), listPeriods(db, actor, current.houseId)])
+  const [members, periods, unread] = await Promise.all([
+    listMembers(db, actor, current.houseId),
+    listPeriods(db, actor, current.houseId),
+    unreadCount(db, actor),
+  ])
   const me = members.find((m) => m.userId === actor.userId)
   const isOwner = current.role === 'owner'
   const canEdit = isOwner && !current.archived
@@ -48,18 +55,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
         </span>
         <HouseSwitcher />
       </div>
-      {/* TODO(Task 14): thay bằng <Bell> (chuông thông báo, chấm cam khi có thông báo mới). */}
-      <button
-        type="button"
-        aria-label="Thông báo"
-        disabled
-        className="relative flex size-11 shrink-0 items-center justify-center rounded-[22px] border border-line bg-surface p-0 text-text"
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-          <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-        </svg>
-      </button>
+      <Bell unread={unread} />
     </header>
   )
 
@@ -68,6 +64,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
     return (
       <main className="flex flex-col gap-[18px] px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(58px,env(safe-area-inset-top))]">
         {header}
+        <InstallGuide />
         <MonthHero year={ym.year} month={ym.month}>
           <MonthHeader year={ym.year} month={ym.month} olderHref={null} newerHref={null} />
           <div className="relative mt-2 flex flex-col gap-1">
@@ -174,6 +171,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
   return (
     <main className="flex flex-col gap-[18px] px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(58px,env(safe-area-inset-top))]">
       {header}
+      <InstallGuide />
 
       <MonthHero year={p.year} month={p.month}>
         <MonthHeader year={p.year} month={p.month} olderHref={href(pick.olderId)} newerHref={href(pick.newerId)} />
