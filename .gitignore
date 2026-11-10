@@ -42,3 +42,6 @@ next-env.d.ts
 # dự án
 .superpowers/
 design/screens/
+
+# dữ liệu PGlite cục bộ
+/.data/
