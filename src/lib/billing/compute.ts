@@ -101,7 +101,6 @@ export function computePeriod(input: PeriodInput): PeriodResult {
   const lines: PayslipLine[][] = active.map(() => [])
 
   // grandTotal tính độc lập với phép chia, để làm vế đối chứng cho Σ share.
-
   const items = input.items.filter((i) => i.enabled)
   const equalTotal = items.filter((i) => i.kind === 'equal').reduce((s, i) => s + i.amount, 0)
   const perUnitTotal = items
