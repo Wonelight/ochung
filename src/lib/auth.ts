@@ -26,7 +26,7 @@ export function createAuth(database: Parameters<typeof drizzleAdapter>[0]) {
       },
     },
     plugins: [
-      username(),
+      username({ minUsernameLength: 2 }), // tên ngắn như "an", "vy" là bình thường trong một nhà
       admin(),
       passkey({ rpID: new URL(baseURL).hostname, rpName: 'Chi tiêu nhà' }),
       // phải đứng cuối danh sách plugin

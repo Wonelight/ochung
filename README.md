@@ -34,3 +34,19 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Tạo quản trị viên đầu tiên
+
+Không có đăng ký công khai; tài khoản đầu tiên (quản trị viên) tạo bằng CLI của Better Auth
+(`npx auth@latest`, gói `@better-auth/cli` cũ đã bị bỏ). Lệnh nạp `src/lib/auth.ts`, nên cần
+`DATABASE_URL` (dev cục bộ: `pglite:./.data/dev`, đã chạy `npm run db:migrate`) và `BETTER_AUTH_SECRET`:
+
+```bash
+npx auth@latest create-admin \
+  --email admin@nha.local --password "<mật-khẩu-tạm>" --name "Quản trị" \
+  --data '{"username":"admin","accountCode":"U-00001","mustChangePassword":true}'
+```
+
+Lần đăng nhập đầu tiên (`/login`, tên đăng nhập `admin`) sẽ bị buộc đổi mật khẩu. Sau đó vào `/admin`
+để tạo tài khoản thành viên (mật khẩu tạm hiện một lần), đặt lại mật khẩu, khóa/mở khóa.
+Nếu DB đã có người dùng, lệnh hỏi xác nhận trước khi tạo (bỏ qua bằng `--yes`).

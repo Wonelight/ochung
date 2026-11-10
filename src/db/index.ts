@@ -16,7 +16,9 @@ import * as schema from './schema'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Db = PgDatabase<any, typeof schema>
 
-let instance: Db | undefined
+// Trong `next dev` mỗi route có thể nạp module này riêng; PGlite chỉ cho một tiến trình mở một thư mục,
+// nên giữ singleton trên globalThis để mọi bản nạp dùng chung một kết nối.
+const globalForDb = globalThis as unknown as { __chiTieuNhaDb?: Db }
 
 /**
  * Singleton khởi tạo lười: không kết nối khi import (an toàn cho `next build`).
@@ -25,17 +27,20 @@ let instance: Db | undefined
  * - Còn lại: `Pool` của `@neondatabase/serverless` + `drizzle-orm/neon-serverless`.
  */
 export function getDb(): Db {
-  if (instance) return instance
+  const existing = globalForDb.__chiTieuNhaDb
+  if (existing) return existing
   const url = process.env.DATABASE_URL
   if (!url) throw new Error('Thiếu biến môi trường DATABASE_URL')
+  let created: Db
   if (url.startsWith('pglite:')) {
     const dir = url.slice('pglite:'.length)
     mkdirSync(path.dirname(dir), { recursive: true }) // PGlite chỉ tạo thư mục cuối, không tạo thư mục cha
-    instance = drizzlePglite(new PGlite(dir), { schema })
+    created = drizzlePglite(new PGlite(dir), { schema })
   } else {
-    instance = drizzleNeon(new Pool({ connectionString: url }), { schema })
+    created = drizzleNeon(new Pool({ connectionString: url }), { schema })
   }
-  return instance
+  globalForDb.__chiTieuNhaDb = created
+  return created
 }
 
 /** Truy cập tiện lợi `db.select()...`; kết nối chỉ được tạo ở lần dùng đầu tiên. */

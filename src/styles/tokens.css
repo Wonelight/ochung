@@ -10,6 +10,7 @@
  *    vd bg-bg, bg-card, text-muted, border-line, bg-paid-bg, text-paid-fg,
  *    text-accent-text. Màu nhấn cố định: bg-accent / text-accent (#E8833A).
  *  - --c-sun-op là độ mờ (không phải màu), dùng trực tiếp var(--c-sun-op).
+ *  - --c-dune1, --c-dune2, --c-halo-op (độ mờ): đồi cát và quầng sáng của màn Đăng nhập (D/L riêng của mockup đó).
  *  - Font: next/font đặt --font-body (Be Vietnam Pro) và --font-num (Lexend Exa) trên <html>;
  *    Tailwind: font-sans (mặc định, = body) và font-numeric (số lớn).
  */
@@ -53,6 +54,9 @@
   --c-pend-fg: #9CC4EE;
   --c-unpaid-bg: #3D2112;
   --c-unpaid-fg: #F5A46A;
+  --c-dune1: #1C1610;
+  --c-dune2: #17120D;
+  --c-halo-op: 0.35;
 }
 
 @media (prefers-color-scheme: light) {
@@ -95,6 +99,9 @@
     --c-pend-fg: #1F4FA8;
     --c-unpaid-bg: #F8DCC6;
     --c-unpaid-fg: #9A3A0C;
+  --c-dune1: #E3CFA9;
+  --c-dune2: #ECDDC2;
+  --c-halo-op: 0.45;
   }
 }
 
@@ -137,6 +144,9 @@
   --c-pend-fg: #9CC4EE;
   --c-unpaid-bg: #3D2112;
   --c-unpaid-fg: #F5A46A;
+  --c-dune1: #1C1610;
+  --c-dune2: #17120D;
+  --c-halo-op: 0.35;
 }
 
 :root[data-theme="light"] {
@@ -178,6 +188,9 @@
   --c-pend-fg: #1F4FA8;
   --c-unpaid-bg: #F8DCC6;
   --c-unpaid-fg: #9A3A0C;
+  --c-dune1: #E3CFA9;
+  --c-dune2: #ECDDC2;
+  --c-halo-op: 0.45;
 }
 
 @theme inline {

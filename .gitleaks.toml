@@ -1,0 +1,9 @@
+# Mở rộng bộ luật mặc định của gitleaks; chỉ loại trừ các false positive đã biết.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Mật khẩu giả trong test và bảng ký tự sinh mật khẩu tạm (không phải bí mật)"
+paths = ['''\.test\.tsx?$''']
+regexTarget = "line"
+regexes = ['''TEMP_PASSWORD_ALPHABET\s*=''']
