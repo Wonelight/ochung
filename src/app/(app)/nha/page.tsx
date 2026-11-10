@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { db } from '@/db'
 import { PageHeader } from '@/components/PageHeader'
-import { getHouseContext } from '@/server/current-house'
+import { requireCurrentHouse } from '@/server/current-house'
 import { getHouse, listMembers } from '@/server/houses'
 import { ArchiveHouseButton } from './_ui/archive-house-button'
 import { CopyCodeButton } from './_ui/copy-code-button'
@@ -13,8 +13,7 @@ export const metadata = { title: 'Quản lý nhà' }
 // Màn Quản lý nhà theo mockup. Các khối "Chia sẻ link mời", "Chờ duyệt", "Thêm bằng mã tài khoản" (Task 9)
 // sẽ chèn vào đúng chỗ đã đánh dấu; cùng khoảng cách gap-4 của cột.
 export default async function HouseManagePage() {
-  const { actor, current } = await getHouseContext()
-  if (!current) return null // layout chuyển sang /nha/moi
+  const { actor, current } = await requireCurrentHouse()
 
   const [house, members] = await Promise.all([
     getHouse(db, actor, current.houseId),

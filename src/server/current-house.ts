@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { cache } from 'react'
 import { db } from '@/db'
 import { getActor } from './actor'
@@ -37,4 +38,15 @@ export async function setCurrentHouseCookie(houseId: string) {
 
 export async function clearCurrentHouseCookie() {
   ;(await cookies()).delete(HOUSE_COOKIE)
+}
+
+/**
+ * Cho trang cần một nhà: chưa có nhà đang dùng thì chuyển sang /nha/moi (Task 9 đổi sang /vao-nha).
+ * Gọi từ trang, không gọi từ layout: layout dùng chung giữa các trang và không dựng lại khi chuyển trang mềm.
+ * /nha/moi không được gọi hàm này (tránh vòng lặp).
+ */
+export async function requireCurrentHouse() {
+  const ctx = await getHouseContext()
+  if (!ctx.current) redirect('/nha/moi')
+  return { ...ctx, current: ctx.current }
 }

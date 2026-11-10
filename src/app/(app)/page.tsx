@@ -1,13 +1,13 @@
 import { db } from '@/db'
 import { Avatar } from '@/components/Avatar'
 import { HouseSwitcher } from '@/components/HouseSwitcher'
-import { getHouseContext } from '@/server/current-house'
+import { requireCurrentHouse } from '@/server/current-house'
 import { listMembers } from '@/server/houses'
 
 // Tạm thời: tên nhà (có đổi nhà) và danh sách thành viên. Task 12 thay bằng Trang chủ theo mockup.
 export default async function Home() {
-  const { actor, current } = await getHouseContext()
-  const members = current ? await listMembers(db, actor, current.houseId) : []
+  const { actor, current } = await requireCurrentHouse()
+  const members = await listMembers(db, actor, current.houseId)
   return (
     <main className="flex flex-col gap-[18px] px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(58px,env(safe-area-inset-top))]">
       <HouseSwitcher />
