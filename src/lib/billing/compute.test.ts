@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { AppError } from '@/lib/errors'
 import { computePeriod } from './compute'
-import type { PeriodInput, PeriodMember, Tariff } from './types'
+import type { PeriodInput, PeriodMember, Tariff, UtilityInput } from './types'
 
 function member(id: string, over: Partial<PeriodMember> = {}): PeriodMember {
   return {
@@ -269,7 +269,7 @@ describe('computePeriod: trường hợp biên', () => {
     expect(r.payslips.map((p) => p.advanced)).toEqual([100, 100, 0])
   })
 
-  it('người trả không được tính tháng này: không có phiếu, khoản vẫn chia cho người còn lại', () => {
+  it('người trả không được tính tháng này: phiếu share 0, không dòng, due = -advanced', () => {
     const r = computePeriod(
       input({
         members: [member('a'), member('b', { included: false })],
@@ -278,9 +278,53 @@ describe('computePeriod: trường hợp biên', () => {
         ],
       }),
     )
-    expect(r.payslips).toHaveLength(1)
+    expect(r.payslips.map((p) => p.memberId)).toEqual(['a', 'b'])
     expect(r.payslips[0]).toMatchObject({ share: 100, advanced: 0, due: 100 })
+    expect(r.payslips[1]).toEqual({ memberId: 'b', lines: [], share: 0, advanced: 100, due: -100 })
     expect(r.grandTotal).toBe(100)
+    expect(r.payslips.reduce((s, p) => s + p.share, 0)).toBe(r.grandTotal)
+  })
+
+  it('người trả không được tính không vào M và Σd', () => {
+    const r = computePeriod(
+      input({
+        members: [member('a'), member('b', { included: false, days: 30 }), member('c')],
+        items: [{ id: 'nha', name: 'Nhà', kind: 'equal', amount: 1000, enabled: true }],
+        electricity: { mode: 'total', total: 600 },
+        expenses: [
+          { id: 'e', description: 'X', amount: 100, paidByMemberId: 'b', spentOn: '2026-11-01' },
+        ],
+      }),
+    )
+    expect(r.payslips.map((p) => p.memberId)).toEqual(['a', 'b', 'c'])
+    expect(r.payslips[0].lines.find((l) => l.key === 'item:nha')!.detail).toBe('1.000 ÷ 2')
+    expect(r.payslips[0].lines.find((l) => l.key === 'electricity')!.detail).toBe(
+      '600 ÷ 60 ngày-người × 30',
+    )
+    expect(r.payslips[1]).toMatchObject({ share: 0, advanced: 100, due: -100, lines: [] })
+  })
+
+  it('người không được tính và không ứng gì thì không có phiếu', () => {
+    const r = computePeriod(
+      input({
+        members: [member('a'), member('b', { included: false })],
+        items: [{ id: 'nha', name: 'Nhà', kind: 'equal', amount: 100, enabled: true }],
+      }),
+    )
+    expect(r.payslips.map((p) => p.memberId)).toEqual(['a'])
+  })
+
+  it('chủ nhà không được tính nhưng đã ứng: có phiếu, due = null', () => {
+    const r = computePeriod(
+      input({
+        members: [member('linh', { isOwner: true, included: false }), member('a')],
+        expenses: [
+          { id: 'e', description: 'X', amount: 100, paidByMemberId: 'linh', spentOn: '2026-11-01' },
+        ],
+      }),
+    )
+    expect(r.payslips[0]).toEqual({ memberId: 'linh', lines: [], share: 0, advanced: 100, due: null })
+    expect(r.payslips[1]).toMatchObject({ share: 100 })
   })
 
   it('không ai được tính và không có khoản nào: phiếu rỗng, tổng 0', () => {
@@ -343,6 +387,7 @@ describe('computePeriod: kiểm tra đầu vào', () => {
 
   it('month ngoài 1..12', () => {
     expect(reasonOf(() => computePeriod({ ...base(), month: 13 }))).toBe('PERIOD_INVALID')
+    expect(reasonOf(() => computePeriod({ ...base(), month: 0 }))).toBe('PERIOD_INVALID')
   })
 
   it('days của thành viên không hợp lệ', () => {
@@ -405,6 +450,66 @@ describe('computePeriod: kiểm tra đầu vào', () => {
     ).toBe('PAYER_NOT_FOUND')
   })
 
+  it('spentOn phải là ngày thật', () => {
+    const bad = ['2026-13-45', '2026-02-30', '2026-11-31', '2026-00-10', '2026-11-00', '2026-11-20x', 'x2026-11-20']
+    for (const spentOn of bad) {
+      expect(
+        reasonOf(() =>
+          computePeriod({
+            ...base(),
+            expenses: [{ id: 'e', description: 'x', amount: 10, paidByMemberId: 'a', spentOn }],
+          }),
+        ),
+      ).toBe('SPENT_ON_INVALID')
+    }
+    // 29/02 hợp lệ ở năm nhuận, 2100 không nhuận
+    const ok = (spentOn: string) => () =>
+      computePeriod({
+        ...base(),
+        expenses: [{ id: 'e', description: 'x', amount: 10, paidByMemberId: 'a', spentOn }],
+      })
+    expect(ok('2028-02-29')).not.toThrow()
+    expect(reasonOf(ok('2100-02-29'))).toBe('SPENT_ON_INVALID')
+  })
+
+  it('id khoản cố định / khoản chi trùng', () => {
+    const item = { id: 'x', name: 'X', kind: 'equal' as const, amount: 1, enabled: true }
+    expect(
+      reasonOf(() => computePeriod({ ...base(), items: [item, { ...item, enabled: false }] })),
+    ).toBe('DUPLICATE_ITEM')
+    const exp = { id: 'e', description: 'x', amount: 10, paidByMemberId: 'a', spentOn: '2026-11-01' }
+    expect(reasonOf(() => computePeriod({ ...base(), expenses: [exp, exp] }))).toBe('DUPLICATE_EXPENSE')
+  })
+
+  it('nhiều hơn một chủ nhà', () => {
+    expect(
+      reasonOf(() =>
+        computePeriod({
+          ...base(),
+          members: [member('a', { isOwner: true }), member('b', { isOwner: true })],
+        }),
+      ),
+    ).toBe('MULTIPLE_OWNERS')
+  })
+
+  it('year không phải số nguyên', () => {
+    expect(reasonOf(() => computePeriod({ ...base(), year: 2026.5 }))).toBe('PERIOD_INVALID')
+  })
+
+  it('tổng quá lớn: TOTAL_TOO_LARGE', () => {
+    expect(
+      reasonOf(() =>
+        computePeriod({
+          ...base(),
+          items: [
+            { id: 'x', name: 'X', kind: 'equal', amount: Number.MAX_SAFE_INTEGER, enabled: true },
+            { id: 'y', name: 'Y', kind: 'equal', amount: 1, enabled: true },
+          ],
+        }),
+      ),
+    ).toBe('TOTAL_TOO_LARGE')
+  })
+
   it('spentOn sai định dạng', () => {
     expect(
       reasonOf(() =>
@@ -444,8 +549,27 @@ describe('computePeriod: bất biến Σ share === grandTotal', () => {
           qty: { xe: int(0, 2) },
         }),
       )
-      const util = () =>
-        rand() > 0.2 ? ({ mode: 'total', total: int(0, 5_000_000) } as const) : null
+      const util = (): UtilityInput | null => {
+        const x = rand()
+        if (x < 0.2) return null
+        if (x < 0.6) return { mode: 'total', total: int(0, 5_000_000) }
+        const prev = int(0, 5000)
+        return {
+          mode: 'tiered',
+          prev,
+          curr: prev + int(0, 400),
+          tariff: {
+            tiers: [
+              { upTo: int(10, 100), price: int(1000, 9000) },
+              { upTo: null, price: int(9000, 30000) },
+            ],
+            perPerson: rand() > 0.5,
+            registeredPeople: int(1, 6),
+            vatPct: int(0, 10),
+            surcharges: [{ name: 'Phí', pct: int(0, 15) }],
+          },
+        }
+      }
       const r = computePeriod(
         input({
           daysInMonth: N,

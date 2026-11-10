@@ -22,6 +22,19 @@ function assertMoney(n: number, what: string): void {
   }
 }
 
+/** Ngày dương lịch thật dạng YYYY-MM-DD (kiểm cả năm nhuận). */
+function isRealDate(s: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s)
+  if (!m) return false
+  const y = Number(m[1])
+  const mo = Number(m[2])
+  const d = Number(m[3])
+  if (mo < 1 || mo > 12 || d < 1) return false
+  const leap = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0
+  const last = mo === 2 ? (leap ? 29 : 28) : [4, 6, 9, 11].includes(mo) ? 30 : 31
+  return d <= last
+}
+
 function validate(input: PeriodInput): void {
   if (!Number.isInteger(input.year) || !Number.isInteger(input.month) || input.month < 1 || input.month > 12) {
     invalid('PERIOD_INVALID', 'Tháng tính tiền không hợp lệ')
@@ -32,6 +45,9 @@ function validate(input: PeriodInput): void {
   }
 
   const seen = new Set<string>()
+  if (input.members.filter((m) => m.isOwner).length > 1) {
+    invalid('MULTIPLE_OWNERS', 'Chỉ được có một chủ nhà trong danh sách thành viên')
+  }
   for (const m of input.members) {
     if (seen.has(m.memberId)) invalid('DUPLICATE_MEMBER', 'Thành viên bị trùng trong danh sách')
     seen.add(m.memberId)
@@ -41,7 +57,10 @@ function validate(input: PeriodInput): void {
     }
   }
 
+  const itemIds = new Set<string>()
   for (const item of input.items) {
+    if (itemIds.has(item.id)) invalid('DUPLICATE_ITEM', `Khoản cố định "${item.name}" bị trùng mã`)
+    itemIds.add(item.id)
     if (!item.enabled) continue
     assertMoney(item.amount, `Số tiền của khoản "${item.name}"`)
     if (item.kind === 'per_unit') {
@@ -56,12 +75,15 @@ function validate(input: PeriodInput): void {
     }
   }
 
+  const expenseIds = new Set<string>()
   for (const e of input.expenses) {
+    if (expenseIds.has(e.id)) invalid('DUPLICATE_EXPENSE', `Khoản chi "${e.description}" bị trùng mã`)
+    expenseIds.add(e.id)
     assertMoney(e.amount, `Số tiền của khoản chi "${e.description}"`)
     if (!seen.has(e.paidByMemberId)) {
       invalid('PAYER_NOT_FOUND', `Người trả khoản chi "${e.description}" không có trong danh sách thành viên`)
     }
-    if (!/^\d{4}-\d{2}-\d{2}/.test(e.spentOn)) {
+    if (!isRealDate(e.spentOn)) {
       invalid('SPENT_ON_INVALID', `Ngày chi của khoản "${e.description}" không hợp lệ`)
     }
   }
@@ -86,7 +108,8 @@ function dayMonth(spentOn: string): string {
 
 /**
  * Tính phiếu cả tháng. Thứ tự `members` là thứ tự ưu tiên nhận đồng dư ở mọi phép chia.
- * Chỉ thành viên `included` có phiếu. Không làm tròn: mỗi khoản được chia bằng `allocate`
+ * Chỉ thành viên `included` có phần chia (M, Σd); người không được tính nhưng đã ứng tiền
+ * có phiếu share 0 để thấy khoản phải hoàn lại. Không làm tròn: mỗi khoản được chia bằng `allocate`
  * nên Σ phần = tổng chi; bất biến này được kiểm lại ở cuối.
  */
 export function computePeriod(input: PeriodInput): PeriodResult {
@@ -196,17 +219,23 @@ export function computePeriod(input: PeriodInput): PeriodResult {
     advancedBy.set(e.paidByMemberId, (advancedBy.get(e.paidByMemberId) ?? 0) + e.amount)
   }
 
-  const payslips: Payslip[] = active.map((m, i) => {
-    const share = lines[i].reduce((s, l) => s + l.amount, 0)
+  // Người không được tính nhưng đã ứng tiền vẫn có phiếu (share 0, không dòng nào)
+  // để khoản hoàn lại cho họ không biến mất khỏi sổ.
+  const payslips: Payslip[] = []
+  let k = 0
+  for (const m of input.members) {
     const advanced = advancedBy.get(m.memberId) ?? 0
-    return {
+    if (!m.included && advanced === 0) continue
+    const own = m.included ? lines[k++] : []
+    const share = own.reduce((s, l) => s + l.amount, 0)
+    payslips.push({
       memberId: m.memberId,
-      lines: lines[i],
+      lines: own,
       share,
       advanced,
       due: m.isOwner ? null : share - advanced,
-    }
-  })
+    })
+  }
 
   const sumShares = payslips.reduce((s, p) => s + p.share, 0)
   if (sumShares !== grandTotal) {
