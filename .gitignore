@@ -1,0 +1,6 @@
+.superpowers/
+node_modules/
+.env*.local
+.env
+.next/
+design/screens/
