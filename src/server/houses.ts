@@ -7,6 +7,7 @@ import { paymentStatus } from '@/lib/billing/status'
 import type { Tariff } from '@/lib/billing/types'
 import { AppError } from '@/lib/errors'
 import type { Actor } from './actor'
+import { addMemberToDraftsTx } from './periods'
 
 export type Member = {
   id: string
@@ -226,16 +227,18 @@ export function isUniqueViolation(e: unknown): boolean {
 
 /**
  * Thêm một người vào nhà trong transaction của người gọi (không kiểm quyền: người gọi phải kiểm).
- * Khóa dòng nhà (`FOR UPDATE`) trước khi tính sortOrder = lớn nhất + 1, nên nhiều người vào cùng lúc được xếp tuần tự;
- * khóa này cũng làm việc kiểm tra "nhà đã lưu trữ" không lọt qua khi chủ nhà vừa lưu trữ.
+ * Khóa dòng nhà (`FOR NO KEY UPDATE`) trước khi tính sortOrder = lớn nhất + 1, nên nhiều người vào cùng lúc được xếp tuần tự;
+ * khóa này cũng làm việc kiểm tra "nhà đã lưu trữ" không lọt qua khi chủ nhà vừa lưu trữ. Dùng NO KEY UPDATE (không phải
+ * FOR UPDATE) để không chặn khóa KEY SHARE của các lệnh chèn có khóa ngoại tới nhà (xem thứ tự khóa trong periods.ts).
  * Chỉ mục duy nhất (nhà, người dùng đang ở) vẫn là chốt chặn cuối: vi phạm → ALREADY_MEMBER.
+ * Người mới được thêm vào mọi tháng nháp của nhà (đủ số ngày của tháng); tháng đã chốt giữ nguyên.
  */
 export async function addMemberTx(tx: Tx, houseId: string, userId: string): Promise<Member> {
   const [house] = await tx
     .select({ archivedAt: houses.archivedAt })
     .from(houses)
     .where(eq(houses.id, houseId))
-    .for('update')
+    .for('no key update')
     .limit(1)
   if (!house) throw new AppError('NOT_FOUND', 'HOUSE_NOT_FOUND', 'Không tìm thấy nhà')
   if (house.archivedAt) throw new AppError('FORBIDDEN', 'HOUSE_ARCHIVED', 'Nhà đã được lưu trữ, không thêm thành viên được')
@@ -253,16 +256,19 @@ export async function addMemberTx(tx: Tx, houseId: string, userId: string): Prom
     .where(eq(houseMembers.houseId, houseId))
     .orderBy(desc(houseMembers.sortOrder))
     .limit(1)
+  let row: typeof houseMembers.$inferSelect
   try {
-    const [row] = await tx
+    const inserted = await tx
       .insert(houseMembers)
       .values({ id: newId(), houseId, userId, role: 'member', sortOrder: (last?.sortOrder ?? -1) + 1 })
       .returning()
-    return { id: row.id, houseId, userId, role: 'member', sortOrder: row.sortOrder, displayName: target.name, leftAt: null }
+    row = inserted[0]
   } catch (e) {
     if (isUniqueViolation(e)) throw new AppError('CONFLICT', 'ALREADY_MEMBER', 'Người này đã ở trong nhà')
     throw e
   }
+  await addMemberToDraftsTx(tx, houseId, row.id)
+  return { id: row.id, houseId, userId, role: 'member', sortOrder: row.sortOrder, displayName: target.name, leftAt: null }
 }
 
 /** Chủ nhà cho một thành viên rời nhà (đặt leftAt, giữ dòng để lịch sử các tháng đã chốt còn nguyên). */

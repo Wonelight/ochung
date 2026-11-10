@@ -7,9 +7,10 @@ import { AppError } from '@/lib/errors'
 import { chargeItemSchema, parseBankInfo, parseOrThrow, qtySchema, tariffSchema, type BankInfoInput } from '@/lib/validation'
 import type { Actor } from './actor'
 import { DEFAULT_TARIFF, requireMember, requireOwner, updateHouse } from './houses'
+import { syncDraftPeriods } from './periods'
 
-// Mọi hàm ghi chạy trong một `db.transaction` và kiểm quyền ngay trong đó bằng `requireOwner(tx, …)`.
-// Task 11 chèn `await syncDraftPeriods(tx, houseId)` cuối mỗi transaction để các tháng nháp nhận cấu hình mới.
+// Mọi hàm ghi chạy trong một `db.transaction`, kiểm quyền ngay trong đó bằng `requireOwner(tx, …)`, và kết thúc bằng
+// `syncDraftPeriods(tx, houseId)` để các tháng nháp nhận cấu hình mới (tháng đã chốt không đổi).
 
 export type Utility = 'electricity' | 'water'
 export type UtilityConfig = { mode: 'tiered' | 'total'; tariff: Tariff }
@@ -56,11 +57,13 @@ export async function upsertChargeItem(
         .limit(1)
       if (!row) throw itemNotFound()
       await tx.update(chargeItems).set(data).where(eq(chargeItems.id, id))
+      await syncDraftPeriods(tx, houseId)
       return id
     }
     const [last] = await tx.select({ top: max(chargeItems.sortOrder) }).from(chargeItems).where(eq(chargeItems.houseId, houseId))
     const newItemId = newId()
     await tx.insert(chargeItems).values({ id: newItemId, houseId, ...data, sortOrder: (last?.top ?? -1) + 1 })
+    await syncDraftPeriods(tx, houseId)
     return newItemId
   })
 }
@@ -70,16 +73,17 @@ export async function upsertChargeItem(
  * của từng tháng, nên dòng gốc phải còn để lịch sử không mất; khoản đã gỡ không hiện ở cài đặt và không vào tháng nháp mới.
  */
 export async function deleteChargeItem(db: Db, actor: Actor, itemId: string): Promise<void> {
-  const [item] = await db
-    .select({ houseId: chargeItems.houseId, active: chargeItems.active })
-    .from(chargeItems)
-    .where(eq(chargeItems.id, itemId))
-    .limit(1)
-  if (!item) throw itemNotFound()
   await db.transaction(async (tx) => {
+    const [item] = await tx
+      .select({ houseId: chargeItems.houseId, active: chargeItems.active })
+      .from(chargeItems)
+      .where(eq(chargeItems.id, itemId))
+      .limit(1)
+    if (!item) throw itemNotFound()
     await requireOwner(tx, actor, item.houseId)
     if (!item.active) throw itemNotFound()
     await tx.update(chargeItems).set({ active: false }).where(eq(chargeItems.id, itemId))
+    await syncDraftPeriods(tx, item.houseId)
   })
 }
 
@@ -98,18 +102,19 @@ export async function reorderChargeItems(db: Db, actor: Actor, houseId: string, 
     for (const [index, id] of ids.entries()) {
       await tx.update(chargeItems).set({ sortOrder: index }).where(eq(chargeItems.id, id))
     }
+    await syncDraftPeriods(tx, houseId)
   })
 }
 
 /** Đặt số lượng (ví dụ số xe) của một thành viên cho một khoản "theo người". Thành viên và khoản phải cùng nhà. */
 export async function setMemberQty(db: Db, actor: Actor, memberId: string, itemId: string, qty: number): Promise<void> {
-  const [item] = await db
-    .select({ houseId: chargeItems.houseId, kind: chargeItems.kind, active: chargeItems.active })
-    .from(chargeItems)
-    .where(eq(chargeItems.id, itemId))
-    .limit(1)
-  if (!item) throw itemNotFound()
   await db.transaction(async (tx) => {
+    const [item] = await tx
+      .select({ houseId: chargeItems.houseId, kind: chargeItems.kind, active: chargeItems.active })
+      .from(chargeItems)
+      .where(eq(chargeItems.id, itemId))
+      .limit(1)
+    if (!item) throw itemNotFound()
     await requireOwner(tx, actor, item.houseId)
     if (!item.active) throw itemNotFound()
     if (item.kind !== 'per_unit') throw new AppError('INVALID', 'NOT_PER_UNIT', 'Khoản này chia đều nên không có số lượng theo người')
@@ -125,6 +130,7 @@ export async function setMemberQty(db: Db, actor: Actor, memberId: string, itemI
       .insert(memberChargeQty)
       .values({ memberId, itemId, qty: value })
       .onConflictDoUpdate({ target: [memberChargeQty.memberId, memberChargeQty.itemId], set: { qty: value } })
+    await syncDraftPeriods(tx, item.houseId)
   })
 }
 
@@ -159,6 +165,7 @@ export async function setUtilityTariff(
         .values({ houseId, utility, mode: cfg.mode, tariff: DEFAULT_TARIFF })
         .onConflictDoUpdate({ target: [utilityTariffs.houseId, utilityTariffs.utility], set: { mode: cfg.mode } })
     }
+    await syncDraftPeriods(tx, houseId)
   })
 }
 
@@ -172,6 +179,7 @@ export async function setBankInfo(db: Db, actor: Actor, houseId: string, input: 
       bankAccountNo: info?.accountNo ?? null,
       bankAccountName: info?.accountName ?? null,
     })
+    await syncDraftPeriods(tx, houseId)
   })
 }
 
@@ -179,6 +187,7 @@ export async function setBankInfo(db: Db, actor: Actor, houseId: string, input: 
 export async function setDueDay(db: Db, actor: Actor, houseId: string, dueDay: number): Promise<void> {
   await db.transaction(async (tx) => {
     await updateHouse(tx, actor, houseId, { dueDay })
+    await syncDraftPeriods(tx, houseId)
   })
 }
 
