@@ -91,3 +91,22 @@ export type PeriodResult = {
   grandTotal: number
   payslips: Payslip[]
 }
+
+export type PaymentRecord = {
+  /** in: thành viên trả chủ nhà; out: chủ nhà trả lại thành viên. */
+  direction: 'in' | 'out'
+  /** Số nguyên đồng, ≥ 0. */
+  amount: number
+  status: 'pending' | 'confirmed' | 'rejected'
+}
+
+export type PaymentStatus = {
+  kind: 'paid' | 'pending' | 'unpaid' | 'partial' | 'owner_owes'
+  /** due − confirmedIn + confirmedOut; dương = còn phải trả, âm = chủ nhà còn phải trả lại. */
+  balance: number
+  confirmedIn: number
+  confirmedOut: number
+}
+
+/** Tháng dương lịch: month 1..12. */
+export type YM = { year: number; month: number }
