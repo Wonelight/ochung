@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { db } from '@/db'
 import { PageHeader } from '@/components/PageHeader'
 import { PayslipLines } from '@/components/PayslipLines'
+import { QrSheetButton } from '@/components/QrSheet'
 import { StatusPill } from '@/components/StatusPill'
 import { UtilityCard } from '@/components/UtilityCard'
 import { formatVnd } from '@/lib/money'
@@ -11,7 +12,8 @@ import { settlement } from '@/lib/payslip-view'
 import { dateVn } from '@/lib/vn-time'
 import { requireCurrentHouse } from '@/server/current-house'
 import { listMembers } from '@/server/houses'
-import { getStatuses } from '@/server/payment-statuses'
+import { getStatuses } from '@/server/payments'
+import { loadPayCta } from '../../_lib/pay-data'
 import { loadPeriodView } from '../../_lib/period-data'
 import { primaryLinkClass } from '../../_ui/month-hero'
 import { MonthItems } from './_ui/month-items'
@@ -54,6 +56,10 @@ export default async function PayslipPage({ params, searchParams }: PageProps<'/
   const statuses = await getStatuses(db, period.id)
   const status = slip && period.status === 'closed' ? statuses[slip.memberId] : undefined
   const pill = status ? pillFor(status) : null
+  const cta =
+    self && !isOwner && slip && period.status === 'closed'
+      ? await loadPayCta({ actor, houseId: period.houseId, period, memberName: me?.displayName ?? '', status })
+      : null
   const s = slip ? settlement(slip, { self, name: names.get(subjectId) ?? '', ownerName }) : null
   const ym = { year: period.year, month: period.month }
 
@@ -157,11 +163,10 @@ export default async function PayslipPage({ params, searchParams }: PageProps<'/
             </div>
           </section>
 
-          {self && !isOwner && period.status === 'closed' && slip.due !== null && slip.due > 0 && (
-            // TODO(Task 13): mở QrSheet (VietQR đã điền số tiền và nội dung) và nút "Tôi đã chuyển".
-            <button type="button" disabled className={`${primaryLinkClass} h-[54px] cursor-default rounded-[27px] text-[17px]`}>
+          {cta && (
+            <QrSheetButton cta={cta} className={`${primaryLinkClass} h-[54px] cursor-pointer rounded-[27px] font-[inherit] text-[17px]`}>
               Mã QR chuyển khoản
-            </button>
+            </QrSheetButton>
           )}
         </>
       )}

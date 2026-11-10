@@ -205,7 +205,7 @@ describe('nhà và thành viên', () => {
       const { owner, houseId, memberRowId } = await houseWithMember()
       await closedPeriod(houseId, memberRowId, 500_000)
 
-      await rejects(archiveHouse(db, owner, houseId), 'CONFLICT', 'UNSETTLED_PERIODS')
+      await rejects(archiveHouse(db, owner, houseId), 'CONFLICT', 'UNPAID_PERIODS')
       expect((await listMyHouses(db, owner))[0].archived).toBe(false)
 
       await archiveHouse(db, owner, houseId, { force: true })

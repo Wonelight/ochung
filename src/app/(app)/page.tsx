@@ -5,6 +5,7 @@ import { HouseSwitcher } from '@/components/HouseSwitcher'
 import { MemberRow } from '@/components/MemberRow'
 import { Money } from '@/components/Money'
 import { MonthHeader } from '@/components/MonthHeader'
+import { QrSheetButton } from '@/components/QrSheet'
 import { StatusPill } from '@/components/StatusPill'
 import { consumptionMonthDefault } from '@/lib/billing/period-month'
 import { homeTiles } from '@/lib/home-tiles'
@@ -14,8 +15,9 @@ import { pickPeriod } from '@/lib/period-pick'
 import { greetingVi } from '@/lib/vn-time'
 import { requireCurrentHouse } from '@/server/current-house'
 import { listMembers } from '@/server/houses'
-import { getStatuses } from '@/server/payment-statuses'
+import { getStatuses } from '@/server/payments'
 import { listPeriods } from '@/server/periods'
+import { loadPayCta } from './_lib/pay-data'
 import { loadPeriodView, periodParam } from './_lib/period-data'
 import { CollectProgress, MonthHero, primaryLinkClass, secondaryLinkClass } from './_ui/month-hero'
 import { MonthTiles } from './_ui/month-tiles'
@@ -150,15 +152,20 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
           <StatusPill tone={pill.tone} text={pill.text} />
         </span>
       )
+      const cta =
+        mySlip && p.status === 'closed'
+          ? await loadPayCta({ actor, houseId: current.houseId, period: p, memberName: myName, status })
+          : null
       action = (
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className={`grid gap-2.5 ${cta ? 'grid-cols-2' : 'grid-cols-1'}`}>
           <Link href={payslipHref} className={secondaryLinkClass}>
             Xem phiếu
           </Link>
-          {/* TODO(Task 13): mở QrSheet (VietQR đã điền số tiền và nội dung). */}
-          <button type="button" disabled className={`${primaryLinkClass} cursor-default`}>
-            Mã QR
-          </button>
+          {cta && (
+            <QrSheetButton cta={cta} className={`${primaryLinkClass} cursor-pointer font-[inherit]`}>
+              Mã QR
+            </QrSheetButton>
+          )}
         </div>
       )
     }

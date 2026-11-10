@@ -6,11 +6,11 @@ import { formatVnd } from '@/lib/money'
 import { collectionSummary, paymentRows } from '@/lib/payments-view'
 import { pickPeriod } from '@/lib/period-pick'
 import { requireCurrentHouse } from '@/server/current-house'
-import { getStatuses } from '@/server/payment-statuses'
+import { getPaymentDetails, getStatuses } from '@/server/payments'
 import { listPeriods } from '@/server/periods'
 import { loadPeriodView, periodParam } from '../_lib/period-data'
 import { primaryLinkClass } from '../_ui/month-hero'
-import { BillsList } from './_ui/bills-list'
+import { BillsList, type OwnerBills } from './_ui/bills-list'
 import { MonthPicker } from './_ui/month-picker'
 
 export const metadata = { title: 'Hóa đơn' }
@@ -49,6 +49,11 @@ export default async function BillsPage({ searchParams }: PageProps<'/hoa-don'>)
       })
     : []
   const canEdit = current.role === 'owner' && !current.archived
+  // Thao tác thu tiền chỉ dành cho chủ nhà của nhà đang dùng, trên tháng đã chốt. Ảnh chứng từ chỉ đi theo đây (getPaymentDetails đã kiểm quyền).
+  const owner: OwnerBills | null =
+    view && canEdit && p.status === 'closed'
+      ? { periodId: p.id, info: ownerInfo(statuses, await getPaymentDetails(db, actor, p.id)) }
+      : null
 
   const previous = periods.filter((x) => x.status === 'closed' && x.id !== p.id).slice(0, PREVIOUS_MAX)
   const previousStatuses = await Promise.all(previous.map((x) => getStatuses(db, x.id)))
@@ -100,7 +105,7 @@ export default async function BillsPage({ searchParams }: PageProps<'/hoa-don'>)
         <CollectedCard summary={collectionSummary(view.result.payslips, statuses)} />
       )}
 
-      {view && <BillsList key={p.id} rows={rows} showFilters={p.status === 'closed'} />}
+      {view && <BillsList key={p.id} rows={rows} showFilters={p.status === 'closed'} owner={owner} />}
 
       {previous.length > 0 && (
         <section className="flex flex-col gap-2">
@@ -151,4 +156,14 @@ function CollectedCard({ summary }: { summary: ReturnType<typeof collectionSumma
       </div>
     </div>
   )
+}
+
+/** Mỗi người: loại trạng thái, số dư và khoản đang chờ duyệt (nếu có) cho các nút của chủ nhà. */
+function ownerInfo(statuses: Awaited<ReturnType<typeof getStatuses>>, details: Awaited<ReturnType<typeof getPaymentDetails>>): OwnerBills['info'] {
+  const info: OwnerBills['info'] = {}
+  for (const [memberId, s] of Object.entries(statuses)) {
+    const pending = details.find((d) => d.memberId === memberId && d.direction === 'in' && d.status === 'pending')
+    info[memberId] = { kind: s.kind, balance: s.balance, pending: pending ? { id: pending.id, proofUrl: pending.proofUrl } : null }
+  }
+  return info
 }

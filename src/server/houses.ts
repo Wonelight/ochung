@@ -2,11 +2,11 @@ import { randomInt } from 'node:crypto'
 import { and, asc, desc, eq, isNull } from 'drizzle-orm'
 import type { Db } from '@/db'
 import { newId } from '@/db/ids'
-import { houseMembers, houses, payments, periods, user, utilityTariffs } from '@/db/schema'
-import { paymentStatus } from '@/lib/billing/status'
+import { houseMembers, houses, user, utilityTariffs } from '@/db/schema'
 import type { Tariff } from '@/lib/billing/types'
 import { AppError } from '@/lib/errors'
 import type { Actor } from './actor'
+import { hasOutstandingBalance } from './payments'
 import { addMemberToDraftsTx } from './periods'
 
 export type Member = {
@@ -160,36 +160,14 @@ export async function updateHouse(db: Db, actor: Actor, houseId: string, patch: 
   await db.update(houses).set(set).where(eq(houses.id, houseId))
 }
 
-/** Id các thành viên của nhà còn số dư khác 0 ở bất kỳ tháng đã chốt nào (còn nợ hoặc chủ nhà còn phải trả lại). */
-async function membersWithBalance(db: Db, houseId: string): Promise<Set<string>> {
-  const closed = await db
-    .select({ id: periods.id, result: periods.result })
-    .from(periods)
-    .where(and(eq(periods.houseId, houseId), eq(periods.status, 'closed')))
-  const open = new Set<string>()
-  for (const period of closed) {
-    if (!period.result) continue
-    const records = await db
-      .select({ memberId: payments.memberId, direction: payments.direction, amount: payments.amount, status: payments.status })
-      .from(payments)
-      .where(eq(payments.periodId, period.id))
-    for (const slip of period.result.payslips) {
-      if (slip.due === null) continue
-      const mine = records.filter((r) => r.memberId === slip.memberId)
-      if (paymentStatus(slip.due, mine).balance !== 0) open.add(slip.memberId)
-    }
-  }
-  return open
-}
-
 /**
  * "Xóa nhà" thực chất là lưu trữ (đặt archivedAt). Còn tháng đã chốt chưa thu đủ thì chặn,
  * trừ khi chủ nhà xác nhận lần hai bằng `force`.
  */
 export async function archiveHouse(db: Db, actor: Actor, houseId: string, opts: { force?: boolean } = {}): Promise<void> {
   await requireOwner(db, actor, houseId)
-  if (!opts.force && (await membersWithBalance(db, houseId)).size > 0) {
-    throw new AppError('CONFLICT', 'UNSETTLED_PERIODS', 'Nhà còn tháng đã chốt chưa thu đủ. Xác nhận lần nữa để vẫn lưu trữ nhà')
+  if (!opts.force && (await hasOutstandingBalance(db, houseId))) {
+    throw new AppError('CONFLICT', 'UNPAID_PERIODS', 'Nhà còn tháng đã chốt chưa thu đủ. Xác nhận lần nữa để vẫn lưu trữ nhà')
   }
   await db.update(houses).set({ archivedAt: new Date() }).where(eq(houses.id, houseId))
 }
@@ -290,7 +268,7 @@ export async function leaveHouse(db: Db, actor: Actor, houseId: string): Promise
   if (me.role === 'owner') {
     throw new AppError('CONFLICT', 'OWNER_CANNOT_LEAVE', 'Chủ nhà không thể rời nhà. Hãy lưu trữ nhà nếu không dùng nữa')
   }
-  if ((await membersWithBalance(db, houseId)).has(me.id)) {
+  if (await hasOutstandingBalance(db, houseId, me.id)) {
     throw new AppError('CONFLICT', 'HAS_BALANCE', 'Bạn còn khoản chưa thanh toán xong ở tháng đã chốt nên chưa rời nhà được')
   }
   await db.update(houseMembers).set({ leftAt: new Date() }).where(eq(houseMembers.id, me.id))

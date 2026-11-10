@@ -78,7 +78,7 @@ export async function archiveHouseAction(houseId: string, force = false) {
     try {
       await archiveHouse(db, actor, houseId, { force })
     } catch (e) {
-      if (e instanceof AppError && e.reason === 'UNSETTLED_PERIODS') return { archived: false, warning: e.message }
+      if (e instanceof AppError && e.reason === 'UNPAID_PERIODS') return { archived: false, warning: e.message }
       throw e
     }
     await clearCurrentHouseCookie()
