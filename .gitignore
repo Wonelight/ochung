@@ -45,3 +45,7 @@ design/screens/
 
 # dữ liệu PGlite cục bộ
 /.data/
+
+# playwright
+/test-results/
+/playwright-report/
