@@ -6,10 +6,12 @@ import { createTestDb } from '@/db/test-db'
 import { periodItems, periods, user } from '@/db/schema'
 import type { Tariff, YM } from '@/lib/billing/types'
 import { AppError } from '@/lib/errors'
+import { paymentRows } from '@/lib/payments-view'
 import type { Actor } from './actor'
 import { addExpense } from './expenses'
 import { deleteChargeItem, setDueDay, setMemberQty, setUtilityTariff, upsertChargeItem } from './house-settings'
-import { addMemberTx, archiveHouse, createHouse, listMembers, removeMember } from './houses'
+import { addMemberTx, archiveHouse, createHouse, leaveHouse, listMembers, removeMember } from './houses'
+import { confirmPayment, getStatuses, hasOutstandingBalance, recordRefund, submitTransfer } from './payments'
 import * as events from './period-events'
 import {
   applyPeriodEdits,
@@ -378,6 +380,38 @@ describe('vòng đời tháng', () => {
   })
 
   describe('sửa sau khi chốt', () => {
+    it('tắt "Tính tháng này" cho người ĐÃ TRẢ sau khi chốt → vẫn có phiếu share 0, "Chủ nhà nợ", trả lại được, còn nợ tới khi trả lại', async () => {
+      const h = await draft54()
+      await closePeriod(db, h.linh, h.periodId)
+      const { paymentId } = await submitTransfer(db, h.binh, h.periodId, {})
+      await confirmPayment(db, h.linh, paymentId)
+      expect(await hasOutstandingBalance(db, h.houseId, h.binhId)).toBe(false)
+
+      await setPeriodMember(db, h.linh, h.periodId, h.binhId, { included: false })
+      const view = await getPeriodView(db, h.linh, h.periodId)
+      expect(slipOf(view.result, h.binhId)).toMatchObject({ share: 0, advanced: 0, due: 0, lines: [] })
+      expect(view.result.payslips.reduce((s, p) => s + p.share, 0)).toBe(view.result.grandTotal)
+
+      // Bình đã trả đủ 2.680.000 rồi bị bỏ khỏi tháng → chủ nhà nợ Bình 2.680.000
+      const statuses = await getStatuses(db, h.periodId)
+      expect(statuses[h.binhId]).toMatchObject({ kind: 'owner_owes', balance: -2_680_000 })
+      const rows = paymentRows({
+        status: 'closed',
+        dueDate: view.period.dueDate,
+        payslips: view.result.payslips,
+        names: new Map(view.members.map((m) => [m.memberId, m.name])),
+        statuses,
+        now: new Date(),
+      })
+      expect(rows.find((r) => r.memberId === h.binhId)?.pill).toEqual({ tone: 'unpaid', text: 'Chủ nhà nợ 2.680.000 đ' })
+      expect(await hasOutstandingBalance(db, h.houseId, h.binhId)).toBe(true)
+      await expectApp(leaveHouse(db, h.binh, h.houseId), 'CONFLICT', 'HAS_BALANCE')
+
+      await recordRefund(db, h.linh, h.periodId, h.binhId, 2_680_000)
+      expect((await getStatuses(db, h.periodId))[h.binhId]).toMatchObject({ kind: 'paid', balance: 0 })
+      expect(await hasOutstandingBalance(db, h.houseId, h.binhId)).toBe(false)
+    })
+
     it('mỗi thao tác sửa → revision tăng 1, result tính lại, onPeriodUpdated gọi đúng 1 lần', async () => {
       const h = await draft54()
       await closePeriod(db, h.linh, h.periodId)

@@ -7,6 +7,7 @@ import {
   houseMembers,
   houses,
   memberChargeQty,
+  payments,
   periodItems,
   periodMembers,
   periodUtilities,
@@ -364,6 +365,12 @@ async function loadSnapshot(db: Db, period: PeriodRow) {
     .where(eq(expenses.periodId, period.id))
     .orderBy(asc(expenses.spentOn), asc(expenses.createdAt), asc(expenses.id))
 
+  // người đã có khoản thanh toán (chưa bị từ chối) trong tháng giữ phiếu kể cả khi bị tắt "Tính tháng này" sau chốt
+  const paidRows = await db
+    .selectDistinct({ memberId: payments.memberId })
+    .from(payments)
+    .where(and(eq(payments.periodId, period.id), ne(payments.status, 'rejected')))
+
   const utilities = {} as Record<Utility, UtilityView>
   for (const u of UTILITIES) {
     const r = utilRows.find((x) => x.utility === u)
@@ -390,6 +397,7 @@ async function loadSnapshot(db: Db, period: PeriodRow) {
     electricity: utilityInputOf(utilities.electricity),
     water: utilityInputOf(utilities.water),
     expenses: expenseRows,
+    keepSlipFor: paidRows.map((r) => r.memberId),
   }
   return { input, utilities }
 }

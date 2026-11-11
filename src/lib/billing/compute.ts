@@ -108,7 +108,7 @@ function dayMonth(spentOn: string): string {
 
 /**
  * Tính phiếu cả tháng. Thứ tự `members` là thứ tự ưu tiên nhận đồng dư ở mọi phép chia.
- * Chỉ thành viên `included` có phần chia (M, Σd); người không được tính nhưng đã ứng tiền
+ * Chỉ thành viên `included` có phần chia (M, Σd); người không được tính nhưng đã ứng tiền (hoặc nằm trong `keepSlipFor`)
  * có phiếu share 0 để thấy khoản phải hoàn lại. Không làm tròn: mỗi khoản được chia bằng `allocate`
  * nên Σ phần = tổng chi; bất biến này được kiểm lại ở cuối.
  */
@@ -139,11 +139,15 @@ export function computePeriod(input: PeriodInput): PeriodResult {
     invalid('TOTAL_TOO_LARGE', 'Tổng tiền của tháng vượt quá giới hạn tính toán')
   }
 
+  const keep = new Set(input.keepSlipFor ?? [])
   if (M === 0) {
     if (grandTotal > 0) {
       invalid('NO_MEMBERS', 'Không có thành viên nào được tính trong tháng')
     }
-    return { electricity, water, grandTotal: 0, payslips: [] }
+    const payslips = input.members
+      .filter((m) => keep.has(m.memberId))
+      .map((m): Payslip => ({ memberId: m.memberId, lines: [], share: 0, advanced: 0, due: m.isOwner ? null : 0 }))
+    return { electricity, water, grandTotal: 0, payslips }
   }
 
   // 1. Khoản cố định
@@ -219,13 +223,13 @@ export function computePeriod(input: PeriodInput): PeriodResult {
     advancedBy.set(e.paidByMemberId, (advancedBy.get(e.paidByMemberId) ?? 0) + e.amount)
   }
 
-  // Người không được tính nhưng đã ứng tiền vẫn có phiếu (share 0, không dòng nào)
+  // Người không được tính nhưng đã ứng tiền (hoặc đã có khoản thanh toán, `keepSlipFor`) vẫn có phiếu (share 0, không dòng nào)
   // để khoản hoàn lại cho họ không biến mất khỏi sổ.
   const payslips: Payslip[] = []
   let k = 0
   for (const m of input.members) {
     const advanced = advancedBy.get(m.memberId) ?? 0
-    if (!m.included && advanced === 0) continue
+    if (!m.included && advanced === 0 && !keep.has(m.memberId)) continue
     const own = m.included ? lines[k++] : []
     const share = own.reduce((s, l) => s + l.amount, 0)
     payslips.push({

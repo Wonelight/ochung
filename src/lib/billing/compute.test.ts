@@ -314,6 +314,29 @@ describe('computePeriod: trường hợp biên', () => {
     expect(r.payslips.map((p) => p.memberId)).toEqual(['a'])
   })
 
+  it('keepSlipFor: người không được tính nhưng đã có khoản thanh toán vẫn có phiếu share 0, due = −advanced', () => {
+    const r = computePeriod(
+      input({
+        members: [member('a'), member('b', { included: false }), member('c', { included: false })],
+        items: [{ id: 'nha', name: 'Nhà', kind: 'equal', amount: 100, enabled: true }],
+        expenses: [{ id: 'e', description: 'X', amount: 40, paidByMemberId: 'c', spentOn: '2026-11-01' }],
+        keepSlipFor: ['b', 'c', 'khong-co'],
+      }),
+    )
+    expect(r.payslips.map((p) => p.memberId)).toEqual(['a', 'b', 'c'])
+    expect(r.payslips[1]).toEqual({ memberId: 'b', lines: [], share: 0, advanced: 0, due: 0 })
+    expect(r.payslips[2]).toEqual({ memberId: 'c', lines: [], share: 0, advanced: 40, due: -40 })
+    expect(r.payslips.reduce((s, p) => s + p.share, 0)).toBe(r.grandTotal)
+    expect(r.grandTotal).toBe(140)
+  })
+
+  it('keepSlipFor khi không ai được tính và không có khoản nào: phiếu share 0 cho người đó, tổng 0', () => {
+    const r = computePeriod(
+      input({ members: [member('linh', { isOwner: true, included: false }), member('a', { included: false })], keepSlipFor: ['a'] }),
+    )
+    expect(r).toMatchObject({ grandTotal: 0, payslips: [{ memberId: 'a', lines: [], share: 0, advanced: 0, due: 0 }] })
+  })
+
   it('chủ nhà không được tính nhưng đã ứng: có phiếu, due = null', () => {
     const r = computePeriod(
       input({

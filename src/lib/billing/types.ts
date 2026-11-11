@@ -63,6 +63,12 @@ export type PeriodInput = {
   electricity: UtilityInput | null
   water: UtilityInput | null
   expenses: ExpenseInput[]
+  /**
+   * Người không được tính tháng này nhưng vẫn phải có phiếu (share 0, due = −advanced) vì đã có khoản thanh toán trong tháng
+   * (tháng đã chốt bị sửa "Tính tháng này" sau khi người đó trả tiền): bỏ phiếu thì số tiền đã trả biến khỏi sổ.
+   * Id không có trong `members` bị bỏ qua.
+   */
+  keepSlipFor?: string[]
 }
 
 export type PayslipLine = {
