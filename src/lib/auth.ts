@@ -27,9 +27,15 @@ export function createAuth(database: Parameters<typeof drizzleAdapter>[0]) {
       },
     },
     hooks: {
-      // Endpoint quản trị của plugin admin (/api/auth/admin/*) không qua layout guard: phiên còn mật khẩu tạm bị chặn ở đây.
       before: createAuthMiddleware(async (ctx) => {
         if (!ctx.path.startsWith('/admin/')) return
+        // Endpoint HTTP của plugin admin (/api/auth/admin/*) bị chặn hết: vai trò admin mặc định cho phép mạo danh, đổi quyền,
+        // sửa/xóa người dùng — mạo danh thì quản trị viên đọc được tiền của mọi nhà (trái spec §2). Trang /admin chỉ gọi
+        // `auth.api.*` phía server (không có `ctx.request`), nên không bị ảnh hưởng.
+        if (ctx.request) {
+          throw APIError.from('FORBIDDEN', { code: 'ADMIN_HTTP_DISABLED', message: 'Thao tác quản trị chỉ làm được trong trang /admin' })
+        }
+        // lời gọi phía server có kèm phiên còn mật khẩu tạm cũng bị chặn
         const session = await getSessionFromCtx(ctx)
         if (session?.user.mustChangePassword === true) {
           throw APIError.from('FORBIDDEN', { code: 'MUST_CHANGE_PASSWORD', message: 'Bạn cần đổi mật khẩu trước khi tiếp tục' })

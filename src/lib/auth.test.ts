@@ -100,4 +100,54 @@ describe('endpoint /admin/* khi chưa đổi mật khẩu tạm', () => {
     await expect(auth.api.listUsers({ headers, query: {} })).resolves.toBeDefined()
   }, 30_000)
 
+  it('mọi yêu cầu HTTP tới /api/auth/admin/* bị chặn, kể cả với phiên quản trị viên (mạo danh, đổi quyền, sửa người dùng)', async () => {
+    const db = await createTestDb()
+    const auth = createAuth(db)
+    await auth.api.createUser({
+      body: {
+        email: 'qt@nha.local',
+        password: 'matkhau-quan-tri-2',
+        name: 'Quản trị',
+        role: 'admin',
+        data: { username: 'qt', accountCode: 'U-00011', mustChangePassword: false },
+      },
+    })
+    const target = await auth.api.createUser({
+      body: { email: 'tv@nha.local', password: 'matkhau-thanh-vien', name: 'TV', role: 'user', data: { username: 'tv', accountCode: 'U-00012' } },
+    })
+    const login = await auth.api.signInUsername({ body: { username: 'qt', password: 'matkhau-quan-tri-2' }, returnHeaders: true })
+    const cookie = login.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ')
+    const origin = 'http://localhost:3000'
+    const post = (path: string, body: unknown) =>
+      auth.handler(
+        new Request(`${origin}/api/auth/admin/${path}`, {
+          method: 'POST',
+          headers: { cookie, origin, 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        }),
+      )
+
+    for (const [path, body] of [
+      ['impersonate-user', { userId: target.user.id }],
+      ['set-role', { userId: target.user.id, role: 'admin' }],
+      ['update-user', { userId: target.user.id, data: { name: 'Hack' } }],
+      ['set-user-password', { userId: target.user.id, newPassword: 'matkhau-moi-12345' }],
+    ] as const) {
+      const res = await post(path, body)
+      expect(res.status, path).toBe(403)
+    }
+    const list = await auth.handler(new Request(`${origin}/api/auth/admin/list-users`, { headers: { cookie, origin } }))
+    expect(list.status).toBe(403)
+
+    const [row] = await db.select({ role: user.role, name: user.name }).from(user).where(eq(user.id, target.user.id))
+    expect(row).toEqual({ role: 'user', name: 'TV' })
+    expect(await db.select().from(session).where(eq(session.userId, target.user.id))).toHaveLength(0)
+    // gọi phía server (không qua HTTP, không phiên) như trang /admin vẫn chạy
+    await expect(
+      auth.api.createUser({
+        body: { email: 'moi@nha.local', password: 'matkhau-moi-12345', name: 'Mới', role: 'user', data: { username: 'moi', accountCode: 'U-00013' } },
+      }),
+    ).resolves.toBeDefined()
+  }, 30_000)
+
 })
