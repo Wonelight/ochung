@@ -3,7 +3,7 @@
 // Mọi tài khoản dùng mật khẩu SEED_PASSWORD. Tất cả đi qua đúng các hàm server của app nên số liệu luôn hợp lệ.
 import { eq } from 'drizzle-orm'
 import { getDb } from '../src/db/index'
-import { periods, user } from '../src/db/schema'
+import { houses, periods, user } from '../src/db/schema'
 import { createAuth } from '../src/lib/auth'
 import type { Tariff } from '../src/lib/billing/types'
 import type { Actor } from '../src/server/actor'
@@ -16,16 +16,25 @@ import { confirmPayment, recordCashPayment, recordRefund, rejectPayment, submitT
 
 const SEED_PASSWORD = 'Nha@123456'
 
+// Mặc định chỉ nạp vào DB dev PGlite. Nạp vào DB thật (Neon) cần đặt SEED_CONFIRM_REMOTE=yes một cách cố ý; khi đó script
+// giữ nguyên tài khoản `admin` đã có và chỉ chạy khi DB chưa có nhà nào.
 const url = process.env.DATABASE_URL ?? ''
-if (!url.startsWith('pglite:')) throw new Error('Chỉ nạp dữ liệu mẫu vào DB dev (DATABASE_URL=pglite:...), không nạp vào Neon/production')
+const remote = !url.startsWith('pglite:')
+if (remote && process.env.SEED_CONFIRM_REMOTE !== 'yes') {
+  throw new Error('DATABASE_URL không phải pglite:. Nạp dữ liệu mẫu vào DB thật cần đặt SEED_CONFIRM_REMOTE=yes')
+}
 const db = getDb()
-if ((await db.select({ id: user.id }).from(user).limit(1)).length > 0) {
+const existingUsers = await db.select({ username: user.username }).from(user)
+if (remote) {
+  if ((await db.select({ id: houses.id }).from(houses).limit(1)).length > 0) throw new Error('DB thật đã có nhà, không nạp dữ liệu mẫu đè lên')
+  if (existingUsers.some((u) => u.username !== 'admin')) throw new Error('DB thật đã có người dùng ngoài `admin`, không nạp dữ liệu mẫu')
+} else if (existingUsers.length > 0) {
   throw new Error('DB đã có người dùng. Xóa thư mục .data/dev, chạy lại `npm run db:migrate` rồi nạp lại')
 }
 const auth = createAuth(db)
 
 // ───────────── Tài khoản ─────────────
-let codeNo = 1
+let codeNo = existingUsers.length + 1 // `admin` đã có trên DB thật giữ mã U-00001
 async function account(username: string, name: string, opts: { role?: 'user' | 'admin'; mustChange?: boolean } = {}): Promise<Actor> {
   const role = opts.role ?? 'user'
   const created = await auth.api.createUser({
@@ -40,7 +49,7 @@ async function account(username: string, name: string, opts: { role?: 'user' | '
   return { userId: created.user.id, role }
 }
 
-await account('admin', 'Quản trị', { role: 'admin' })
+if (!existingUsers.some((u) => u.username === 'admin')) await account('admin', 'Quản trị', { role: 'admin' })
 const linh = await account('linh', 'Linh')
 const an = await account('an', 'An')
 const binh = await account('binh', 'Bình')
