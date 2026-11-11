@@ -1,6 +1,8 @@
 import { eq } from 'drizzle-orm'
 import type { Db } from '@/db'
-import { houseMembers, periodMembers, periods, user } from '@/db/schema'
+import { houseMembers, payments, periodMembers, periods, user } from '@/db/schema'
+import { paymentStatus } from '@/lib/billing/status'
+import type { PaymentRecord } from '@/lib/billing/types'
 import { formatVnd } from '@/lib/money'
 import { dayMonth } from '@/lib/vn-time'
 import { afterCommit, deliver, type DeliveryItem } from './notifications'
@@ -38,12 +40,11 @@ async function announce(db: Db, periodId: string, kind: 'period_closed' | 'perio
   if (!period || period.status !== 'closed' || !period.result) return
   const slips = new Map(period.result.payslips.map((p) => [p.memberId, p]))
 
-  // Người nhận: thành viên được tính tháng này và có phiếu, còn tài khoản hoạt động. Không lọc theo `leftAt`: người đã rời
+  // Người nhận: người có phiếu, còn tài khoản hoạt động. Không lọc theo `leftAt`: người đã rời
   // nhà sau khi có phiếu vẫn phải biết số tiền của mình.
   const rows = await db
     .select({
       memberId: periodMembers.memberId,
-      included: periodMembers.included,
       userId: houseMembers.userId,
       banned: user.banned,
       banExpires: user.banExpires,
@@ -53,13 +54,22 @@ async function announce(db: Db, periodId: string, kind: 'period_closed' | 'perio
     .innerJoin(user, eq(user.id, houseMembers.userId))
     .where(eq(periodMembers.periodId, periodId))
 
+  // số còn lại theo khoản đã trả (lúc chốt chưa ai trả nên bằng số cần chuyển)
+  const records = new Map<string, PaymentRecord[]>()
+  const paid = await db
+    .select({ memberId: payments.memberId, direction: payments.direction, amount: payments.amount, status: payments.status })
+    .from(payments)
+    .where(eq(payments.periodId, periodId))
+  for (const { memberId, ...rec } of paid) records.set(memberId, [...(records.get(memberId) ?? []), rec])
+
   const now = Date.now()
   const base = { houseId: period.houseId, kind, push: true } as const
   const month = period.month
   const items: DeliveryItem[] = []
   for (const r of rows) {
+    // có phiếu là nhận, kể cả người không được tính tháng này mà có phiếu (đã ứng tiền hoặc đã trả rồi mới bị bỏ khỏi tháng)
     const slip = slips.get(r.memberId)
-    if (!r.included || !slip) continue
+    if (!slip) continue
     if (r.banned === true && (!r.banExpires || r.banExpires.getTime() > now)) continue
 
     if (slip.due === null) {
@@ -76,8 +86,11 @@ async function announce(db: Db, periodId: string, kind: 'period_closed' | 'perio
       continue
     }
 
-    const owes = slip.due < 0
-    const amount = amountText(Math.abs(slip.due))
+    const mine = records.get(r.memberId) ?? []
+    const { balance, confirmedIn, confirmedOut } = paymentStatus(slip.due, mine)
+    const paidSome = confirmedIn > 0 || confirmedOut > 0
+    const owes = balance < 0
+    const amount = amountText(Math.abs(balance))
     const url = `/phieu/${periodId}`
     if (kind === 'period_closed') {
       items.push({
@@ -85,10 +98,12 @@ async function announce(db: Db, periodId: string, kind: 'period_closed' | 'perio
         userId: r.userId,
         title: owes
           ? `Tháng ${month}: chủ nhà cần trả lại bạn ${amount}`
-          : slip.due === 0
-            ? `Tháng ${month}: bạn không cần chuyển khoản nào`
+          : balance === 0
+            ? paidSome
+              ? `Tháng ${month}: bạn đã trả đủ`
+              : `Tháng ${month}: bạn không cần chuyển khoản nào`
             : `Tháng ${month}: bạn cần chuyển ${amount}`,
-        body: owes ? 'Mở phiếu để xem chi tiết.' : `Hạn đóng ${dayMonth(period.dueDate)}. Mở phiếu để xem chi tiết và mã QR.`,
+        body: owes || balance === 0 ? 'Mở phiếu để xem chi tiết.' : `Hạn đóng ${dayMonth(period.dueDate)}. Mở phiếu để xem chi tiết và mã QR.`,
         url,
       })
     } else {
@@ -96,7 +111,15 @@ async function announce(db: Db, periodId: string, kind: 'period_closed' | 'perio
         ...base,
         userId: r.userId,
         title: `Phiếu tháng ${month} đã cập nhật`,
-        body: owes ? `Chủ nhà cần trả lại bạn ${amount}` : slip.due === 0 ? 'Bạn không cần chuyển khoản nào.' : `Số cần chuyển hiện là ${amount}.`,
+        body: owes
+          ? `Chủ nhà cần trả lại bạn ${amount}`
+          : balance === 0
+            ? paidSome
+              ? 'Bạn đã trả đủ.'
+              : 'Bạn không cần chuyển khoản nào.'
+            : paidSome
+              ? `Bạn còn thiếu ${amount}.`
+              : `Số cần chuyển hiện là ${amount}.`,
         url,
       })
     }

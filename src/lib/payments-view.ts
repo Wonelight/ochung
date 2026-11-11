@@ -44,6 +44,33 @@ export function collectionSummary(
   return { collected, expected, paidCount, payerCount }
 }
 
+export type MemberBalance = {
+  text: string
+  /** Số tiền đi sau `text`; null = không kèm số. */
+  amount: number | null
+  /** Số cần chuyển của phiếu khi khác số còn lại (đã trả một phần, hoặc sửa sau chốt làm số giảm dưới số đã trả). */
+  original: number | null
+}
+
+/**
+ * Ô đầu Trang chủ của thành viên: số CÒN LẠI theo các khoản đã trả (không phải số cần chuyển gốc của phiếu).
+ * Tháng nháp (chưa có trạng thái) thì theo số cần chuyển của phiếu.
+ */
+export function memberBalance(slip: Payslip, status: PaymentStatus | undefined): MemberBalance {
+  const due = slip.due ?? slip.share
+  if (!status) {
+    return due < 0 ? { text: 'Chủ nhà cần trả lại bạn', amount: -due, original: null } : { text: 'Bạn cần chuyển', amount: due, original: null }
+  }
+  const { balance, confirmedIn, confirmedOut } = status
+  const original = due > 0 && balance !== due ? due : null
+  if (balance > 0) return { text: confirmedIn > 0 ? 'Bạn còn thiếu' : 'Bạn cần chuyển', amount: balance, original }
+  if (balance < 0) return { text: 'Chủ nhà cần trả lại bạn', amount: -balance, original }
+  const net = confirmedIn - confirmedOut
+  if (net > 0) return { text: 'Bạn đã trả đủ', amount: net, original: null }
+  if (net < 0) return { text: 'Chủ nhà đã trả lại bạn', amount: -net, original: null }
+  return { text: 'Bạn không cần chuyển khoản nào', amount: null, original: null }
+}
+
 /** Màu và chữ của nhãn trạng thái (màu theo mockup: đã trả / chờ xác nhận / chưa trả). */
 export function pillFor(status: PaymentStatus): { tone: PillTone; text: string } {
   switch (status.kind) {

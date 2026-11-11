@@ -20,7 +20,7 @@ import {
   sendHouseMessage,
   unreadCount,
 } from './notifications'
-import { rejectPayment, submitTransfer } from './payments'
+import { confirmPayment, rejectPayment, submitTransfer } from './payments'
 import * as events from './period-events'
 import type { PushSender } from './period-events'
 import { closePeriod, getOrCreateDraftPeriod, setPeriodMember, setUtilityReading } from './periods'
@@ -194,6 +194,49 @@ describe('thông báo và web push', () => {
       await db.update(periods).set({ result: { ...result, payslips: result.payslips } }).where(eq(periods.id, h.periodId))
       await events.onPeriodClosed(db, h.periodId, { send: fakeSender().send })
       expect((await mine(h.binh, 'period_closed')).map((n) => n.title)).toEqual(['Tháng 11: chủ nhà cần trả lại bạn 171.428đ'])
+    })
+
+    it('phiếu cập nhật nói số CÒN LẠI theo khoản đã trả: còn thiếu / chủ nhà cần trả lại / đã đủ / chưa trả gì', async () => {
+      const h = await closedHouse()
+      vi.spyOn(push, 'getPushSender').mockReturnValue(fakeSender().send)
+      for (const who of [h.an, h.chi]) {
+        const { paymentId } = await submitTransfer(db, who, h.periodId, {})
+        await confirmPayment(db, h.linh, paymentId)
+      }
+      const bodyOf = async (who: Actor) => (await mine(who, 'period_updated')).map((n) => n.body)
+
+      // điện 1.260.000 → 1.365.000: An (30 ngày) +30.000, Chi (15 ngày) +15.000, Bình chưa trả gì
+      await setUtilityReading(db, h.linh, h.periodId, 'electricity', { total: 1_365_000 })
+      expect(await bodyOf(h.an)).toEqual(['Bạn còn thiếu 30.000đ.'])
+      expect(await bodyOf(h.chi)).toEqual(['Bạn còn thiếu 15.000đ.'])
+      expect(await bodyOf(h.binh)).toEqual(['Số cần chuyển hiện là 2.710.000đ.'])
+
+      // điện → 1.050.000: An −60.000 so với số đã trả, Chi −30.000
+      await db.delete(notifications)
+      await setUtilityReading(db, h.linh, h.periodId, 'electricity', { total: 1_050_000 })
+      expect(await bodyOf(h.an)).toEqual(['Chủ nhà cần trả lại bạn 60.000đ'])
+      expect(await bodyOf(h.chi)).toEqual(['Chủ nhà cần trả lại bạn 30.000đ'])
+
+      // trở lại số cũ: An và Chi vừa đủ
+      await db.delete(notifications)
+      await setUtilityReading(db, h.linh, h.periodId, 'electricity', { total: 1_260_000 })
+      expect(await bodyOf(h.an)).toEqual(['Bạn đã trả đủ.'])
+      expect(await bodyOf(h.chi)).toEqual(['Bạn đã trả đủ.'])
+      expect(await bodyOf(h.binh)).toEqual(['Số cần chuyển hiện là 2.680.000đ.'])
+    })
+
+    it('người bị bỏ khỏi tháng sau khi đã trả (hoặc đã ứng tiền) vẫn được báo "chủ nhà cần trả lại bạn X"', async () => {
+      const h = await closedHouse()
+      vi.spyOn(push, 'getPushSender').mockReturnValue(fakeSender().send)
+      const { paymentId } = await submitTransfer(db, h.binh, h.periodId, {})
+      await confirmPayment(db, h.linh, paymentId)
+
+      await setPeriodMember(db, h.linh, h.periodId, h.binhId, { included: false })
+      expect((await mine(h.binh, 'period_updated')).map((n) => n.body)).toEqual(['Chủ nhà cần trả lại bạn 2.680.000đ'])
+
+      // An đã ứng 200.000 cho khoản chi lẻ, chưa trả gì: bỏ khỏi tháng → chủ nhà trả lại 200.000
+      await setPeriodMember(db, h.linh, h.periodId, h.anId, { included: false })
+      expect((await mine(h.an, 'period_updated')).map((n) => n.body).at(-1)).toBe('Chủ nhà cần trả lại bạn 200.000đ')
     })
 
     it('lỗi bên trong hook (kể cả gửi push hỏng) không nổi lên người gọi', async () => {

@@ -132,7 +132,7 @@ test('chủ nhà chốt sổ, thành viên chuyển tiền, chủ nhà xác nh�
     const { page } = member
     await page.goto('/')
     await expect(page.getByText('Đã trả').first()).toBeVisible()
-    await expect(page.getByText(`Bạn cần chuyển ${MEMBER_DUE} đ`)).toBeVisible()
+    await expect(page.getByText(`Bạn đã trả đủ ${MEMBER_DUE} đ`)).toBeVisible()
     await expect(page.getByRole('button', { name: 'Mã QR' })).toBeHidden()
   })
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Payslip } from './billing/types'
-import { billFilterOf, collectionSummary, paymentRows, pillFor, statusesFor } from './payments-view'
+import { billFilterOf, collectionSummary, memberBalance, paymentRows, pillFor, statusesFor } from './payments-view'
 
 const slip = (memberId: string, due: number | null): Payslip => ({ memberId, lines: [], share: 0, advanced: 0, due })
 
@@ -105,5 +105,51 @@ describe('paymentRows', () => {
       ['Đã ứng 200.000 đ', 2_600_000, null, null],
       ['Chủ nhà cần trả lại', 300_000, null, null],
     ])
+  })
+})
+
+describe('memberBalance (ô đầu Trang chủ của thành viên)', () => {
+  const st = (due: number, records: { direction: 'in' | 'out'; amount: number; status: 'pending' | 'confirmed' | 'rejected' }[]) =>
+    statusesFor([slip('an', due)], { an: records }).an
+
+  it('tháng nháp (chưa có trạng thái): theo số cần chuyển của phiếu', () => {
+    expect(memberBalance(slip('an', 2_600_000), undefined)).toEqual({ text: 'Bạn cần chuyển', amount: 2_600_000, original: null })
+    expect(memberBalance(slip('an', -50_000), undefined)).toEqual({ text: 'Chủ nhà cần trả lại bạn', amount: 50_000, original: null })
+  })
+
+  it('chưa trả gì: cần chuyển nguyên số; trả một phần: còn thiếu, kèm số của phiếu', () => {
+    expect(memberBalance(slip('an', 2_600_000), st(2_600_000, []))).toEqual({ text: 'Bạn cần chuyển', amount: 2_600_000, original: null })
+    expect(memberBalance(slip('an', 2_600_000), st(2_600_000, [{ direction: 'in', amount: 1_000_000, status: 'confirmed' }]))).toEqual({
+      text: 'Bạn còn thiếu',
+      amount: 1_600_000,
+      original: 2_600_000,
+    })
+  })
+
+  it('đã trả đủ: không còn hiện "cần chuyển" mà là "đã trả đủ X"', () => {
+    expect(memberBalance(slip('an', 2_600_000), st(2_600_000, [{ direction: 'in', amount: 2_600_000, status: 'confirmed' }]))).toEqual({
+      text: 'Bạn đã trả đủ',
+      amount: 2_600_000,
+      original: null,
+    })
+  })
+
+  it('chủ nhà nợ: số còn phải trả lại; trả lại xong thì "chủ nhà đã trả lại bạn X"', () => {
+    expect(memberBalance(slip('an', -50_000), st(-50_000, []))).toEqual({ text: 'Chủ nhà cần trả lại bạn', amount: 50_000, original: null })
+    expect(memberBalance(slip('an', -50_000), st(-50_000, [{ direction: 'out', amount: 50_000, status: 'confirmed' }]))).toEqual({
+      text: 'Chủ nhà đã trả lại bạn',
+      amount: 50_000,
+      original: null,
+    })
+    // sửa sau chốt làm số giảm dưới số đã trả
+    expect(memberBalance(slip('an', 2_500_000), st(2_500_000, [{ direction: 'in', amount: 2_600_000, status: 'confirmed' }]))).toEqual({
+      text: 'Chủ nhà cần trả lại bạn',
+      amount: 100_000,
+      original: 2_500_000,
+    })
+  })
+
+  it('phiếu 0 đ, chưa có bản ghi nào: không cần chuyển', () => {
+    expect(memberBalance(slip('an', 0), st(0, []))).toEqual({ text: 'Bạn không cần chuyển khoản nào', amount: null, original: null })
   })
 })

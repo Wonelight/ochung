@@ -13,7 +13,7 @@ import { avatarSeed } from '@/lib/avatar-seed'
 import { consumptionMonthDefault } from '@/lib/billing/period-month'
 import { homeTiles } from '@/lib/home-tiles'
 import { formatVnd } from '@/lib/money'
-import { collectionSummary, paymentRows, pillFor } from '@/lib/payments-view'
+import { collectionSummary, memberBalance, paymentRows, pillFor } from '@/lib/payments-view'
 import { pickPeriod } from '@/lib/period-pick'
 import { greetingVi } from '@/lib/vn-time'
 import { readOwnProfile } from '@/server/account'
@@ -136,15 +136,15 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
     } else {
       const status = mySlip ? statuses[mySlip.memberId] : undefined
       const pill = status ? pillFor(status) : null
-      summary = !mySlip ? (
+      // số còn lại theo khoản đã trả, không phải số gốc của phiếu (đã trả xong, chủ nhà đã trả lại thì không còn "cần chuyển")
+      const bal = mySlip ? memberBalance(mySlip, status) : null
+      summary = !bal ? (
         'Bạn không được tính trong tháng này'
-      ) : mySlip.due !== null && mySlip.due < 0 ? (
-        <>
-          Chủ nhà cần trả lại bạn <span className="font-semibold text-text">{formatVnd(-mySlip.due)} đ</span>
-        </>
       ) : (
         <>
-          Bạn cần chuyển <span className="font-semibold text-text">{formatVnd(mySlip.due ?? mySlip.share)} đ</span>
+          {bal.text}
+          {bal.amount !== null && <span className="font-semibold text-text"> {formatVnd(bal.amount)} đ</span>}
+          {bal.original !== null && <> · phiếu {formatVnd(bal.original)} đ</>}
         </>
       )
       if (pill) summary = (
