@@ -18,7 +18,7 @@ import { pickPeriod } from '@/lib/period-pick'
 import { greetingVi } from '@/lib/vn-time'
 import { readOwnProfile } from '@/server/account'
 import { requireCurrentHouse } from '@/server/current-house'
-import { listMembers } from '@/server/houses'
+import { listAvatarSeeds, listMembers } from '@/server/houses'
 import { unreadCount } from '@/server/notifications'
 import { getStatuses } from '@/server/payments'
 import { listPeriods } from '@/server/periods'
@@ -33,11 +33,12 @@ import { MonthTiles } from './_ui/month-tiles'
 export default async function Home({ searchParams }: PageProps<'/'>) {
   const { actor, current } = await requireCurrentHouse()
   const now = new Date()
-  const [members, periods, unread, profile] = await Promise.all([
+  const [members, periods, unread, profile, seeds] = await Promise.all([
     listMembers(db, actor, current.houseId),
     listPeriods(db, actor, current.houseId),
     unreadCount(db, actor),
     readOwnProfile(db, actor),
+    listAvatarSeeds(db, actor, current.houseId),
   ])
   const me = members.find((m) => m.userId === actor.userId)
   const isOwner = current.role === 'owner'
@@ -94,7 +95,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
   const mySlip = result?.payslips.find((s) => s.memberId === me?.id)
   const names = new Map(view?.members.map((m) => [m.memberId, m.name]) ?? [])
   const rows = view
-    ? paymentRows({ status: p.status, dueDate: view.period.dueDate, payslips: view.result.payslips, names, statuses, now })
+    ? paymentRows({ status: p.status, dueDate: view.period.dueDate, payslips: view.result.payslips, names, seeds, statuses, now })
     : []
 
   let summary: React.ReactNode = null
@@ -220,6 +221,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
                 key={r.memberId}
                 variant="home"
                 name={r.name}
+                avatarSeed={r.avatarSeed}
                 note={r.note}
                 last={i === rows.length - 1}
                 aside={

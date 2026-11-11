@@ -76,6 +76,7 @@ export function BillsList({ rows, showFilters, owner }: { rows: PaymentRow[]; sh
             key={r.memberId}
             variant="bills"
             name={r.name}
+            avatarSeed={r.avatarSeed}
             note={r.isOwner ? 'Phần của chủ nhà' : r.note}
             last={i === shown.length - 1}
             below={

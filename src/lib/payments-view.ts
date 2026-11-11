@@ -63,6 +63,8 @@ export function pillFor(status: PaymentStatus): { tone: PillTone; text: string }
 export type PaymentRow = {
   memberId: string
   name: string
+  /** Hạt giống ảnh đại diện (tên hiện tại + số lần "Tạo hình mới"); thiếu thì dùng `name`. */
+  avatarSeed: string
   isOwner: boolean
   note: string
   /** Số tiền riêng của người đó: phần của chủ nhà; cần chuyển (hoặc được trả lại) của thành viên. */
@@ -78,12 +80,15 @@ export function paymentRows(v: {
   dueDate: string
   payslips: Payslip[]
   names: Map<string, string>
+  /** Hạt giống ảnh đại diện theo id thành viên (`listAvatarSeeds`). */
+  seeds?: Record<string, string>
   statuses: Record<string, PaymentStatus>
   now: Date
 }): PaymentRow[] {
   return v.payslips.map((p) => {
     const name = v.names.get(p.memberId) ?? '—'
-    if (p.due === null) return { memberId: p.memberId, name, isOwner: true, note: 'Chủ nhà', amount: p.share, pill: null, filter: null }
+    const avatarSeed = v.seeds?.[p.memberId] ?? name
+    if (p.due === null) return { memberId: p.memberId, name, avatarSeed, isOwner: true, note: 'Chủ nhà', amount: p.share, pill: null, filter: null }
     const amount = Math.abs(p.due)
     const s = v.status === 'closed' ? v.statuses[p.memberId] : undefined
     let note: string
@@ -95,6 +100,7 @@ export function paymentRows(v: {
     return {
       memberId: p.memberId,
       name,
+      avatarSeed,
       isOwner: false,
       note,
       amount,

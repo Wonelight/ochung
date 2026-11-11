@@ -67,14 +67,28 @@ describe('paymentRows', () => {
   ]
   const now = new Date('2026-12-08T03:00:00Z')
 
+  it('hạt giống ảnh đại diện lấy từ bảng seeds (tên hiện tại + biến thể), thiếu thì dùng tên', () => {
+    const rows = paymentRows({
+      status: 'closed',
+      dueDate: '2026-12-10',
+      payslips: slips,
+      names,
+      seeds: { an: 'An Mới#2' },
+      statuses: statusesFor(slips, {}),
+      now,
+    })
+    expect(rows.map((r) => r.avatarSeed)).toEqual(['Linh', 'An Mới#2', 'Bình'])
+  })
+
   it('tháng đã chốt: số tiền riêng từng người, nhãn trạng thái, nhóm lọc; chủ nhà không có nhãn', () => {
     const rows = paymentRows({ status: 'closed', dueDate: '2026-12-10', payslips: slips, names, statuses: statusesFor(slips, {}), now })
     expect(rows).toEqual([
-      { memberId: 'linh', name: 'Linh', isOwner: true, note: 'Chủ nhà', amount: 2_800_000, pill: null, filter: null },
-      { memberId: 'an', name: 'An', isOwner: false, note: 'Hạn 10/12 · còn 2 ngày', amount: 2_600_000, pill: { tone: 'unpaid', text: 'Chưa trả' }, filter: 'unpaid' },
+      { memberId: 'linh', name: 'Linh', avatarSeed: 'Linh', isOwner: true, note: 'Chủ nhà', amount: 2_800_000, pill: null, filter: null },
+      { memberId: 'an', name: 'An', avatarSeed: 'An', isOwner: false, note: 'Hạn 10/12 · còn 2 ngày', amount: 2_600_000, pill: { tone: 'unpaid', text: 'Chưa trả' }, filter: 'unpaid' },
       {
         memberId: 'binh',
         name: 'Bình',
+        avatarSeed: 'Bình',
         isOwner: false,
         note: 'Chủ nhà cần trả lại',
         amount: 300_000,

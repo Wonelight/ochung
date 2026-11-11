@@ -14,6 +14,7 @@ import {
   getHouse,
   houseCodePrefix,
   leaveHouse,
+  listAvatarSeeds,
   listMembers,
   listMyHouses,
   removeMember,
@@ -280,6 +281,20 @@ describe('nhà và thành viên', () => {
         'CONFLICT',
         'ALREADY_MEMBER',
       )
+    })
+
+    it('avatarVariant của người dùng đi cùng listMembers; listAvatarSeeds gồm cả người đã rời và theo tên hiện tại', async () => {
+      const { owner, member, houseId, memberRowId } = await houseWithMember('Chủ', 'An')
+      await db.update(user).set({ avatarVariant: 3 }).where(eq(user.id, member.userId))
+      await db.update(user).set({ name: 'An Mới' }).where(eq(user.id, member.userId))
+      const list = await listMembers(db, owner, houseId)
+      expect(list.map((m) => [m.displayName, m.avatarVariant])).toEqual([['Chủ', 0], ['An Mới', 3]])
+
+      await removeMember(db, owner, houseId, memberRowId)
+      const seeds = await listAvatarSeeds(db, owner, houseId)
+      expect(Object.values(seeds).sort()).toEqual(['An Mới#3', 'Chủ'])
+      expect(seeds[memberRowId]).toBe('An Mới#3')
+      await rejects(listAvatarSeeds(db, member, houseId), 'FORBIDDEN', 'NOT_MEMBER')
     })
 
     it('removeMember: khỏi listMembers nhưng dòng vẫn còn với leftAt', async () => {

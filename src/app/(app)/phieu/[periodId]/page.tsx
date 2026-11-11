@@ -11,7 +11,7 @@ import { pillFor } from '@/lib/payments-view'
 import { settlement } from '@/lib/payslip-view'
 import { dateVn } from '@/lib/vn-time'
 import { requireCurrentHouse } from '@/server/current-house'
-import { listMembers } from '@/server/houses'
+import { listAvatarSeeds, listMembers } from '@/server/houses'
 import { getStatuses } from '@/server/payments'
 import { loadPayCta } from '../../_lib/pay-data'
 import { loadPeriodView } from '../../_lib/period-data'
@@ -41,7 +41,7 @@ export default async function PayslipPage({ params, searchParams }: PageProps<'/
   }
 
   const { period, result } = view
-  const members = await listMembers(db, actor, period.houseId)
+  const [members, seeds] = await Promise.all([listMembers(db, actor, period.houseId), listAvatarSeeds(db, actor, period.houseId)])
   const me = members.find((m) => m.userId === actor.userId)
   const isOwner = me?.role === 'owner'
   const archived = period.houseId === current.houseId ? current.archived : true
@@ -130,7 +130,7 @@ export default async function PayslipPage({ params, searchParams }: PageProps<'/
         <SubjectPicker
           periodId={period.id}
           selectedId={subjectId}
-          people={result.payslips.map((p) => ({ id: p.memberId, name: names.get(p.memberId) ?? '—' }))}
+          people={result.payslips.map((p) => ({ id: p.memberId, name: names.get(p.memberId) ?? '—', seed: seeds[p.memberId] ?? names.get(p.memberId) ?? '' }))}
         />
       )}
 

@@ -19,6 +19,7 @@ function amountNote(slip: Payslip | undefined, on: boolean): string {
 
 export function MembersPanel({
   members,
+  seeds,
   values,
   payslips,
   leftIds,
@@ -27,6 +28,8 @@ export function MembersPanel({
   onChange,
 }: {
   members: PeriodMember[]
+  /** Hạt giống ảnh đại diện theo id thành viên. */
+  seeds: Record<string, string>
   values: Record<string, { days: number; included: boolean }>
   payslips: Payslip[] | null
   leftIds: Set<string>
@@ -51,7 +54,7 @@ export function MembersPanel({
         return (
           <div key={m.memberId} className={`flex flex-col gap-1 py-2.5 ${i < members.length - 1 ? 'border-b border-line' : ''}`}>
             <div className="flex items-center gap-2.5">
-              <Avatar seed={m.name} size={36} />
+              <Avatar seed={seeds[m.memberId] ?? m.name} size={36} />
               <div className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-[15px] font-semibold">
                   {m.name}

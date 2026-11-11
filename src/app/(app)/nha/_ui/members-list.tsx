@@ -4,9 +4,10 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { Avatar } from '@/components/Avatar'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
+import { avatarSeed } from '@/lib/avatar-seed'
 import { leaveHouseAction, removeMemberAction } from '../actions'
 
-export type MemberRowData = { id: string; displayName: string; role: 'owner' | 'member' }
+export type MemberRowData = { id: string; displayName: string; avatarVariant: number; role: 'owner' | 'member' }
 
 type Pending = { kind: 'remove' | 'leave'; member: MemberRowData }
 
@@ -77,7 +78,7 @@ export function MembersList({
               className="relative flex min-h-[60px] items-center gap-3"
               style={i < members.length - 1 ? { borderBottom: '1px solid var(--c-line)' } : undefined}
             >
-              <Avatar seed={m.displayName} size={40} />
+              <Avatar seed={avatarSeed(m.displayName, m.avatarVariant)} size={40} />
               <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">{m.displayName}</span>
               <span
                 className={`rounded-full px-[9px] py-1 text-[12px] font-semibold ${owner ? 'bg-accent text-[#1A0F06]' : 'bg-inner text-muted'}`}

@@ -4,6 +4,7 @@ import type { Db } from '@/db'
 import { newId } from '@/db/ids'
 import { houseMembers, houses, user, utilityTariffs } from '@/db/schema'
 import type { Tariff } from '@/lib/billing/types'
+import { avatarSeed } from '@/lib/avatar-seed'
 import { ACCOUNT_NO_PATTERN } from '@/lib/banks'
 import { AppError } from '@/lib/errors'
 import type { Actor } from './actor'
@@ -17,6 +18,8 @@ export type Member = {
   role: 'owner' | 'member'
   sortOrder: number
   displayName: string
+  /** Số lần "Tạo hình mới" của người đó: cùng tên hiển thị tạo ra hạt giống của ảnh đại diện (`avatarSeed`). */
+  avatarVariant: number
   leftAt: Date | null
 }
 
@@ -102,6 +105,7 @@ const memberColumns = {
   role: houseMembers.role,
   sortOrder: houseMembers.sortOrder,
   displayName: user.name,
+  avatarVariant: user.avatarVariant,
   leftAt: houseMembers.leftAt,
 }
 
@@ -195,6 +199,20 @@ export async function listMembers(db: Db, actor: Actor, houseId: string): Promis
     .orderBy(asc(houseMembers.sortOrder), asc(houseMembers.joinedAt))
 }
 
+/**
+ * Hạt giống ảnh đại diện (tên hiện tại + số lần "Tạo hình mới") của MỌI người từng ở trong nhà, kể cả người đã rời,
+ * theo id thành viên. Các màn lấy tên từ bản chụp của tháng dùng bảng này để vẽ đúng ảnh mà người đó đã chọn.
+ */
+export async function listAvatarSeeds(db: Db, actor: Actor, houseId: string): Promise<Record<string, string>> {
+  await requireMember(db, actor, houseId)
+  const rows = await db
+    .select({ id: houseMembers.id, name: user.name, avatarVariant: user.avatarVariant })
+    .from(houseMembers)
+    .innerJoin(user, eq(user.id, houseMembers.userId))
+    .where(eq(houseMembers.houseId, houseId))
+  return Object.fromEntries(rows.map((r) => [r.id, avatarSeed(r.name, r.avatarVariant)]))
+}
+
 /** Vi phạm ràng buộc duy nhất của Postgres (23505); drizzle bọc lỗi gốc trong `cause`. */
 export function isUniqueViolation(e: unknown): boolean {
   for (let cur: unknown = e, depth = 0; cur && typeof cur === 'object' && depth < 4; depth++) {
@@ -221,7 +239,7 @@ export async function addMemberTx(tx: Tx, houseId: string, userId: string): Prom
     .limit(1)
   if (!house) throw new AppError('NOT_FOUND', 'HOUSE_NOT_FOUND', 'Không tìm thấy nhà')
   if (house.archivedAt) throw new AppError('FORBIDDEN', 'HOUSE_ARCHIVED', 'Nhà đã được lưu trữ, không thêm thành viên được')
-  const [target] = await tx.select({ name: user.name }).from(user).where(eq(user.id, userId)).limit(1)
+  const [target] = await tx.select({ name: user.name, avatarVariant: user.avatarVariant }).from(user).where(eq(user.id, userId)).limit(1)
   if (!target) throw new AppError('NOT_FOUND', 'USER_NOT_FOUND', 'Không tìm thấy người dùng')
   const [already] = await tx
     .select({ id: houseMembers.id })
@@ -247,7 +265,7 @@ export async function addMemberTx(tx: Tx, houseId: string, userId: string): Prom
     throw e
   }
   await addMemberToDraftsTx(tx, houseId, row.id)
-  return { id: row.id, houseId, userId, role: 'member', sortOrder: row.sortOrder, displayName: target.name, leftAt: null }
+  return { id: row.id, houseId, userId, role: 'member', sortOrder: row.sortOrder, displayName: target.name, avatarVariant: target.avatarVariant, leftAt: null }
 }
 
 /** Chủ nhà cho một thành viên rời nhà (đặt leftAt, giữ dòng để lịch sử các tháng đã chốt còn nguyên). */

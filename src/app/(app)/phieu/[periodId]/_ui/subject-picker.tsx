@@ -3,7 +3,7 @@ import { Avatar } from '@/components/Avatar'
 
 // Chủ nhà chọn người để xem phiếu. Không có mockup: hàng chip cuộn ngang, chip đang chọn dùng kiểu ô chọn của bộ lọc
 // màn Hóa đơn (nền inner, viền trong line2), chip khác nền surface viền line; cao 44px.
-export function SubjectPicker({ periodId, selectedId, people }: { periodId: string; selectedId: string; people: { id: string; name: string }[] }) {
+export function SubjectPicker({ periodId, selectedId, people }: { periodId: string; selectedId: string; people: { id: string; name: string; seed: string }[] }) {
   return (
     <nav aria-label="Xem phiếu của" className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-0.5 [scrollbar-width:none]">
       {people.map((p) => {
@@ -20,7 +20,7 @@ export function SubjectPicker({ periodId, selectedId, people }: { periodId: stri
               on ? 'bg-inner text-text shadow-[inset_0_0_0_1px_var(--c-line2)]' : 'border border-line bg-surface text-muted'
             }`}
           >
-            <Avatar seed={p.name} size={32} />
+            <Avatar seed={p.seed} size={32} />
             {p.name}
           </Link>
         )

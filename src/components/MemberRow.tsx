@@ -7,6 +7,7 @@ import { Avatar } from './Avatar'
  */
 export function MemberRow({
   name,
+  avatarSeed,
   note,
   variant,
   last,
@@ -14,6 +15,8 @@ export function MemberRow({
   aside,
 }: {
   name: string
+  /** Hạt giống ảnh đại diện; thiếu thì dùng `name`. */
+  avatarSeed?: string
   note?: ReactNode
   variant: 'home' | 'bills'
   last: boolean
@@ -25,7 +28,7 @@ export function MemberRow({
   const home = variant === 'home'
   return (
     <div className={`flex items-center gap-3 ${home ? 'min-h-[60px]' : 'py-3.5'} ${last ? '' : 'border-b border-line'}`}>
-      <Avatar seed={name} size={home ? 36 : 40} />
+      <Avatar seed={avatarSeed ?? name} size={home ? 36 : 40} />
       <div className={`flex min-w-0 flex-1 flex-col ${home ? '' : 'gap-0.5'}`}>
         <span className="truncate text-[15px] font-semibold">{name}</span>
         {note && <span className="text-[12px] text-muted">{note}</span>}

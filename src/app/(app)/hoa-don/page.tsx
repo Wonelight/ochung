@@ -6,6 +6,7 @@ import { formatVnd } from '@/lib/money'
 import { collectionSummary, paymentRows } from '@/lib/payments-view'
 import { pickPeriod } from '@/lib/period-pick'
 import { requireCurrentHouse } from '@/server/current-house'
+import { listAvatarSeeds } from '@/server/houses'
 import { getPaymentDetails, getStatuses } from '@/server/payments'
 import { listPeriods } from '@/server/periods'
 import { loadPeriodView, periodParam } from '../_lib/period-data'
@@ -44,6 +45,7 @@ export default async function BillsPage({ searchParams }: PageProps<'/hoa-don'>)
         dueDate: view.period.dueDate,
         payslips: view.result.payslips,
         names: new Map(view.members.map((m) => [m.memberId, m.name])),
+        seeds: await listAvatarSeeds(db, actor, current.houseId),
         statuses,
         now,
       })

@@ -5,7 +5,7 @@ import { AppError } from '@/lib/errors'
 import { pickCreateMonth } from '@/lib/period-pick'
 import { todayVn } from '@/lib/vn-time'
 import { requireCurrentHouse } from '@/server/current-house'
-import { listMembers } from '@/server/houses'
+import { listAvatarSeeds, listMembers } from '@/server/houses'
 import { getOrCreateDraftPeriod, getPeriodEditor, listPeriods, previewPeriod } from '@/server/periods'
 import { periodParam } from '../_lib/period-data'
 import { CreateSheet } from './_ui/create-sheet'
@@ -30,7 +30,11 @@ export default async function CreatePage({ searchParams }: PageProps<'/tao'>) {
     periodId = pick.periodId ?? (await getOrCreateDraftPeriod(db, actor, current.houseId, pick.ym)).periodId
   }
 
-  const [editor, members] = await Promise.all([getPeriodEditor(db, actor, periodId), listMembers(db, actor, current.houseId)])
+  const [editor, members, seeds] = await Promise.all([
+    getPeriodEditor(db, actor, periodId),
+    listMembers(db, actor, current.houseId),
+    listAvatarSeeds(db, actor, current.houseId),
+  ])
   const { period } = editor
   const me = members.find((m) => m.userId === actor.userId)
   if (!me) redirect('/')
@@ -71,6 +75,7 @@ export default async function CreatePage({ searchParams }: PageProps<'/tao'>) {
         initialPreview,
         leftIds: editor.members.filter((m) => !active.has(m.memberId)).map((m) => m.memberId),
         payers: members.map((m) => ({ id: m.id, name: m.displayName })),
+        seeds,
         meId: me.id,
         today: todayVn(now),
         nextClosed: periods.some((p) => p.year === next.year && p.month === next.month && p.status === 'closed'),

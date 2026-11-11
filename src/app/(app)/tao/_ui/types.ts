@@ -12,6 +12,8 @@ export type CreateData = {
   leftIds: string[]
   /** Thành viên đang ở (chọn "Ai đã trả" khi thêm khoản chi lẻ). */
   payers: { id: string; name: string }[]
+  /** Hạt giống ảnh đại diện theo id thành viên (kể cả người đã rời). */
+  seeds: Record<string, string>
   meId: string
   /** Hôm nay ở Việt Nam, YYYY-MM-DD. */
   today: string

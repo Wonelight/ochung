@@ -84,6 +84,7 @@ export default async function HouseManagePage() {
             requests={requests.map((r) => ({
               id: r.id,
               name: r.displayName,
+              avatarVariant: r.avatarVariant,
               note: `Nhập mã nhà · ${timeAgoVi(r.createdAt, now)}`,
             }))}
           />
@@ -97,7 +98,7 @@ export default async function HouseManagePage() {
         </h2>
         <MembersList
           houseId={house.id}
-          members={members.map((m) => ({ id: m.id, displayName: m.displayName, role: m.role }))}
+          members={members.map((m) => ({ id: m.id, displayName: m.displayName, avatarVariant: m.avatarVariant, role: m.role }))}
           viewerMemberId={me.id}
           viewerIsOwner={isOwner}
           archived={house.archived}
@@ -117,7 +118,7 @@ export default async function HouseManagePage() {
             <SettingsSection title="Số lượng theo người" hint="Số lượng của từng người cho các khoản tính theo người, ví dụ số xe.">
               <MemberQty
                 items={perUnitItems.map((i) => ({ id: i.id, name: i.name, amount: i.amount }))}
-                members={members.map((m) => ({ id: m.id, displayName: m.displayName }))}
+                members={members.map((m) => ({ id: m.id, displayName: m.displayName, avatarVariant: m.avatarVariant }))}
                 qty={settings.qty}
               />
             </SettingsSection>

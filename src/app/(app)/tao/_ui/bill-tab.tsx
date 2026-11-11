@@ -84,6 +84,7 @@ export function BillTab({ data, editor }: { data: CreateData; editor: ReturnType
         />
         <MembersPanel
           members={snapshot.members}
+          seeds={data.seeds}
           values={state.members}
           payslips={result?.payslips ?? null}
           leftIds={leftIds}

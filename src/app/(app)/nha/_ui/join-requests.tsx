@@ -3,9 +3,10 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { Avatar } from '@/components/Avatar'
+import { avatarSeed } from '@/lib/avatar-seed'
 import { decideJoinRequestAction } from '../invite-actions'
 
-export type RequestRow = { id: string; name: string; note: string }
+export type RequestRow = { id: string; name: string; avatarVariant: number; note: string }
 
 /** Khối "Chờ duyệt · N" (chép từ mockup `Quản lý nhà`): Duyệt hoặc Từ chối từng yêu cầu vào nhà bằng mã. */
 export function JoinRequests({ requests }: { requests: RequestRow[] }) {
@@ -41,7 +42,7 @@ export function JoinRequests({ requests }: { requests: RequestRow[] }) {
             className="flex min-h-16 items-center gap-2.5"
             style={i < requests.length - 1 ? { borderBottom: '1px solid var(--c-line)' } : undefined}
           >
-            <Avatar seed={r.name} size={40} />
+            <Avatar seed={avatarSeed(r.name, r.avatarVariant)} size={40} />
             <div className="flex min-w-0 flex-1 flex-col">
               <span className="truncate text-[15px] font-semibold">{r.name}</span>
               <span className="text-[12px] text-muted">{r.note}</span>

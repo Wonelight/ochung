@@ -24,7 +24,17 @@ const moneyClass = `${textInputClass} text-[17px] font-semibold tabular-nums`
 
 type Form = { amount: number | null; description: string; spentOn: string; payer: string }
 
-function PayerChips({ people, value, onChange }: { people: { id: string; name: string }[]; value: string; onChange: (id: string) => void }) {
+function PayerChips({
+  people,
+  seeds,
+  value,
+  onChange,
+}: {
+  people: { id: string; name: string }[]
+  seeds: Record<string, string>
+  value: string
+  onChange: (id: string) => void
+}) {
   return (
     <div role="radiogroup" aria-label="Ai đã trả" className="flex flex-wrap gap-2">
       {people.map((p) => {
@@ -41,7 +51,7 @@ function PayerChips({ people, value, onChange }: { people: { id: string; name: s
               on ? 'bg-[var(--c-create-seg-on)] text-text shadow-[inset_0_0_0_1.5px_#E8833A]' : 'bg-transparent text-muted shadow-[inset_0_0_0_1px_var(--c-line2)]'
             }`}
           >
-            <Avatar seed={p.name} size={32} />
+            <Avatar seed={seeds[p.id] ?? p.name} size={32} />
             {p.name}
           </button>
         )
@@ -184,7 +194,7 @@ export function ExpenseTab({ data, onChanged }: { data: CreateData; onChanged: (
           </div>
           <div className="flex flex-col gap-1.5">
             <span className="text-[12px] text-muted">Ai đã trả</span>
-            <PayerChips people={people} value={form.payer} onChange={(payer) => setForm((f) => ({ ...f, payer }))} />
+            <PayerChips people={people} seeds={data.seeds} value={form.payer} onChange={(payer) => setForm((f) => ({ ...f, payer }))} />
           </div>
           {editing && (
             <button

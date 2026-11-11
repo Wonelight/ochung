@@ -219,10 +219,16 @@ export async function listJoinRequests(
   db: Db,
   actor: Actor,
   houseId: string,
-): Promise<{ id: string; userId: string; displayName: string; createdAt: Date }[]> {
+): Promise<{ id: string; userId: string; displayName: string; avatarVariant: number; createdAt: Date }[]> {
   await requireOwner(db, actor, houseId)
   return db
-    .select({ id: joinRequests.id, userId: joinRequests.userId, displayName: user.name, createdAt: joinRequests.createdAt })
+    .select({
+      id: joinRequests.id,
+      userId: joinRequests.userId,
+      displayName: user.name,
+      avatarVariant: user.avatarVariant,
+      createdAt: joinRequests.createdAt,
+    })
     .from(joinRequests)
     .innerJoin(user, eq(user.id, joinRequests.userId))
     .where(and(eq(joinRequests.houseId, houseId), eq(joinRequests.status, 'pending')))

@@ -2,12 +2,13 @@
 
 import { useState } from 'react'
 import { Avatar } from '@/components/Avatar'
+import { avatarSeed } from '@/lib/avatar-seed'
 import { formatVnd } from '@/lib/money'
 import { setMemberQtyAction } from '../actions'
 import { ErrorText, Stepper, listCardClass, useSave } from './settings-parts'
 
 type PerUnitItem = { id: string; name: string; amount: number }
-type Person = { id: string; displayName: string }
+type Person = { id: string; displayName: string; avatarVariant: number }
 
 const key = (memberId: string, itemId: string) => `${memberId}:${itemId}`
 
@@ -58,7 +59,7 @@ export function MemberQty({
                   className="flex min-h-[60px] items-center gap-3"
                   style={i < members.length - 1 ? { borderBottom: '1px solid var(--c-line)' } : undefined}
                 >
-                  <Avatar seed={m.displayName} size={40} />
+                  <Avatar seed={avatarSeed(m.displayName, m.avatarVariant)} size={40} />
                   <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">{m.displayName}</span>
                   <Stepper
                     label={`số lượng ${item.name} của ${m.displayName}`}
