@@ -2,6 +2,7 @@ import { mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { PGlite } from '@electric-sql/pglite'
 import { Pool } from '@neondatabase/serverless'
+import { attachDatabasePool } from '@vercel/functions'
 import { drizzle as drizzleNeon } from 'drizzle-orm/neon-serverless'
 import type { PgDatabase } from 'drizzle-orm/pg-core'
 import { drizzle as drizzlePglite } from 'drizzle-orm/pglite'
@@ -20,6 +21,21 @@ export type Db = PgDatabase<any, typeof schema>
 // nên giữ singleton trên globalThis để mọi bản nạp dùng chung một kết nối.
 const globalForDb = globalThis as unknown as { __chiTieuNhaDb?: Db }
 
+/** Kết nối rảnh quá thời gian này thì đóng (Vercel giữ hàm sống đủ lâu để đóng chúng trước khi tạm dừng). */
+const IDLE_TIMEOUT_MS = 5_000
+
+/**
+ * Pool Neon (WebSocket) cho production. `pool.on('error')`: một kết nối RẢNH bị server đóng (Neon tự ngủ, mạng chập chờn)
+ * phát sự kiện 'error' trên pool; không có trình nghe thì Node ném lỗi đó và cả tiến trình chết. `attachDatabasePool`:
+ * báo cho Vercel để hàm chờ đóng xong các kết nối rảnh trước khi bị tạm dừng (ngoài Vercel thì không làm gì).
+ */
+export function createNeonPool(connectionString: string): Pool {
+  const pool = new Pool({ connectionString, idleTimeoutMillis: IDLE_TIMEOUT_MS })
+  pool.on('error', (e: Error) => console.error('Kết nối database rảnh bị lỗi (pool tự bỏ kết nối đó)', e))
+  attachDatabasePool(pool)
+  return pool
+}
+
 /**
  * Singleton khởi tạo lười: không kết nối khi import (an toàn cho `next build`).
  * - `DATABASE_URL` bắt đầu bằng `pglite:` (vd `pglite:./.data/dev`): PGlite trên thư mục đó,
@@ -37,7 +53,7 @@ export function getDb(): Db {
     mkdirSync(path.dirname(dir), { recursive: true }) // PGlite chỉ tạo thư mục cuối, không tạo thư mục cha
     created = drizzlePglite(new PGlite(dir), { schema })
   } else {
-    created = drizzleNeon(new Pool({ connectionString: url }), { schema })
+    created = drizzleNeon(createNeonPool(url), { schema })
   }
   globalForDb.__chiTieuNhaDb = created
   return created
