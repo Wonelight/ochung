@@ -62,7 +62,7 @@ export function BillTab({ data, editor }: { data: CreateData; editor: ReturnType
 
   return (
     <>
-      <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto px-5 pb-6 pt-3.5">
+      <div className="flex flex-1 flex-col gap-2.5 px-5 pb-6 pt-3.5">
         {(['electricity', 'water'] as const).map((u) => (
           <UtilityPanel
             key={u}

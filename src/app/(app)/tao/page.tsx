@@ -8,7 +8,7 @@ import { requireCurrentHouse } from '@/server/current-house'
 import { listAvatarSeeds, listMembers } from '@/server/houses'
 import { getOrCreateDraftPeriod, getPeriodEditor, listPeriods, previewPeriod } from '@/server/periods'
 import { periodParam } from '../_lib/period-data'
-import { CreateSheet } from './_ui/create-sheet'
+import { CreateForm } from './_ui/create-form'
 import type { Preview } from './_ui/use-period-editor'
 
 export const metadata = { title: 'Tạo mới' }
@@ -52,7 +52,7 @@ export default async function CreatePage({ searchParams }: PageProps<'/tao'>) {
   const next = period.month === 12 ? { year: period.year + 1, month: 1 } : { year: period.year, month: period.month + 1 }
 
   return (
-    <CreateSheet
+    <CreateForm
       key={period.id}
       initialTab={sp.tab === 'chi-le' ? 'expense' : 'bill'}
       data={{

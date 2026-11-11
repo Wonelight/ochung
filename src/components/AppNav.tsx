@@ -10,6 +10,8 @@ import { DioneBar } from './DioneBar'
  */
 export function AppNav({ showCreate }: { showCreate: boolean }) {
   const path = usePathname()
+  // Trang Tạo hóa đơn có chân trang riêng dính đáy (tổng tháng + nút gửi) và nút quay lại, nên không hiện thanh dưới.
+  if (path === '/tao' || path.startsWith('/tao/')) return null
   const settings = path === '/cai-dat' || path.startsWith('/cai-dat/') || path === '/nha' || path.startsWith('/nha/')
   return (
     <>

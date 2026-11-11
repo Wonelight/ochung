@@ -3,10 +3,11 @@
 import { Avatar } from '@/components/Avatar'
 import type { PeriodMember, Payslip } from '@/lib/billing/types'
 import { formatVnd } from '@/lib/money'
-import { Stepper, Switch } from '../../nha/_ui/settings-parts'
+import { Switch } from '../../nha/_ui/settings-parts'
+import { DaysInput } from './days-input'
 
 // Số ngày ở và "Tính tháng này" của từng người (spec §5.3, §10; mockup không có khối này nên dùng lại thẻ panel và
-// công tắc của màn Tạo, bước nhảy −/+ 44px của Quản lý nhà). Dưới tên là số tiền của người đó theo lần tính gần nhất.
+// công tắc của màn Tạo, ô nhập số ngày của DaysInput: thanh kéo, ô gõ số và nút −/+). Dưới tên là số tiền của người đó theo lần tính gần nhất.
 // Người đã rời nhà (vẫn còn trong tháng nháp) được ghi "đã rời" để chủ nhà tự quyết có tính hay không.
 
 function amountNote(slip: Payslip | undefined, on: boolean): string {
@@ -65,15 +66,8 @@ export function MembersPanel({
               <Switch checked={v.included} onChange={(included) => onChange(m.memberId, { included })} label={`Tính tháng này cho ${m.name}`} />
             </div>
             {v.included && (
-              <div className="flex items-center justify-between pl-[46px]">
-                <span className="text-[13px] text-muted">Số ngày ở</span>
-                <Stepper
-                  value={v.days}
-                  min={0}
-                  max={daysInMonth}
-                  onChange={(days) => onChange(m.memberId, { days })}
-                  label={`số ngày ở của ${m.name}`}
-                />
+              <div className="pl-[46px]">
+                <DaysInput value={v.days} max={daysInMonth} name={m.name} onChange={(days) => onChange(m.memberId, { days })} />
               </div>
             )}
           </div>
