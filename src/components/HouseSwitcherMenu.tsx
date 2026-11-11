@@ -6,7 +6,16 @@ import { useEffect, useState } from 'react'
 import { selectHouseAction } from '@/app/(app)/nha/actions'
 import type { HouseSummary } from '@/server/houses'
 
-export function HouseSwitcherMenu({ houses, currentId }: { houses: HouseSummary[]; currentId: string }) {
+export function HouseSwitcherMenu({
+  houses,
+  currentId,
+  align = 'start',
+}: {
+  houses: HouseSummary[]
+  currentId: string
+  align?: 'start' | 'center'
+}) {
+  const centered = align === 'center'
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -38,7 +47,7 @@ export function HouseSwitcherMenu({ houses, currentId }: { houses: HouseSummary[
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="flex min-h-[26px] max-w-full cursor-pointer items-center gap-1 border-0 bg-transparent p-0 font-[inherit] text-[17px] font-semibold text-text"
+        className={`flex min-h-[26px] max-w-full cursor-pointer items-center gap-1 border-0 bg-transparent p-0 font-[inherit] text-[17px] font-semibold text-text ${centered ? 'mx-auto' : ''}`}
       >
         <span className="truncate">{current?.name ?? 'Chọn nhà'}</span>
         <svg
@@ -67,7 +76,7 @@ export function HouseSwitcherMenu({ houses, currentId }: { houses: HouseSummary[
           />
           <div
             role="menu"
-            className="absolute left-0 top-full z-40 mt-2 flex w-[280px] max-w-[calc(100vw-40px)] flex-col rounded-[20px] border border-line bg-surface px-3.5 py-0.5 shadow-[0_10px_24px_var(--c-bar-shadow)]"
+            className={`absolute top-full z-40 mt-2 flex w-[280px] max-w-[calc(100vw-40px)] flex-col ${centered ? 'left-1/2 -translate-x-1/2' : 'left-0'} rounded-[20px] border border-line bg-surface px-3.5 py-0.5 shadow-[0_10px_24px_var(--c-bar-shadow)]`}
           >
             {houses.map((h) => (
               <button

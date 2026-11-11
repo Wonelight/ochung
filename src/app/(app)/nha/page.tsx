@@ -10,6 +10,7 @@ import { AddByCode } from './_ui/add-by-code'
 import { ArchiveHouseButton } from './_ui/archive-house-button'
 import { BankSettings, DueDaySetting } from './_ui/bank-settings'
 import { CopyCodeButton } from './_ui/copy-code-button'
+import { HousePicker } from './_ui/house-picker'
 import { FixedCharges } from './_ui/fixed-charges'
 import { HouseNameEditor } from './_ui/house-name-editor'
 import { InviteShare } from './_ui/invite-share'
@@ -24,7 +25,7 @@ export const metadata = { title: 'Quản lý nhà' }
 // Màn Quản lý nhà theo mockup. Các khối "Chia sẻ link mời", "Chờ duyệt", "Thêm bằng mã tài khoản" chỉ chủ nhà
 // của nhà đang dùng thấy (thành viên và nhà đã lưu trữ thì ẩn).
 export default async function HouseManagePage() {
-  const { actor, current } = await requireCurrentHouse()
+  const { actor, current, houses } = await requireCurrentHouse()
   // người đã rời chỉ xem lại các tháng đã chốt, không xem trang quản lý nhà
   if (current.former) redirect('/')
 
@@ -49,7 +50,12 @@ export default async function HouseManagePage() {
 
   return (
     <main className="flex flex-col gap-4 px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(58px,env(safe-area-inset-top))]">
-      <PageHeader title="Quản lý nhà" backHref="/cai-dat" />
+      <PageHeader title="Quản lý nhà" backHref="/" />
+
+      <HousePicker
+        houses={houses.filter((h) => !h.former).map((h) => ({ houseId: h.houseId, name: h.name, role: h.role, archived: h.archived }))}
+        currentId={current.houseId}
+      />
 
       <section className="relative flex flex-col gap-3.5 overflow-hidden rounded-[24px] border border-line bg-card p-[18px]">
         <svg

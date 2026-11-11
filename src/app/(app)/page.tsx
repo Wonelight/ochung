@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { db } from '@/db'
-import { Avatar } from '@/components/Avatar'
 import { Bell } from '@/components/Bell'
+import { HouseSettingsLink } from '@/components/HouseSettingsLink'
 import { HouseSwitcher } from '@/components/HouseSwitcher'
 import { InstallGuide } from '@/components/InstallGuide'
 import { MemberRow } from '@/components/MemberRow'
@@ -9,7 +9,6 @@ import { Money } from '@/components/Money'
 import { MonthHeader } from '@/components/MonthHeader'
 import { QrSheetButton } from '@/components/QrSheet'
 import { StatusPill } from '@/components/StatusPill'
-import { avatarSeed } from '@/lib/avatar-seed'
 import { consumptionMonthDefault } from '@/lib/billing/period-month'
 import { homeTiles } from '@/lib/home-tiles'
 import { formatVnd } from '@/lib/money'
@@ -47,18 +46,16 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
   const myName = profile.name
 
   const header = (
-    <header className="flex items-center gap-3">
-      <Link href="/cai-dat" aria-label="Hồ sơ của bạn" className="flex size-11 shrink-0 rounded-[22px] no-underline">
-        <Avatar seed={avatarSeed(myName, profile.avatarVariant)} size={44} />
-      </Link>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <span className="text-[13px] text-muted">
-          {greetingVi(now)}, {myName}
-        </span>
-        <HouseSwitcher />
-      </div>
-      <Bell unread={unread} />
-    </header>
+    <div className="flex flex-col gap-1">
+      <header className="grid grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2">
+        {current.former ? <span className="size-11" /> : <HouseSettingsLink houseName={current.name} />}
+        <HouseSwitcher align="center" />
+        <Bell unread={unread} />
+      </header>
+      <p className="m-0 text-center text-[13px] text-muted">
+        {greetingVi(now)}, {myName}
+      </p>
+    </div>
   )
 
   if (!pick) {
