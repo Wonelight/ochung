@@ -7,8 +7,11 @@ import { changePasswordAction } from './actions'
 
 const MIN_LENGTH = 8
 
-/** `forced`: lần đăng nhập đầu (mật khẩu hiện tại là mật khẩu tạm, xong về Trang chủ); không thì mở từ Cài đặt (xong về Cài đặt). */
-export function ChangePasswordForm({ forced }: { forced: boolean }) {
+/**
+ * `forced`: lần đăng nhập đầu (mật khẩu hiện tại là mật khẩu tạm, xong đi tới `next` — mặc định Trang chủ, hoặc link mời
+ * đang mở dở); không thì mở từ Cài đặt (xong về Cài đặt). `next` đã được lọc bằng safeNext ở trang (server).
+ */
+export function ChangePasswordForm({ forced, next }: { forced: boolean; next: string }) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
@@ -32,7 +35,7 @@ export function ChangePasswordForm({ forced }: { forced: boolean }) {
         setPending(false)
         return
       }
-      router.replace(forced ? '/' : '/cai-dat')
+      router.replace(forced ? next : '/cai-dat')
       router.refresh()
     } catch {
       setError('Không kết nối được. Hãy kiểm tra mạng rồi thử lại')

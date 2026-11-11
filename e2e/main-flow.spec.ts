@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { ADMIN, BASE_URL, adminCreateUser, changeTempPassword, dismissFaceIdPrompt, expectNoHorizontalScroll, login, newUser } from './helpers'
 
 // Luồng chính (điện thoại 390×844): quản trị viên tạo 2 tài khoản → chủ nhà đổi mật khẩu tạm, tạo nhà + khoản cố định
-// → thành viên vào nhà bằng link mời → chủ nhà nhập điện/nước + chi lẻ rồi chốt sổ → thành viên thấy đúng số cần chuyển và báo
+// → thành viên mở link mời ngay từ lần đăng nhập đầu (đổi mật khẩu tạm xong vào thẳng nhà) → chủ nhà nhập điện/nước + chi lẻ rồi chốt sổ → thành viên thấy đúng số cần chuyển và báo
 // "Tôi đã chuyển" → chủ nhà xác nhận → thành viên thấy "Đã trả".
 //
 // Số liệu: Tiền nhà 6.000.000 + Internet 200.000 (chia đều) + điện 700.000 + nước 100.000 + chi lẻ 120.000 (chủ nhà trả)
@@ -62,14 +62,16 @@ test('chủ nhà chốt sổ, thành viên chuyển tiền, chủ nhà xác nh�
     expect(inviteUrl).toMatch(/\/moi\/[\w-]+$/)
   })
 
-  await test.step('thành viên đăng nhập, đổi mật khẩu tạm rồi vào nhà bằng link mời', async () => {
+  await test.step('thành viên mở link mời TRƯỚC, đăng nhập, đổi mật khẩu tạm rồi vào thẳng nhà (không tự điều hướng)', async () => {
     const { page } = member
-    await login(page, MEMBER.username, MEMBER.temp)
-    await changeTempPassword(page, MEMBER.temp, MEMBER.password)
-    await dismissFaceIdPrompt(page)
-
     await page.goto(new URL(inviteUrl).pathname)
+    await expect(page).toHaveURL(/\/login\?next=%2Fmoi%2F/)
+    await login(page, MEMBER.username, MEMBER.temp, true)
+    await expect(page).toHaveURL(/\/doi-mat-khau\?next=%2Fmoi%2F/)
+    await changeTempPassword(page, MEMBER.temp, MEMBER.password)
+
     await expect(page).toHaveURL(`${BASE_URL}/`)
+    await dismissFaceIdPrompt(page)
     await expect(page.getByText('Nhà Cầu Giấy')).toBeVisible()
   })
 

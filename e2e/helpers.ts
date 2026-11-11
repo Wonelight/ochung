@@ -36,14 +36,14 @@ export async function dismissFaceIdPrompt(page: Page) {
   }
 }
 
-/** Màn đổi mật khẩu bắt buộc ở lần đăng nhập đầu. */
+/** Màn đổi mật khẩu bắt buộc ở lần đăng nhập đầu (có thể kèm `?next=` khi đang mở link mời). */
 export async function changeTempPassword(page: Page, tempPassword: string, newPassword: string) {
-  await expect(page).toHaveURL(/\/doi-mat-khau$/)
+  await expect(page).toHaveURL(/\/doi-mat-khau(\?|$)/)
   await page.getByLabel('Mật khẩu hiện tại (mật khẩu tạm)').fill(tempPassword)
   await page.getByLabel('Mật khẩu mới (ít nhất 8 ký tự)').fill(newPassword)
   await page.getByLabel('Nhập lại mật khẩu mới').fill(newPassword)
   await page.getByRole('button', { name: 'Đổi mật khẩu' }).click()
-  await expect(page).not.toHaveURL(/\/doi-mat-khau$/)
+  await expect(page).not.toHaveURL(/\/doi-mat-khau/)
 }
 
 /** Quản trị viên tạo tài khoản ở /admin; trả mật khẩu tạm hiện một lần. */

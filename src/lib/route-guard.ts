@@ -33,7 +33,10 @@ export function routeGuard(s: GuardState, path: string): { redirect: string } | 
   }
 
   if (s.mustChangePassword) {
-    return path === CHANGE_PASSWORD ? null : { redirect: CHANGE_PASSWORD }
+    if (path === CHANGE_PASSWORD) return null
+    // người mới mở link mời ở lần đăng nhập đầu: đổi mật khẩu xong quay lại đúng link để vào nhà
+    if (isUnder(path, '/moi')) return { redirect: `${CHANGE_PASSWORD}?next=${encodeURIComponent(path)}` }
+    return { redirect: CHANGE_PASSWORD }
   }
 
   // /doi-mat-khau vẫn mở cho người đã đổi mật khẩu: Cài đặt > Đổi mật khẩu dùng chung trang này (không bắt buộc)

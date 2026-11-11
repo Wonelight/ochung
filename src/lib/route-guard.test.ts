@@ -24,10 +24,14 @@ describe('routeGuard', () => {
 
   it('phải đổi mật khẩu lần đầu: mọi trang khác bị chuyển sang /doi-mat-khau', () => {
     expect(routeGuard(fresh, '/')).toEqual({ redirect: '/doi-mat-khau' })
-    expect(routeGuard(fresh, '/moi/abc')).toEqual({ redirect: '/doi-mat-khau' })
     expect(routeGuard(fresh, '/login')).toEqual({ redirect: '/doi-mat-khau' })
     expect(routeGuard(fresh, '/doi-mat-khau')).toBeNull()
     expect(routeGuard(fresh, '/api/auth/change-password')).toBeNull()
+  })
+
+  it('phải đổi mật khẩu khi đang mở link mời: giữ link qua /doi-mat-khau?next=… để đổi xong vào nhà luôn', () => {
+    expect(routeGuard(fresh, '/moi/abc')).toEqual({ redirect: '/doi-mat-khau?next=%2Fmoi%2Fabc' })
+    expect(safeNext('/moi/abc')).toBe('/moi/abc')
   })
 
   it('admin cần mustChangePassword xong mới vào /admin', () => {
