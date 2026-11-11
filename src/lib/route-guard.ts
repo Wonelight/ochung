@@ -36,7 +36,8 @@ export function routeGuard(s: GuardState, path: string): { redirect: string } | 
     return path === CHANGE_PASSWORD ? null : { redirect: CHANGE_PASSWORD }
   }
 
-  if (path === LOGIN || path === CHANGE_PASSWORD) return { redirect: '/' }
+  // /doi-mat-khau vẫn mở cho người đã đổi mật khẩu: Cài đặt > Đổi mật khẩu dùng chung trang này (không bắt buộc)
+  if (path === LOGIN) return { redirect: '/' }
   if (isUnder(path, '/admin') && s.role !== 'admin') return { redirect: '/' }
   return null
 }

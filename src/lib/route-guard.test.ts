@@ -54,9 +54,9 @@ describe('routeGuard', () => {
     expect(routeGuard(member, '/administrator')).toBeNull()
   })
 
-  it('đã đăng nhập mà vào /login thì về /; vào /doi-mat-khau khi không bắt buộc cũng về /', () => {
+  it('đã đăng nhập mà vào /login thì về /; /doi-mat-khau vẫn vào được để đổi mật khẩu từ Cài đặt', () => {
     expect(routeGuard(member, '/login')).toEqual({ redirect: '/' })
-    expect(routeGuard(member, '/doi-mat-khau')).toEqual({ redirect: '/' })
+    expect(routeGuard(member, '/doi-mat-khau')).toBeNull()
   })
 
   it('người dùng thường vào các trang ứng dụng', () => {

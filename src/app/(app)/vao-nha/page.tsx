@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { user } from '@/db/schema'
 import { Avatar } from '@/components/Avatar'
+import { avatarSeed } from '@/lib/avatar-seed'
 import { getHouseContext } from '@/server/current-house'
 import { listMyJoinRequests } from '@/server/invites'
 import { CopyCodeButton } from '../nha/_ui/copy-code-button'
@@ -16,7 +17,7 @@ export const metadata = { title: 'Vào nhà' }
 export default async function JoinHousePage() {
   const { actor, houses } = await getHouseContext()
   const [[profile], pending] = await Promise.all([
-    db.select({ name: user.name, accountCode: user.accountCode }).from(user).where(eq(user.id, actor.userId)).limit(1),
+    db.select({ name: user.name, accountCode: user.accountCode, avatarVariant: user.avatarVariant }).from(user).where(eq(user.id, actor.userId)).limit(1),
     listMyJoinRequests(db, actor),
   ])
   const hasActiveHouse = houses.some((h) => !h.archived)
@@ -26,7 +27,7 @@ export default async function JoinHousePage() {
     <main className="flex flex-col gap-5 px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(58px,env(safe-area-inset-top))]">
       <header className="flex items-center gap-3">
         <Link href="/cai-dat" aria-label="Hồ sơ của bạn" className="flex size-11 shrink-0 rounded-[22px]">
-          <Avatar seed={profile?.name ?? ''} size={44} />
+          <Avatar seed={avatarSeed(profile?.name ?? '', profile?.avatarVariant ?? 0)} size={44} />
         </Link>
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-[13px] text-muted">Xin chào, {profile?.name}</span>

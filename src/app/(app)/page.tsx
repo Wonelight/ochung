@@ -9,12 +9,14 @@ import { Money } from '@/components/Money'
 import { MonthHeader } from '@/components/MonthHeader'
 import { QrSheetButton } from '@/components/QrSheet'
 import { StatusPill } from '@/components/StatusPill'
+import { avatarSeed } from '@/lib/avatar-seed'
 import { consumptionMonthDefault } from '@/lib/billing/period-month'
 import { homeTiles } from '@/lib/home-tiles'
 import { formatVnd } from '@/lib/money'
 import { collectionSummary, paymentRows, pillFor } from '@/lib/payments-view'
 import { pickPeriod } from '@/lib/period-pick'
 import { greetingVi } from '@/lib/vn-time'
+import { readOwnProfile } from '@/server/account'
 import { requireCurrentHouse } from '@/server/current-house'
 import { listMembers } from '@/server/houses'
 import { unreadCount } from '@/server/notifications'
@@ -31,10 +33,11 @@ import { MonthTiles } from './_ui/month-tiles'
 export default async function Home({ searchParams }: PageProps<'/'>) {
   const { actor, current } = await requireCurrentHouse()
   const now = new Date()
-  const [members, periods, unread] = await Promise.all([
+  const [members, periods, unread, profile] = await Promise.all([
     listMembers(db, actor, current.houseId),
     listPeriods(db, actor, current.houseId),
     unreadCount(db, actor),
+    readOwnProfile(db, actor),
   ])
   const me = members.find((m) => m.userId === actor.userId)
   const isOwner = current.role === 'owner'
@@ -47,7 +50,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
   const header = (
     <header className="flex items-center gap-3">
       <Link href="/cai-dat" aria-label="Hồ sơ của bạn" className="flex size-11 shrink-0 rounded-[22px] no-underline">
-        <Avatar seed={myName} size={44} />
+        <Avatar seed={avatarSeed(myName, profile.avatarVariant)} size={44} />
       </Link>
       <div className="flex min-w-0 flex-1 flex-col">
         <span className="text-[13px] text-muted">

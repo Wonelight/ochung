@@ -7,7 +7,8 @@ import { changePasswordAction } from './actions'
 
 const MIN_LENGTH = 8
 
-export function ChangePasswordForm() {
+/** `forced`: lần đăng nhập đầu (mật khẩu hiện tại là mật khẩu tạm, xong về Trang chủ); không thì mở từ Cài đặt (xong về Cài đặt). */
+export function ChangePasswordForm({ forced }: { forced: boolean }) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
@@ -31,7 +32,7 @@ export function ChangePasswordForm() {
         setPending(false)
         return
       }
-      router.replace('/')
+      router.replace(forced ? '/' : '/cai-dat')
       router.refresh()
     } catch {
       setError('Không kết nối được. Hãy kiểm tra mạng rồi thử lại')
@@ -41,7 +42,7 @@ export function ChangePasswordForm() {
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4 px-6 pt-6">
-      <PasswordField id="pw-current" label="Mật khẩu hiện tại (mật khẩu tạm)" autoComplete="current-password" />
+      <PasswordField id="pw-current" label={forced ? 'Mật khẩu hiện tại (mật khẩu tạm)' : 'Mật khẩu hiện tại'} autoComplete="current-password" />
       <PasswordField id="pw-new" label="Mật khẩu mới (ít nhất 8 ký tự)" autoComplete="new-password" />
       <PasswordField id="pw-repeat" label="Nhập lại mật khẩu mới" autoComplete="new-password" />
       <FormError message={error} />

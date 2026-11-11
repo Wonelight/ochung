@@ -58,3 +58,11 @@ body {
   --c-create-seg-on: #FFFDF8;
   --c-knob: #FFFFFF;
 }
+
+/* Màu riêng của màn Cài đặt: viền nút "Đăng xuất" (`dangerLine` trong tokens() của mockup đó). */
+:root { --c-danger-line: #5A2E16; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) { --c-danger-line: #E2B79A; }
+}
+:root[data-theme="dark"] { --c-danger-line: #5A2E16; }
+:root[data-theme="light"] { --c-danger-line: #E2B79A; }

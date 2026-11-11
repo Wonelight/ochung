@@ -15,6 +15,7 @@ export function ConfirmSheet({
   onConfirm,
   onCancel,
   tone = 'danger',
+  cancelLabel = 'Hủy',
 }: {
   title: string
   body: string
@@ -24,6 +25,7 @@ export function ConfirmSheet({
   onConfirm: () => void
   onCancel: () => void
   tone?: 'danger' | 'primary'
+  cancelLabel?: string
 }) {
   const cancelRef = useRef<HTMLButtonElement>(null)
 
@@ -67,7 +69,7 @@ export function ConfirmSheet({
             onClick={onCancel}
             className="h-[50px] flex-1 cursor-pointer rounded-[25px] border border-line2 bg-inner font-[inherit] text-[15px] font-semibold text-text disabled:cursor-default disabled:opacity-60"
           >
-            Hủy
+            {cancelLabel}
           </button>
           <button
             type="button"
