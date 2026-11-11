@@ -51,6 +51,22 @@ test('hồ sơ, giao diện và Face ID trong Cài đặt; đăng nhập bằng 
     await expect(faceId.getByRole('button', { name: 'Thêm Face ID cho thiết bị này' })).toBeVisible()
   })
 
+  await test.step('phiên cũ (403 SESSION_NOT_FRESH): hướng dẫn đăng xuất rồi đăng nhập lại, về lại Cài đặt', async () => {
+    // máy chủ trả 403 cho bước tạo tùy chọn đăng ký, như với phiên quá 24 giờ (giữ nguyên freshAge mặc định)
+    const route = '**/api/auth/passkey/generate-register-options*'
+    await page.route(route, (r) =>
+      r.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ code: 'SESSION_NOT_FRESH', message: 'Session is not fresh' }) }),
+    )
+    const faceId = page.getByRole('region', { name: 'Face ID' })
+    await faceId.getByRole('button', { name: 'Thêm Face ID cho thiết bị này' }).click()
+    await expect(faceId.getByRole('alert')).toContainText('Phiên đăng nhập đã lâu. Đăng xuất rồi đăng nhập lại để bật Face ID.')
+    await page.unroute(route)
+    await faceId.getByRole('button', { name: 'Đăng xuất để đăng nhập lại' }).click()
+    await expect(page).toHaveURL(/\/login\?next=%2Fcai-dat$/)
+    await login(page, USER.username, USER.password, true)
+    await expect(page).toHaveURL(/\/cai-dat$/)
+  })
+
   await test.step('sửa hồ sơ: tên, ngày sinh, "Tạo hình mới"', async () => {
     await page.getByLabel('Tên hiển thị').fill('Bảo Nguyễn')
     await page.getByLabel('Ngày sinh').fill('1998-05-20')

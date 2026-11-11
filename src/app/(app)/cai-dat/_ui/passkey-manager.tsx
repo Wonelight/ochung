@@ -3,7 +3,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { authClient } from '@/lib/auth-client'
-import { dismissPasskeyPrompt, passkeyDeviceName, webAuthnSupported } from '@/lib/passkey-client'
+import {
+  RELOGIN_FOR_PASSKEY_HREF,
+  SESSION_NOT_FRESH_MESSAGE,
+  classifyAddPasskeyError,
+  dismissPasskeyPrompt,
+  passkeyDeviceName,
+  webAuthnSupported,
+} from '@/lib/passkey-client'
+import { signOutClient } from '@/lib/sign-out'
 import { ErrorText, ghostButtonClass, secondaryButtonClass } from '../../nha/_ui/settings-parts'
 
 type PasskeyRow = { id: string; name: string; createdAt: Date | null }
@@ -12,6 +20,7 @@ const dateFormat = new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Min
 
 /** Face ID (passkey): thêm khóa cho thiết bị đang dùng, xem danh sách khóa đã thêm và xóa từng khóa. Mật khẩu vẫn dùng được song song. */
 export function PasskeyManager({ userId }: { userId: string }) {
+  const [stale, setStale] = useState(false)
   const [supported, setSupported] = useState<boolean | null>(null)
   const [list, setList] = useState<PasskeyRow[] | null>(null)
   const [busy, setBusy] = useState(false)
@@ -43,14 +52,13 @@ export function PasskeyManager({ userId }: { userId: string }) {
     if (busy) return
     setBusy(true)
     setError('')
+    setStale(false)
     try {
       const res = await authClient.passkey.addPasskey({ name: passkeyDeviceName(navigator.userAgent) })
       if (res.error) {
-        setError(
-          'code' in res.error && res.error.code === 'ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED'
-            ? 'Thiết bị này đã có Face ID cho tài khoản của bạn'
-            : 'Chưa bật được Face ID. Hãy thử lại',
-        )
+        const failure = classifyAddPasskeyError(res.error)
+        if (failure === 'session-not-fresh') setStale(true)
+        else setError(failure === 'already-registered' ? 'Thiết bị này đã có Face ID cho tài khoản của bạn' : 'Chưa bật được Face ID. Hãy thử lại')
         return
       }
       dismissPasskeyPrompt(userId) // đã bật rồi thì không cần hỏi lại
@@ -59,6 +67,16 @@ export function PasskeyManager({ userId }: { userId: string }) {
       setError('Chưa bật được Face ID. Hãy thử lại')
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function onRelogin() {
+    setBusy(true)
+    try {
+      await signOutClient() // gỡ thông báo đẩy của thiết bị trước, rồi hủy phiên
+    } finally {
+      // điều hướng cứng: router.refresh() của trang cũ sẽ bị guard chuyển về /login mất tham số next
+      window.location.assign(RELOGIN_FOR_PASSKEY_HREF)
     }
   }
 
@@ -114,6 +132,16 @@ export function PasskeyManager({ userId }: { userId: string }) {
         </button>
       )}
       <ErrorText>{error}</ErrorText>
+      {stale && (
+        <div className="flex flex-col gap-2">
+          <p role="alert" className="m-0 text-[14px] font-medium text-unpaid-fg">
+            {SESSION_NOT_FRESH_MESSAGE}
+          </p>
+          <button type="button" onClick={onRelogin} disabled={busy} className={secondaryButtonClass}>
+            Đăng xuất để đăng nhập lại
+          </button>
+        </div>
+      )}
 
       {removing && (
         <ConfirmSheet

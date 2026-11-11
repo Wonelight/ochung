@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { user } from '@/db/schema'
+import { session, user } from '@/db/schema'
 import { createTestDb } from '@/db/test-db'
 import type { Db } from '@/db'
 import { createAuth } from './auth'
@@ -56,6 +56,17 @@ describe('Better Auth trên PGlite', () => {
   it('không có cookie thì không có session', async () => {
     expect(await auth.api.getSession({ headers: new Headers() })).toBeNull()
   })
+  it('đăng ký passkey đòi phiên còn mới: phiên cũ hơn 24 giờ bị 403 SESSION_NOT_FRESH (giữ freshAge mặc định)', async () => {
+    const login = await auth.api.signInUsername({ body: { username: 'annguyen', password: 'matkhau-tam-1' }, returnHeaders: true })
+    const headers = new Headers({ cookie: login.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ') })
+    await expect(auth.api.generatePasskeyRegistrationOptions({ headers, query: { name: 'iPhone' } })).resolves.toBeDefined()
+
+    // đẩy mọi phiên của người này về 25 giờ trước
+    const [owner] = await db.select({ id: user.id }).from(user).where(eq(user.username, 'annguyen'))
+    await db.update(session).set({ createdAt: new Date(Date.now() - 25 * 3600_000) }).where(eq(session.userId, owner.id))
+    const err = await auth.api.generatePasskeyRegistrationOptions({ headers, query: { name: 'iPhone' } }).catch((e) => e)
+    expect(err).toMatchObject({ status: 'FORBIDDEN', body: { code: 'SESSION_NOT_FRESH' } })
+  }, 30_000)
 })
 
 describe('endpoint /admin/* khi chưa đổi mật khẩu tạm', () => {
@@ -88,4 +99,5 @@ describe('endpoint /admin/* khi chưa đổi mật khẩu tạm', () => {
     await db.update(user).set({ mustChangePassword: false }).where(eq(user.id, created.user.id))
     await expect(auth.api.listUsers({ headers, query: {} })).resolves.toBeDefined()
   }, 30_000)
+
 })

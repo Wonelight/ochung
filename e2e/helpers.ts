@@ -15,8 +15,9 @@ export async function newUser(browser: Browser): Promise<{ context: BrowserConte
   return { context, page: await context.newPage() }
 }
 
-export async function login(page: Page, username: string, password: string) {
-  await page.goto('/login')
+/** `fromCurrentPage`: đang ở màn đăng nhập sẵn (vd /login?next=…) thì không mở lại /login để giữ tham số next. */
+export async function login(page: Page, username: string, password: string, fromCurrentPage = false) {
+  if (!fromCurrentPage) await page.goto('/login')
   await page.getByLabel('Tên đăng nhập').fill(username)
   await page.getByLabel('Mật khẩu', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click()

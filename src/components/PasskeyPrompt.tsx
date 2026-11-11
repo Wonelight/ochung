@@ -3,7 +3,16 @@
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { authClient } from '@/lib/auth-client'
-import { dismissPasskeyPrompt, passkeyDeviceName, passkeyPromptDismissed, webAuthnSupported } from '@/lib/passkey-client'
+import {
+  RELOGIN_FOR_PASSKEY_HREF,
+  SESSION_NOT_FRESH_MESSAGE,
+  classifyAddPasskeyError,
+  dismissPasskeyPrompt,
+  passkeyDeviceName,
+  passkeyPromptDismissed,
+  webAuthnSupported,
+} from '@/lib/passkey-client'
+import { signOutClient } from '@/lib/sign-out'
 import { ConfirmSheet } from './ConfirmSheet'
 
 /**
@@ -13,6 +22,7 @@ import { ConfirmSheet } from './ConfirmSheet'
  */
 export function PasskeyPrompt({ userId }: { userId: string }) {
   const path = usePathname()
+  const [stale, setStale] = useState(false)
   const inSettings = path === '/cai-dat'
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -39,7 +49,8 @@ export function PasskeyPrompt({ userId }: { userId: string }) {
     try {
       const res = await authClient.passkey.addPasskey({ name: passkeyDeviceName(navigator.userAgent) })
       if (res.error) {
-        setError('Chưa bật được Face ID. Bạn có thể thử lại hoặc bật sau trong Cài đặt')
+        if (classifyAddPasskeyError(res.error) === 'session-not-fresh') setStale(true)
+        else setError('Chưa bật được Face ID. Bạn có thể thử lại hoặc bật sau trong Cài đặt')
         return
       }
       dismissPasskeyPrompt(userId)
@@ -48,6 +59,16 @@ export function PasskeyPrompt({ userId }: { userId: string }) {
       setError('Chưa bật được Face ID. Bạn có thể thử lại hoặc bật sau trong Cài đặt')
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function onRelogin() {
+    setBusy(true)
+    try {
+      await signOutClient()
+    } finally {
+      // điều hướng cứng: router.refresh() của trang cũ sẽ bị guard chuyển về /login mất tham số next
+      window.location.assign(RELOGIN_FOR_PASSKEY_HREF)
     }
   }
 
@@ -61,12 +82,16 @@ export function PasskeyPrompt({ userId }: { userId: string }) {
     <ConfirmSheet
       tone="primary"
       title="Bật đăng nhập bằng Face ID?"
-      body="Lần sau chỉ cần nhìn vào iPhone là vào được app. Mật khẩu vẫn dùng được như cũ, và bạn tắt Face ID bất cứ lúc nào trong Cài đặt."
-      confirmLabel="Bật Face ID"
+      body={
+        stale
+          ? SESSION_NOT_FRESH_MESSAGE
+          : 'Lần sau chỉ cần nhìn vào iPhone là vào được app. Mật khẩu vẫn dùng được như cũ, và bạn tắt Face ID bất cứ lúc nào trong Cài đặt.'
+      }
+      confirmLabel={stale ? 'Đăng xuất' : 'Bật Face ID'}
       cancelLabel="Để sau"
       pending={busy}
       error={error}
-      onConfirm={onEnable}
+      onConfirm={stale ? onRelogin : onEnable}
       onCancel={onLater}
     />
   )

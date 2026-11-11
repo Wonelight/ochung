@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dismissPasskeyPrompt, passkeyDeviceName, passkeyPromptDismissed } from './passkey-client'
+import { classifyAddPasskeyError, dismissPasskeyPrompt, passkeyDeviceName, passkeyPromptDismissed } from './passkey-client'
 
 describe('passkeyDeviceName', () => {
   it('nhận ra iPhone, iPad, Android, Mac, Windows; còn lại là "Thiết bị này"', () => {
@@ -39,5 +39,18 @@ describe('lời mời Face ID đã bị từ chối', () => {
     expect(() => dismissPasskeyPrompt('u1', broken)).not.toThrow()
     expect(passkeyPromptDismissed('u1', null)).toBe(false)
     expect(() => dismissPasskeyPrompt('u1', null)).not.toThrow()
+  })
+})
+
+describe('classifyAddPasskeyError', () => {
+  it('phiên cũ (403 / SESSION_NOT_FRESH) được nhận ra để hướng dẫn đăng nhập lại', () => {
+    expect(classifyAddPasskeyError({ code: 'SESSION_NOT_FRESH', status: 403 })).toBe('session-not-fresh')
+    expect(classifyAddPasskeyError({ status: 403 })).toBe('session-not-fresh')
+  })
+  it('khóa đã đăng ký trên thiết bị này; lỗi khác; không có lỗi', () => {
+    expect(classifyAddPasskeyError({ code: 'ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED', status: 400 })).toBe('already-registered')
+    expect(classifyAddPasskeyError({ code: 'AUTH_CANCELLED', status: 400 })).toBe('other')
+    expect(classifyAddPasskeyError({ status: 500 })).toBe('other')
+    expect(classifyAddPasskeyError(null)).toBe('other')
   })
 })

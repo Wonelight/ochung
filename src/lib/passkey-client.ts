@@ -42,3 +42,21 @@ function safeStorage(): Storage | null {
     return null
   }
 }
+
+export type AddPasskeyFailure = 'session-not-fresh' | 'already-registered' | 'other'
+
+/**
+ * Phân loại lỗi của `authClient.passkey.addPasskey`. Đăng ký passkey đòi phiên "còn mới" (Better Auth: freshAge mặc định 24 giờ,
+ * giữ nguyên mặc định để an toàn): phiên cũ hơn bị máy chủ trả 403 SESSION_NOT_FRESH, khi đó chỉ đăng nhập lại mới giải quyết được.
+ */
+export function classifyAddPasskeyError(error: { code?: string; status?: number } | null | undefined): AddPasskeyFailure {
+  if (!error) return 'other'
+  if (error.code === 'SESSION_NOT_FRESH' || error.status === 403) return 'session-not-fresh'
+  if (error.code === 'ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED') return 'already-registered'
+  return 'other'
+}
+
+export const SESSION_NOT_FRESH_MESSAGE = 'Phiên đăng nhập đã lâu. Đăng xuất rồi đăng nhập lại để bật Face ID.'
+
+/** Sau khi đăng xuất vì phiên cũ: về màn đăng nhập rồi quay lại Cài đặt (nơi có mục Face ID). */
+export const RELOGIN_FOR_PASSKEY_HREF = '/login?next=%2Fcai-dat'
