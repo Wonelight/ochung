@@ -9,7 +9,7 @@ import { statusesFor } from '@/lib/payments-view'
 import { isProofUrlFor } from '@/lib/proof'
 import { MAX_MONEY } from '@/lib/validation'
 import type { Actor } from './actor'
-import { isUniqueViolation, requireMember, requireOwner, type Tx } from './houses'
+import { isUniqueViolation, requireOwner, requirePeriodViewer, type Tx } from './houses'
 import { afterCommit, notifyPaymentRejected, notifyTransferSubmitted } from './notifications'
 
 // Mỗi lần trả là một bản ghi riêng; trạng thái của một phiếu luôn được TÍNH từ các bản ghi (xem paymentStatus), không lưu tay.
@@ -124,17 +124,21 @@ export type PaymentDetail = {
 }
 
 /**
- * Chi tiết các bản ghi của một tháng đã chốt, mới nhất trước. Chủ nhà thấy của mọi người; thành viên chỉ thấy bản ghi của mình
- * (ảnh chứng từ chỉ trả cho người trong nhà, và thành viên không xem ảnh của người khác).
+ * Chi tiết các bản ghi của một tháng đã chốt, mới nhất trước. Chủ nhà thấy của mọi người; thành viên (cả người đã rời, với tháng
+ * đã chốt có tên mình) chỉ thấy bản ghi của mình (ảnh chứng từ chỉ trả cho người trong nhà, và thành viên không xem ảnh của người khác).
  */
 export async function getPaymentDetails(db: Db, actor: Actor, periodId: string): Promise<PaymentDetail[]> {
-  const [period] = await db.select({ houseId: periods.houseId }).from(periods).where(eq(periods.id, periodId)).limit(1)
+  const [period] = await db
+    .select({ id: periods.id, houseId: periods.houseId, status: periods.status })
+    .from(periods)
+    .where(eq(periods.id, periodId))
+    .limit(1)
   if (!period) throw new AppError('NOT_FOUND', 'PERIOD_NOT_FOUND', 'Không tìm thấy tháng này')
-  const me = await requireMember(db, actor, period.houseId)
+  const me = await requirePeriodViewer(db, actor, period)
   const rows = await db
     .select()
     .from(payments)
-    .where(me.role === 'owner' ? eq(payments.periodId, periodId) : and(eq(payments.periodId, periodId), eq(payments.memberId, me.id)))
+    .where(me.role === 'owner' ? eq(payments.periodId, periodId) : and(eq(payments.periodId, periodId), eq(payments.memberId, me.memberId)))
     .orderBy(asc(payments.createdAt))
   return rows
     .map((r) => ({
@@ -151,22 +155,28 @@ export async function getPaymentDetails(db: Db, actor: Actor, periodId: string):
 }
 
 /**
- * Kiểm quyền tải ảnh chứng từ lên: người gọi là thành viên đang ở trong nhà (không phải nhà đã lưu trữ), tháng đã chốt.
- * Trả nhà và dòng thành viên của chính người gọi để đặt đường dẫn ảnh; route `/api/upload` dùng hàm này.
+ * Kiểm quyền tải ảnh chứng từ lên: người gọi là thành viên đang ở trong nhà, hoặc người đã rời có tên trong tháng
+ * (không phải nhà đã lưu trữ), tháng đã chốt. Trả nhà và dòng thành viên của chính người gọi để đặt đường dẫn ảnh;
+ * route `/api/upload` dùng hàm này.
  */
 export async function authorizeProofUpload(db: Db, actor: Actor, periodId: string): Promise<{ houseId: string; memberId: string }> {
-  const [period] = await db.select({ houseId: periods.houseId, status: periods.status }).from(periods).where(eq(periods.id, periodId)).limit(1)
+  const [period] = await db
+    .select({ id: periods.id, houseId: periods.houseId, status: periods.status })
+    .from(periods)
+    .where(eq(periods.id, periodId))
+    .limit(1)
   if (!period) throw new AppError('NOT_FOUND', 'PERIOD_NOT_FOUND', 'Không tìm thấy tháng này')
-  const me = await requireMember(db, actor, period.houseId)
+  const me = await requirePeriodViewer(db, actor, period)
   const [house] = await db.select({ archivedAt: houses.archivedAt }).from(houses).where(eq(houses.id, period.houseId)).limit(1)
   if (house?.archivedAt) throw new AppError('FORBIDDEN', 'HOUSE_ARCHIVED', 'Nhà đã được lưu trữ, chỉ xem được')
   if (period.status !== 'closed') throw notClosed()
-  return { houseId: period.houseId, memberId: me.id }
+  return { houseId: period.houseId, memberId: me.memberId }
 }
 
 /**
  * Thành viên báo "Tôi đã chuyển": tạo bản ghi `in` đang chờ, số tiền = số còn phải trả hiện tại.
  * Luôn dùng dòng thành viên của chính người gọi. Đã có bản ghi chờ thì trả lại bản ghi đó (gọi lại không tạo thêm).
+ * Người đã rời nhà vẫn báo chuyển được cho tháng đã chốt có tên mình mà còn nợ (để trả nốt); ngoài ra họ không ghi được gì.
  */
 export async function submitTransfer(
   db: Db,
@@ -177,19 +187,19 @@ export async function submitTransfer(
   const proofUrl = input.proofUrl?.trim() || null
   const { paymentId, created } = await db.transaction(async (tx) => {
     const period = await lockPeriod(tx, periodId)
-    const me = await requireMember(tx, actor, period.houseId)
+    const me = await requirePeriodViewer(tx, actor, period)
     const [house] = await tx.select({ archivedAt: houses.archivedAt }).from(houses).where(eq(houses.id, period.houseId)).limit(1)
     if (house?.archivedAt) throw new AppError('FORBIDDEN', 'HOUSE_ARCHIVED', 'Nhà đã được lưu trữ, chỉ xem được')
     if (period.status !== 'closed') throw notClosed()
-    if (proofUrl && !isProofUrlFor(proofUrl, period.houseId, periodId, me.id)) {
+    if (proofUrl && !isProofUrlFor(proofUrl, period.houseId, periodId, me.memberId)) {
       throw new AppError('INVALID', 'PROOF_URL', 'Ảnh chứng từ không hợp lệ')
     }
 
-    const mine = await recordsOfMember(tx, periodId, me.id)
+    const mine = await recordsOfMember(tx, periodId, me.memberId)
     const pending = mine.find((r) => r.direction === 'in' && r.status === 'pending')
     if (pending) return { paymentId: pending.id, created: false }
 
-    const slip = payslipOf(period, me.id)
+    const slip = payslipOf(period, me.memberId)
     const balance = slip ? paymentStatus(slip.due, mine.map(toRecord)).balance : 0
     if (balance <= 0) throw new AppError('CONFLICT', 'NOTHING_DUE', 'Bạn không còn khoản nào cần chuyển trong tháng này')
 
@@ -197,11 +207,11 @@ export async function submitTransfer(
     try {
       // Điểm lưu riêng: vi phạm chỉ mục duy nhất (một khoản chờ cho mỗi người mỗi tháng) không làm hỏng cả transaction.
       await tx.transaction((sp) =>
-        sp.insert(payments).values({ id, periodId, memberId: me.id, direction: 'in', amount: balance, proofUrl, createdBy: actor.userId }),
+        sp.insert(payments).values({ id, periodId, memberId: me.memberId, direction: 'in', amount: balance, proofUrl, createdBy: actor.userId }),
       )
     } catch (e) {
       if (!isUniqueViolation(e)) throw e
-      const [existing] = (await recordsOfMember(tx, periodId, me.id)).filter((r) => r.direction === 'in' && r.status === 'pending')
+      const [existing] = (await recordsOfMember(tx, periodId, me.memberId)).filter((r) => r.direction === 'in' && r.status === 'pending')
       if (!existing) throw e
       return { paymentId: existing.id, created: false }
     }

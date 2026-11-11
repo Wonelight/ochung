@@ -10,8 +10,9 @@ import { formatVnd } from '@/lib/money'
 import { pillFor } from '@/lib/payments-view'
 import { settlement } from '@/lib/payslip-view'
 import { dateVn } from '@/lib/vn-time'
-import { requireCurrentHouse } from '@/server/current-house'
-import { listAvatarSeeds, listMembers } from '@/server/houses'
+import { readOwnProfile } from '@/server/account'
+import { getHouseContext } from '@/server/current-house'
+import { listAvatarSeeds } from '@/server/houses'
 import { getStatuses } from '@/server/payments'
 import { loadPayCta } from '../../_lib/pay-data'
 import { loadPeriodView } from '../../_lib/period-data'
@@ -24,8 +25,10 @@ export const metadata = { title: 'Biểu phí tháng' }
 // Phiếu thanh toán. Thẻ tháng chép từ mockup `Biểu phí tháng 11` (điện, nước, khoản cố định, tổng tháng); phần dưới là
 // phiếu riêng của người đang xem (spec §10): từng dòng kèm cách tính, khối "Tổng phần / Trừ tiền đã ứng / Cần chuyển".
 // Chủ nhà chọn được người để xem phiếu (?tv=<memberId>) và có nút "Sửa".
+// Không đòi "nhà đang chọn": link trong thông báo mở thẳng phiếu, kể cả với người đã rời nhà (xem lại, trả nốt phần còn nợ);
+// quyền xem do getPeriodView kiểm.
 export default async function PayslipPage({ params, searchParams }: PageProps<'/phieu/[periodId]'>) {
-  const { actor, current } = await requireCurrentHouse()
+  const { actor, houses } = await getHouseContext()
   const { periodId } = await params
   const { view, error } = await loadPeriodView(actor, periodId)
   if (!view) {
@@ -40,17 +43,16 @@ export default async function PayslipPage({ params, searchParams }: PageProps<'/
     )
   }
 
-  const { period, result } = view
-  const [members, seeds] = await Promise.all([listMembers(db, actor, period.houseId), listAvatarSeeds(db, actor, period.houseId)])
-  const me = members.find((m) => m.userId === actor.userId)
-  const isOwner = me?.role === 'owner'
-  const archived = period.houseId === current.houseId ? current.archived : true
+  const { period, result, viewer } = view
+  const [profile, seeds] = await Promise.all([readOwnProfile(db, actor), listAvatarSeeds(db, actor, period.houseId)])
+  const isOwner = viewer.role === 'owner'
+  const archived = houses.find((h) => h.houseId === period.houseId)?.archived ?? true
   const canEdit = isOwner && !archived
   const tv = (await searchParams).tv
-  const subjectId = isOwner && typeof tv === 'string' && result.payslips.some((p) => p.memberId === tv) ? tv : (me?.id ?? '')
+  const subjectId = isOwner && typeof tv === 'string' && result.payslips.some((p) => p.memberId === tv) ? tv : viewer.memberId
   const slip = result.payslips.find((p) => p.memberId === subjectId)
   const names = new Map(view.members.map((m) => [m.memberId, m.name]))
-  const self = subjectId === me?.id
+  const self = subjectId === viewer.memberId
   const subjectName = self ? 'bạn' : (names.get(subjectId) ?? '')
   const ownerName = view.members.find((m) => m.isOwner)?.name ?? 'chủ nhà'
   const statuses = await getStatuses(db, period.id)
@@ -58,7 +60,7 @@ export default async function PayslipPage({ params, searchParams }: PageProps<'/
   const pill = status ? pillFor(status) : null
   const cta =
     self && !isOwner && slip && period.status === 'closed'
-      ? await loadPayCta({ actor, houseId: period.houseId, period, memberName: me?.displayName ?? '', status })
+      ? await loadPayCta({ actor, houseId: period.houseId, period, memberName: profile.name, status })
       : null
   const s = slip ? settlement(slip, { self, name: names.get(subjectId) ?? '', ownerName }) : null
   const ym = { year: period.year, month: period.month }

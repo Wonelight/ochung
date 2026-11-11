@@ -9,12 +9,12 @@ export const HOUSE_COOKIE = 'house'
 const ONE_YEAR = 60 * 60 * 24 * 365
 
 /**
- * Nhà đang chọn: nhà trong cookie nếu người dùng còn là thành viên (kể cả nhà đã lưu trữ, để xem lịch sử),
+ * Nhà đang chọn: nhà trong cookie nếu có trong danh sách của người dùng (kể cả nhà đã lưu trữ hoặc đã rời, để xem lịch sử),
  * không thì nhà đang dùng đầu tiên (danh sách đã xếp nhà đang dùng trước), không có thì null.
  */
 export function resolveCurrentHouse(houses: HouseSummary[], cookieValue: string | undefined): HouseSummary | null {
   const chosen = cookieValue ? houses.find((h) => h.houseId === cookieValue) : undefined
-  return chosen ?? houses.find((h) => !h.archived) ?? null
+  return chosen ?? houses.find((h) => !h.archived && !h.former) ?? null
 }
 
 /** Actor, các nhà của người dùng và nhà đang chọn; gộp trong một request (layout và trang dùng chung kết quả). */

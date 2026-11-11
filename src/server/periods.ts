@@ -22,7 +22,7 @@ import { AppError } from '@/lib/errors'
 import { utilityInputOf, type PeriodEdits, type UtilityPatch } from '@/lib/period-edits'
 import { MAX_MONEY } from '@/lib/validation'
 import type { Actor } from './actor'
-import { DEFAULT_TARIFF, isUniqueViolation, requireMember, requireOwner, type Tx } from './houses'
+import { DEFAULT_TARIFF, isUniqueViolation, requireOwner, requirePeriodViewer, requireViewer, type PeriodViewer, type Tx } from './houses'
 import { onPeriodClosed, onPeriodUpdated } from './period-events'
 
 // Bản chụp: mỗi tháng có bản sao riêng của khoản cố định (period_items), bảng giá điện nước (period_utilities)
@@ -61,6 +61,8 @@ export type PeriodView = {
   items: FixedItem[]
   utilities: Record<Utility, UtilityView>
   expenses: ExpenseInput[]
+  /** Người đang xem: dòng thành viên của họ trong tháng này, vai trò, và đã rời nhà hay chưa (chỉ xem). */
+  viewer: PeriodViewer
 }
 
 export type PeriodListItem = { id: string; year: number; month: number; status: 'draft' | 'closed'; grandTotal: number | null }
@@ -672,10 +674,13 @@ function periodInfo(period: PeriodRow): PeriodView['period'] {
   }
 }
 
-/** Cả nhà xem được tháng đã chốt (kể cả nhà đã lưu trữ); tháng nháp chỉ chủ nhà xem. */
+/**
+ * Cả nhà xem được tháng đã chốt (kể cả nhà đã lưu trữ); tháng nháp chỉ chủ nhà xem. Người đã rời nhà xem lại (chỉ đọc)
+ * các tháng đã chốt có tên mình (`requirePeriodViewer`).
+ */
 export async function getPeriodView(db: Db, actor: Actor, periodId: string): Promise<PeriodView> {
   const period = await findPeriod(db, periodId)
-  const me = await requireMember(db, actor, period.houseId)
+  const me = await requirePeriodViewer(db, actor, period)
   if (period.status === 'draft' && me.role !== 'owner') {
     throw new AppError('FORBIDDEN', 'PERIOD_DRAFT', 'Tháng này chưa chốt sổ')
   }
@@ -688,10 +693,11 @@ export async function getPeriodView(db: Db, actor: Actor, periodId: string): Pro
     items: input.items,
     utilities,
     expenses: input.expenses,
+    viewer: me,
   }
 }
 
-export type PeriodEditor = Omit<PeriodView, 'result'>
+export type PeriodEditor = Omit<PeriodView, 'result' | 'viewer'>
 
 /**
  * Bản chụp của một tháng (nháp hoặc đã chốt) cho màn Tạo hóa đơn, KHÔNG tính tiền: tháng nháp đang dở
@@ -704,13 +710,26 @@ export async function getPeriodEditor(db: Db, actor: Actor, periodId: string): P
   return { period: periodInfo(period), members: input.members, items: input.items, utilities, expenses: input.expenses }
 }
 
-/** Các tháng của nhà, mới nhất trước. Thành viên chỉ thấy tháng đã chốt; tháng nháp có grandTotal null. */
+/**
+ * Các tháng của nhà, mới nhất trước. Thành viên chỉ thấy tháng đã chốt; tháng nháp có grandTotal null.
+ * Người đã rời nhà chỉ thấy các tháng đã chốt có tên mình.
+ */
 export async function listPeriods(db: Db, actor: Actor, houseId: string): Promise<PeriodListItem[]> {
-  const me = await requireMember(db, actor, houseId)
+  const me = await requireViewer(db, actor, houseId)
+  const closedOnly = and(eq(periods.houseId, houseId), eq(periods.status, 'closed'))
+  let where = me.member.role === 'owner' && !me.former ? eq(periods.houseId, houseId) : closedOnly
+  if (me.former) {
+    const mine = await db
+      .selectDistinct({ periodId: periodMembers.periodId })
+      .from(periodMembers)
+      .where(inArray(periodMembers.memberId, me.memberIds))
+    if (mine.length === 0) return []
+    where = and(closedOnly, inArray(periods.id, mine.map((r) => r.periodId)))
+  }
   const rows = await db
     .select({ id: periods.id, year: periods.year, month: periods.month, status: periods.status, result: periods.result })
     .from(periods)
-    .where(me.role === 'owner' ? eq(periods.houseId, houseId) : and(eq(periods.houseId, houseId), eq(periods.status, 'closed')))
+    .where(where)
     .orderBy(desc(periods.year), desc(periods.month))
   return rows.map((r) => ({
     id: r.id,

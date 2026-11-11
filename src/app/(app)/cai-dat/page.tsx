@@ -33,7 +33,9 @@ export default async function SettingsPage() {
   const profile = await readOwnProfile(db, actor)
   const pending =
     current && current.role === 'owner' && !current.archived ? (await listJoinRequests(db, actor, current.houseId)).length : 0
-  const subtitle = current ? `${current.role === 'owner' ? 'Chủ nhà' : 'Thành viên'} · ${current.name}` : 'Chưa thuộc nhà nào'
+  const subtitle = current
+    ? `${current.former ? 'Đã rời' : current.role === 'owner' ? 'Chủ nhà' : 'Thành viên'} · ${current.name}`
+    : 'Chưa thuộc nhà nào'
 
   return (
     <main className="flex flex-col gap-[18px] px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(58px,env(safe-area-inset-top))]">
@@ -49,7 +51,7 @@ export default async function SettingsPage() {
       />
 
       <section className="flex flex-col rounded-[20px] border border-line bg-surface px-4 py-0.5">
-        {current && (
+        {current && !current.former && (
           <Link href="/nha" className={rowClass}>
             {rowIcon(
               <>

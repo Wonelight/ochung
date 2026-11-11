@@ -79,7 +79,9 @@ export function HouseSwitcherMenu({ houses, currentId }: { houses: HouseSummary[
                 className="flex min-h-[52px] cursor-pointer items-center gap-2 border-0 border-b border-line bg-transparent p-0 text-left font-[inherit] text-[15px] font-semibold text-text"
               >
                 <span className="min-w-0 flex-1 truncate">{h.name}</span>
-                {h.archived && <span className="text-[12px] font-medium text-muted">Đã lưu trữ</span>}
+                {(h.former || h.archived) && (
+                  <span className="text-[12px] font-medium text-muted">{h.former ? 'Đã rời' : 'Đã lưu trữ'}</span>
+                )}
                 {h.houseId === currentId && (
                   <svg
                     width="18"

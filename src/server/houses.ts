@@ -1,8 +1,8 @@
 import { randomInt } from 'node:crypto'
-import { and, asc, desc, eq, isNull } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm'
 import type { Db } from '@/db'
 import { newId } from '@/db/ids'
-import { houseMembers, houses, user, utilityTariffs } from '@/db/schema'
+import { houseMembers, houses, periodMembers, user, utilityTariffs } from '@/db/schema'
 import type { Tariff } from '@/lib/billing/types'
 import { avatarSeed } from '@/lib/avatar-seed'
 import { ACCOUNT_NO_PATTERN } from '@/lib/banks'
@@ -23,7 +23,14 @@ export type Member = {
   leftAt: Date | null
 }
 
-export type HouseSummary = { houseId: string; name: string; role: 'owner' | 'member'; archived: boolean }
+export type HouseSummary = {
+  houseId: string
+  name: string
+  role: 'owner' | 'member'
+  archived: boolean
+  /** Người dùng đã rời (hoặc bị xóa khỏi) nhà này: chỉ xem lại được các tháng đã chốt có tên mình. */
+  former: boolean
+}
 
 /** Transaction của `db.transaction`, để `addMemberTx` dùng chung với các luồng vào nhà ở Task 9. */
 export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0]
@@ -121,6 +128,51 @@ export async function requireMember(db: Db, actor: Actor, houseId: string): Prom
   return row
 }
 
+/**
+ * Người đang ở hoặc từng ở nhà. `former`: không còn dòng đang ở (đã rời hoặc bị xóa) — `member` là dòng gần nhất;
+ * người đó chỉ được XEM lịch sử (xem `requirePeriodViewer`), mọi thao tác ghi vẫn đi qua `requireMember`/`requireOwner`.
+ * `memberIds`: mọi dòng thành viên của người đó trong nhà (rời rồi vào lại thì có nhiều dòng). Người ngoài → FORBIDDEN.
+ */
+export type Viewer = { member: Member; former: boolean; memberIds: string[] }
+
+export async function requireViewer(db: Db, actor: Actor, houseId: string): Promise<Viewer> {
+  const rows = await db
+    .select(memberColumns)
+    .from(houseMembers)
+    .innerJoin(user, eq(user.id, houseMembers.userId))
+    .where(and(eq(houseMembers.houseId, houseId), eq(houseMembers.userId, actor.userId)))
+    .orderBy(desc(houseMembers.joinedAt))
+  if (rows.length === 0) throw new AppError('FORBIDDEN', 'NOT_MEMBER', 'Bạn không thuộc nhà này')
+  const active = rows.find((r) => r.leftAt === null)
+  return { member: active ?? rows[0], former: !active, memberIds: rows.map((r) => r.id) }
+}
+
+/** Người xem một tháng; `memberId` là dòng thành viên của người đó dùng cho tháng này (tìm phiếu, bản ghi của mình). */
+export type PeriodViewer = { memberId: string; role: 'owner' | 'member'; former: boolean }
+
+/**
+ * Ai được đọc một tháng (và báo chuyển phần còn nợ của mình): thành viên đang ở — mọi tháng của nhà (tháng nháp với
+ * thành viên thường do người gọi chặn); người đã rời — chỉ tháng ĐÃ CHỐT có tên họ trong bản chụp thành viên của tháng.
+ * Còn lại → FORBIDDEN NOT_MEMBER.
+ */
+export async function requirePeriodViewer(
+  db: Db,
+  actor: Actor,
+  period: { id: string; houseId: string; status: 'draft' | 'closed' },
+): Promise<PeriodViewer> {
+  const v = await requireViewer(db, actor, period.houseId)
+  if (!v.former) return { memberId: v.member.id, role: v.member.role, former: false }
+  if (period.status === 'closed') {
+    const [row] = await db
+      .select({ memberId: periodMembers.memberId })
+      .from(periodMembers)
+      .where(and(eq(periodMembers.periodId, period.id), inArray(periodMembers.memberId, v.memberIds)))
+      .limit(1)
+    if (row) return { memberId: row.memberId, role: 'member', former: true }
+  }
+  throw new AppError('FORBIDDEN', 'NOT_MEMBER', 'Bạn không còn ở nhà này')
+}
+
 /** Chủ nhà của nhà đang dùng. Nhà đã lưu trữ chỉ đọc nên cũng bị chặn ở đây. */
 export async function requireOwner(db: Db, actor: Actor, houseId: string): Promise<Member> {
   const member = await requireMember(db, actor, houseId)
@@ -177,16 +229,24 @@ export async function archiveHouse(db: Db, actor: Actor, houseId: string, opts: 
   await db.update(houses).set({ archivedAt: new Date() }).where(eq(houses.id, houseId))
 }
 
-/** Các nhà người dùng đang là thành viên: nhà đang dùng trước, nhà đã lưu trữ sau, mỗi nhóm theo tên. */
+/**
+ * Các nhà của người dùng: nhà đang dùng trước; sau đó nhà đã lưu trữ và nhà đã rời (`former`, chỉ xem lịch sử);
+ * mỗi nhóm theo tên. Rời rồi vào lại thì nhà chỉ xuất hiện một lần, là nhà đang ở.
+ */
 export async function listMyHouses(db: Db, actor: Actor): Promise<HouseSummary[]> {
   const rows = await db
-    .select({ houseId: houses.id, name: houses.name, role: houseMembers.role, archivedAt: houses.archivedAt })
+    .select({ houseId: houses.id, name: houses.name, role: houseMembers.role, archivedAt: houses.archivedAt, leftAt: houseMembers.leftAt })
     .from(houseMembers)
     .innerJoin(houses, eq(houses.id, houseMembers.houseId))
-    .where(and(eq(houseMembers.userId, actor.userId), isNull(houseMembers.leftAt)))
-  return rows
-    .map(({ archivedAt, ...r }) => ({ ...r, archived: archivedAt !== null }))
-    .sort((a, b) => Number(a.archived) - Number(b.archived) || a.name.localeCompare(b.name, 'vi'))
+    .where(eq(houseMembers.userId, actor.userId))
+  const byHouse = new Map<string, HouseSummary>()
+  for (const r of rows) {
+    const former = r.leftAt !== null
+    if (former && byHouse.has(r.houseId)) continue
+    byHouse.set(r.houseId, { houseId: r.houseId, name: r.name, role: r.role, archived: r.archivedAt !== null, former })
+  }
+  const readOnly = (h: HouseSummary) => Number(h.archived || h.former)
+  return [...byHouse.values()].sort((a, b) => readOnly(a) - readOnly(b) || a.name.localeCompare(b.name, 'vi'))
 }
 
 export async function listMembers(db: Db, actor: Actor, houseId: string): Promise<Member[]> {
@@ -202,9 +262,10 @@ export async function listMembers(db: Db, actor: Actor, houseId: string): Promis
 /**
  * Hạt giống ảnh đại diện (tên hiện tại + số lần "Tạo hình mới") của MỌI người từng ở trong nhà, kể cả người đã rời,
  * theo id thành viên. Các màn lấy tên từ bản chụp của tháng dùng bảng này để vẽ đúng ảnh mà người đó đã chọn.
+ * Người đã rời cũng đọc được (họ vẫn xem lại các tháng đã chốt).
  */
 export async function listAvatarSeeds(db: Db, actor: Actor, houseId: string): Promise<Record<string, string>> {
-  await requireMember(db, actor, houseId)
+  await requireViewer(db, actor, houseId)
   const rows = await db
     .select({ id: houseMembers.id, name: user.name, avatarVariant: user.avatarVariant })
     .from(houseMembers)
@@ -304,9 +365,9 @@ export type HouseInfo = {
   archived: boolean
 }
 
-/** Thông tin nhà cho thành viên (kể cả nhà đã lưu trữ). */
+/** Thông tin nhà cho thành viên (kể cả nhà đã lưu trữ) và người đã rời (chỉ đọc: tài khoản ngân hàng để trả phần còn nợ). */
 export async function getHouse(db: Db, actor: Actor, houseId: string): Promise<HouseInfo> {
-  await requireMember(db, actor, houseId)
+  await requireViewer(db, actor, houseId)
   const [h] = await db.select().from(houses).where(eq(houses.id, houseId)).limit(1)
   if (!h) throw new AppError('NOT_FOUND', 'HOUSE_NOT_FOUND', 'Không tìm thấy nhà')
   return {

@@ -3,15 +3,16 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import type { Db } from '@/db'
 import { newId } from '@/db/ids'
 import { createTestDb } from '@/db/test-db'
-import { houseMembers, payments, periods, user } from '@/db/schema'
+import { houseMembers, payments, periodMembers, periods, user } from '@/db/schema'
 import { AppError } from '@/lib/errors'
 import { proofPathPrefix } from '@/lib/proof'
 import { MAX_MONEY } from '@/lib/validation'
 import type { Actor } from './actor'
-import { addMemberTx, archiveHouse, createHouse, isUniqueViolation, leaveHouse } from './houses'
+import { addMemberTx, archiveHouse, createHouse, isUniqueViolation, leaveHouse, removeMember } from './houses'
 import {
   authorizeProofUpload,
   confirmPayment,
+  getPaymentDetails,
   getStatuses,
   hasOutstandingBalance,
   recordCashPayment,
@@ -71,6 +72,10 @@ describe('thanh toán', () => {
         payslips: slips.map((s) => ({ memberId: s.memberId, lines: [], share: s.share, advanced: 0, due: s.due })),
       },
     })
+    // bản chụp thành viên của tháng (người đã rời chỉ xem/báo chuyển được tháng có tên mình)
+    await db.insert(periodMembers).values(
+      slips.map((s, i) => ({ periodId: id, memberId: s.memberId, name: `TV ${i}`, isOwner: s.due === null, days: 30, sortOrder: i })),
+    )
     return id
   }
 
@@ -386,6 +391,45 @@ describe('thanh toán', () => {
       const s = await setup({ binh: 0 })
       await submitTransfer(db, s.an, s.periodId, {})
       expect(await hasOutstandingBalance(db, s.houseId, s.anRow)).toBe(true)
+    })
+  })
+
+  describe('người đã rời nhà', () => {
+    it('bị xóa khi còn nợ: vẫn xem bản ghi của mình và báo chuyển được phần còn nợ; chủ nhà vẫn thu/trả lại cho họ', async () => {
+      const s = await setup()
+      await recordCashPayment(db, s.owner, s.periodId, s.binhRow, 1_000_000)
+      await removeMember(db, s.owner, s.houseId, s.anRow)
+      await removeMember(db, s.owner, s.houseId, s.binhRow)
+
+      const { paymentId } = await submitTransfer(db, s.an, s.periodId, {})
+      expect((await getPaymentDetails(db, s.an, s.periodId)).map((d) => [d.id, d.memberId, d.status])).toEqual([[paymentId, s.anRow, 'pending']])
+      expect((await authorizeProofUpload(db, s.an, s.periodId)).memberId).toBe(s.anRow)
+      await confirmPayment(db, s.owner, paymentId)
+      expect((await getStatuses(db, s.periodId))[s.anRow].kind).toBe('paid')
+
+      // đã trả đủ thì không báo chuyển thêm được; chỉ thấy bản ghi của chính mình
+      await rejects(submitTransfer(db, s.binh, s.periodId, {}), 'CONFLICT', 'NOTHING_DUE')
+      expect((await getPaymentDetails(db, s.binh, s.periodId)).map((d) => d.memberId)).toEqual([s.binhRow])
+      expect((await getPaymentDetails(db, s.owner, s.periodId)).length).toBe(2)
+
+      // chủ nhà ghi trả lại cho người đã rời
+      await setDue(s.periodId, s.binhRow, 900_000)
+      await recordRefund(db, s.owner, s.periodId, s.binhRow, 100_000)
+      expect((await getStatuses(db, s.periodId))[s.binhRow].kind).toBe('paid')
+    })
+
+    it('tháng không có tên mình, tháng nháp, người ngoài → FORBIDDEN', async () => {
+      const s = await setup()
+      await removeMember(db, s.owner, s.houseId, s.anRow)
+      const other = await closed(s.houseId, 11, [{ memberId: s.binhRow, due: 500_000, share: 500_000 }])
+      await rejects(submitTransfer(db, s.an, other, {}), 'FORBIDDEN', 'NOT_MEMBER')
+      await rejects(getPaymentDetails(db, s.an, other), 'FORBIDDEN', 'NOT_MEMBER')
+      const draftId = newId()
+      await db.insert(periods).values({ id: draftId, houseId: s.houseId, year: 2026, month: 12, status: 'draft', dueDate: '2027-01-10' })
+      await db.insert(periodMembers).values({ periodId: draftId, memberId: s.anRow, name: 'An', days: 31 })
+      await rejects(submitTransfer(db, s.an, draftId, {}), 'FORBIDDEN', 'NOT_MEMBER')
+      await rejects(authorizeProofUpload(db, s.an, draftId), 'FORBIDDEN', 'NOT_MEMBER')
+      await rejects(getPaymentDetails(db, await newUser('Lạ'), s.periodId), 'FORBIDDEN', 'NOT_MEMBER')
     })
   })
 

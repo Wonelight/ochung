@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { HouseSummary } from './houses'
 import { resolveCurrentHouse } from './current-house'
 
-const h = (houseId: string, archived = false): HouseSummary => ({ houseId, name: houseId, role: 'member', archived })
+const h = (houseId: string, archived = false, former = false): HouseSummary => ({ houseId, name: houseId, role: 'member', archived, former })
 
 describe('resolveCurrentHouse', () => {
   const list = [h('a'), h('b'), h('old', true)]
@@ -19,6 +19,12 @@ describe('resolveCurrentHouse', () => {
   })
   it('chỉ có nhà đã lưu trữ mà không chọn → null', () => {
     expect(resolveCurrentHouse([h('old', true)], undefined)).toBeNull()
+  })
+  it('nhà đã rời: chọn được để xem lịch sử, nhưng không bao giờ là nhà mặc định', () => {
+    const withLeft = [h('left', false, true), h('a')]
+    expect(resolveCurrentHouse(withLeft, 'left')?.houseId).toBe('left')
+    expect(resolveCurrentHouse(withLeft, undefined)?.houseId).toBe('a')
+    expect(resolveCurrentHouse([h('left', false, true)], undefined)).toBeNull()
   })
   it('không có nhà → null', () => {
     expect(resolveCurrentHouse([], 'x')).toBeNull()

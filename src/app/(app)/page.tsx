@@ -18,7 +18,7 @@ import { pickPeriod } from '@/lib/period-pick'
 import { greetingVi } from '@/lib/vn-time'
 import { readOwnProfile } from '@/server/account'
 import { requireCurrentHouse } from '@/server/current-house'
-import { listAvatarSeeds, listMembers } from '@/server/houses'
+import { listAvatarSeeds } from '@/server/houses'
 import { unreadCount } from '@/server/notifications'
 import { getStatuses } from '@/server/payments'
 import { listPeriods } from '@/server/periods'
@@ -33,20 +33,18 @@ import { MonthTiles } from './_ui/month-tiles'
 export default async function Home({ searchParams }: PageProps<'/'>) {
   const { actor, current } = await requireCurrentHouse()
   const now = new Date()
-  const [members, periods, unread, profile, seeds] = await Promise.all([
-    listMembers(db, actor, current.houseId),
+  const [periods, unread, profile, seeds] = await Promise.all([
     listPeriods(db, actor, current.houseId),
     unreadCount(db, actor),
     readOwnProfile(db, actor),
     listAvatarSeeds(db, actor, current.houseId),
   ])
-  const me = members.find((m) => m.userId === actor.userId)
   const isOwner = current.role === 'owner'
   const canEdit = isOwner && !current.archived
   const pick = pickPeriod(periods, periodParam((await searchParams).ky))
   const { view, error } = pick ? await loadPeriodView(actor, pick.current.id) : { view: null, error: null }
   const statuses = view ? await getStatuses(db, view.period.id) : {}
-  const myName = me?.displayName ?? ''
+  const myName = profile.name
 
   const header = (
     <header className="flex items-center gap-3">
@@ -92,7 +90,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
   const payslipHref = `/phieu/${p.id}`
   const draft = p.status === 'draft'
   const result = view?.result
-  const mySlip = result?.payslips.find((s) => s.memberId === me?.id)
+  const mySlip = result?.payslips.find((s) => s.memberId === view?.viewer.memberId)
   const names = new Map(view?.members.map((m) => [m.memberId, m.name]) ?? [])
   const rows = view
     ? paymentRows({ status: p.status, dueDate: view.period.dueDate, payslips: view.result.payslips, names, seeds, statuses, now })

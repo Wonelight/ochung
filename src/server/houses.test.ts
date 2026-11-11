@@ -20,6 +20,7 @@ import {
   removeMember,
   requireMember,
   requireOwner,
+  requireViewer,
   updateHouse,
 } from './houses'
 
@@ -63,7 +64,7 @@ describe('nhà và thành viên', () => {
 
       expect(code).toMatch(/^[A-Z]{2}-[A-HJ-NP-Z2-9]{4}$/)
       expect(code.startsWith('CG-')).toBe(true)
-      expect(await listMyHouses(db, owner)).toEqual([{ houseId, name: 'Nhà Cầu Giấy', role: 'owner', archived: false }])
+      expect(await listMyHouses(db, owner)).toEqual([{ houseId, name: 'Nhà Cầu Giấy', role: 'owner', archived: false, former: false }])
 
       const members = await listMembers(db, owner, houseId)
       expect(members).toHaveLength(1)
@@ -242,7 +243,7 @@ describe('nhà và thành viên', () => {
   })
 
   describe('listMyHouses', () => {
-    it('nhà đang dùng trước, nhà lưu trữ sau, mỗi nhóm theo tên; bỏ nhà đã rời', async () => {
+    it('nhà đang dùng trước; nhà lưu trữ và nhà đã rời (chỉ xem) sau, mỗi nhóm theo tên', async () => {
       const me = await newUser()
       const b = await createHouse(db, me, { name: 'Bình' })
       const a = await createHouse(db, me, { name: 'An' })
@@ -254,12 +255,18 @@ describe('nhà và thành viên', () => {
       await archiveHouse(db, me, a.houseId)
 
       const list = await listMyHouses(db, me)
-      expect(list.map((h) => [h.name, h.archived])).toEqual([
-        ['Ân Cư', false],
-        ['Bình', false],
-        ['An', true],
+      expect(list.map((h) => [h.name, h.archived, h.former])).toEqual([
+        ['Ân Cư', false, false],
+        ['Bình', false, false],
+        ['An', true, false],
+        ['Cũ', false, true],
       ])
-      expect(list.map((h) => h.houseId)).toEqual([z.houseId, b.houseId, a.houseId])
+      expect(list.map((h) => h.houseId)).toEqual([z.houseId, b.houseId, a.houseId, left])
+
+      // vào lại nhà đã rời → lại là nhà đang dùng, không bị liệt kê hai lần
+      await db.transaction((tx) => addMemberTx(tx, left, me.userId))
+      const again = await listMyHouses(db, me)
+      expect(again.filter((h) => h.houseId === left)).toEqual([{ houseId: left, name: 'Cũ', role: 'member', archived: false, former: false }])
     })
   })
 
@@ -294,7 +301,21 @@ describe('nhà và thành viên', () => {
       const seeds = await listAvatarSeeds(db, owner, houseId)
       expect(Object.values(seeds).sort()).toEqual(['An Mới#3', 'Chủ'])
       expect(seeds[memberRowId]).toBe('An Mới#3')
-      await rejects(listAvatarSeeds(db, member, houseId), 'FORBIDDEN', 'NOT_MEMBER')
+      // người đã rời vẫn xem lại được lịch sử nên vẫn đọc được ảnh đại diện; người ngoài thì không
+      expect(await listAvatarSeeds(db, member, houseId)).toEqual(seeds)
+      await rejects(listAvatarSeeds(db, await newUser(), houseId), 'FORBIDDEN', 'NOT_MEMBER')
+    })
+
+    it('người đã rời: requireViewer/getHouse (chỉ đọc) được, mọi thao tác thành viên khác vẫn bị chặn', async () => {
+      const { owner, member, houseId, memberRowId } = await houseWithMember('Chủ', 'An')
+      await removeMember(db, owner, houseId, memberRowId)
+      expect(await requireViewer(db, member, houseId)).toMatchObject({ former: true, memberIds: [memberRowId], member: { id: memberRowId, role: 'member' } })
+      expect((await getHouse(db, member, houseId)).id).toBe(houseId)
+      await rejects(requireMember(db, member, houseId), 'FORBIDDEN', 'NOT_MEMBER')
+      await rejects(listMembers(db, member, houseId), 'FORBIDDEN', 'NOT_MEMBER')
+      await rejects(leaveHouse(db, member, houseId), 'FORBIDDEN', 'NOT_MEMBER')
+      await rejects(requireViewer(db, await newUser(), houseId), 'FORBIDDEN', 'NOT_MEMBER')
+      expect(await requireViewer(db, owner, houseId)).toMatchObject({ former: false, member: { role: 'owner' } })
     })
 
     it('removeMember: khỏi listMembers nhưng dòng vẫn còn với leftAt', async () => {
@@ -305,7 +326,8 @@ describe('nhà và thành viên', () => {
       const [row] = await db.select().from(houseMembers).where(eq(houseMembers.id, memberRowId))
       expect(row.leftAt).toBeInstanceOf(Date)
       await rejects(requireMember(db, member, houseId), 'FORBIDDEN', 'NOT_MEMBER')
-      expect(await listMyHouses(db, member)).toEqual([])
+      // không còn là nhà đang dùng: chỉ còn trong danh sách để xem lại lịch sử
+      expect(await listMyHouses(db, member)).toEqual([{ houseId, name: 'Nhà Cầu Giấy', role: 'member', archived: false, former: true }])
     })
 
     it('removeMember: thành viên không xóa được ai; không xóa được chủ nhà; id lạ → NOT_FOUND', async () => {

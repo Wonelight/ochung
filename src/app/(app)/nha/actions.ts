@@ -17,7 +17,7 @@ import {
   setUtilityTariff,
   upsertChargeItem,
 } from '@/server/house-settings'
-import { archiveHouse, createHouse, leaveHouse, removeMember, requireMember, updateHouse } from '@/server/houses'
+import { archiveHouse, createHouse, leaveHouse, removeMember, requireViewer, updateHouse } from '@/server/houses'
 
 // Layout (thanh dưới, danh sách nhà) giữ nguyên giữa các trang nên phải làm mới tường minh sau mỗi thay đổi.
 const refreshApp = () => revalidatePath('/', 'layout')
@@ -37,7 +37,8 @@ export async function createHouseAction(input: { name: string }) {
 export async function selectHouseAction(houseId: string) {
   return runAction(async () => {
     const actor = await getActor()
-    await requireMember(db, actor, houseId)
+    // cả nhà đã rời: chọn để xem lại lịch sử (chỉ đọc)
+    await requireViewer(db, actor, houseId)
     await setCurrentHouseCookie(houseId)
     refreshApp()
   })

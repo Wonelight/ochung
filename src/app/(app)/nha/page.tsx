@@ -25,6 +25,8 @@ export const metadata = { title: 'Quản lý nhà' }
 // của nhà đang dùng thấy (thành viên và nhà đã lưu trữ thì ẩn).
 export default async function HouseManagePage() {
   const { actor, current } = await requireCurrentHouse()
+  // người đã rời chỉ xem lại các tháng đã chốt, không xem trang quản lý nhà
+  if (current.former) redirect('/')
 
   const [house, members] = await Promise.all([
     getHouse(db, actor, current.houseId),

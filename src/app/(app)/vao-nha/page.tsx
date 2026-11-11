@@ -13,15 +13,15 @@ import { JoinCard } from './_ui/join-card'
 export const metadata = { title: 'Vào nhà' }
 
 // Màn Vào nhà theo mockup `Vào nhà`. Khác mockup: tên và mã tài khoản lấy từ tài khoản đang đăng nhập;
-// thêm "Nhà cũ" (nhà đã lưu trữ, xem lại lịch sử) và nút "Tạo nhà mới" (mockup chưa có).
+// thêm "Nhà cũ" (nhà đã lưu trữ hoặc đã rời, xem lại lịch sử) và nút "Tạo nhà mới" (mockup chưa có).
 export default async function JoinHousePage() {
   const { actor, houses } = await getHouseContext()
   const [[profile], pending] = await Promise.all([
     db.select({ name: user.name, accountCode: user.accountCode, avatarVariant: user.avatarVariant }).from(user).where(eq(user.id, actor.userId)).limit(1),
     listMyJoinRequests(db, actor),
   ])
-  const hasActiveHouse = houses.some((h) => !h.archived)
-  const archived = houses.filter((h) => h.archived)
+  const hasActiveHouse = houses.some((h) => !h.archived && !h.former)
+  const old = houses.filter((h) => h.archived || h.former)
 
   return (
     <main className="flex flex-col gap-5 px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(58px,env(safe-area-inset-top))]">
@@ -70,7 +70,7 @@ export default async function JoinHousePage() {
         </div>
       </section>
 
-      {archived.length > 0 && <ArchivedHouses houses={archived.map((h) => ({ houseId: h.houseId, name: h.name }))} />}
+      {old.length > 0 && <ArchivedHouses houses={old.map((h) => ({ houseId: h.houseId, name: h.name, former: h.former }))} />}
 
       <Link
         href="/nha/moi"

@@ -4,9 +4,9 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { selectHouseAction } from '../../nha/actions'
 
-export type ArchivedHouse = { houseId: string; name: string }
+export type ArchivedHouse = { houseId: string; name: string; former: boolean }
 
-/** "Nhà cũ": nhà đã lưu trữ của người dùng; chạm vào để xem lại lịch sử (chỉ đọc). */
+/** "Nhà cũ": nhà đã lưu trữ hoặc nhà người dùng đã rời; chạm vào để xem lại lịch sử (chỉ đọc). */
 export function ArchivedHouses({ houses }: { houses: ArchivedHouse[] }) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
@@ -41,7 +41,7 @@ export function ArchivedHouses({ houses }: { houses: ArchivedHouse[] }) {
             style={i < houses.length - 1 ? { borderBottom: '1px solid var(--c-line)' } : undefined}
           >
             <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">{h.name}</span>
-            <span className="text-[12px] font-medium text-muted">Đã lưu trữ · chỉ xem</span>
+            <span className="text-[12px] font-medium text-muted">{h.former ? 'Đã rời' : 'Đã lưu trữ'} · chỉ xem</span>
             <svg
               width="18"
               height="18"

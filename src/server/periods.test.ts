@@ -337,6 +337,31 @@ describe('vòng đời tháng', () => {
       expect(slipOf(edited.result, h.chiId).due).toBe(2_575_000 + 15_000)
     })
 
+    it('người đã rời/bị xóa: xem lại (chỉ đọc) đúng các tháng đã chốt có tên mình; tháng nháp và tháng sau khi rời thì không', async () => {
+      const h = await draft54()
+      await closePeriod(db, h.linh, h.periodId)
+      await removeMember(db, h.linh, h.houseId, h.chiId)
+      const view = await getPeriodView(db, h.chi, h.periodId)
+      expect(view.viewer).toEqual({ memberId: h.chiId, role: 'member', former: true })
+      expect(slipOf(view.result, h.chiId).due).toBe(2_575_000)
+      expect((await listPeriods(db, h.chi, h.houseId)).map((p) => p.id)).toEqual([h.periodId])
+
+      // tháng 12 tạo sau khi Chi rời: không có tên Chi, kể cả khi đã chốt
+      const { periodId: t12 } = await getOrCreateDraftPeriod(db, h.linh, h.houseId, T12)
+      await expectApp(getPeriodView(db, h.chi, t12), 'FORBIDDEN', 'NOT_MEMBER')
+      await setUtilityReading(db, h.linh, t12, 'electricity', { total: 0 })
+      await setUtilityReading(db, h.linh, t12, 'water', { total: 0 })
+      await closePeriod(db, h.linh, t12)
+      await expectApp(getPeriodView(db, h.chi, t12), 'FORBIDDEN', 'NOT_MEMBER')
+      expect((await listPeriods(db, h.chi, h.houseId)).map((p) => p.id)).toEqual([h.periodId])
+
+      // không ghi được gì
+      await expectApp(setPeriodMember(db, h.chi, h.periodId, h.chiId, { days: 1 }), 'FORBIDDEN', 'NOT_MEMBER')
+      // thành viên đang ở thì vẫn như cũ
+      expect((await getPeriodView(db, h.an, h.periodId)).viewer).toEqual({ memberId: h.anId, role: 'member', former: false })
+      expect((await getPeriodView(db, h.linh, t12)).viewer).toEqual({ memberId: h.linhId, role: 'owner', former: false })
+    })
+
     it('thành viên mới vào nhà → có mặt trong tháng nháp (đủ ngày, được tính), không có trong tháng đã chốt', async () => {
       const h = await draft54()
       await closePeriod(db, h.linh, h.periodId)
