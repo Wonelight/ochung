@@ -3,8 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition, type FormEvent } from 'react'
-import { authClient } from '@/lib/auth-client'
-import { detachPushSubscription } from '@/lib/push-client'
+import { signOutClient } from '@/lib/sign-out'
 import { createUserAction, resetPasswordAction, setBannedAction } from './actions'
 
 type UserRow = {
@@ -83,14 +82,13 @@ export function AdminPanel({ users, currentUserId }: { users: UserRow[]; current
   }
 
   async function onSignOut() {
-    await detachPushSubscription() // trước signOut: cần cookie phiên để xóa subscription của thiết bị này
-    await authClient.signOut()
+    await signOutClient()
     router.replace('/login')
     router.refresh()
   }
 
   return (
-    <div className="mx-auto w-full max-w-[640px] px-5 pb-[max(40px,env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]">
+    <div className="mx-auto w-full max-w-[640px] px-5 md:max-w-[1040px] pb-[max(40px,env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]">
       <header className="flex items-center justify-between gap-3">
         <div>
           <h1 className="m-0 font-numeric text-[20px] font-semibold uppercase tracking-[0.12em]">Quản trị</h1>
@@ -164,7 +162,7 @@ export function AdminPanel({ users, currentUserId }: { users: UserRow[]; current
 
       <section className="mt-6">
         <h2 className="m-0 text-[15px] font-semibold">Danh sách tài khoản</h2>
-        <ul className="m-0 mt-3 flex list-none flex-col gap-3 p-0">
+        <ul className="m-0 mt-3 flex list-none flex-col gap-3 p-0 md:hidden">
           {users.map((u) => (
             <li key={u.id} className="rounded-[18px] border border-line bg-card p-4">
               <div className="flex items-start justify-between gap-3">
@@ -196,6 +194,50 @@ export function AdminPanel({ users, currentUserId }: { users: UserRow[]; current
             </li>
           ))}
         </ul>
+        <div className="mt-3 hidden overflow-x-auto rounded-[18px] border border-line bg-card md:block">
+          <table className="w-full border-collapse text-left text-[14px]">
+            <thead>
+              <tr className="border-b border-line text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">
+                <th scope="col" className="px-4 py-3">Tên hiển thị</th>
+                <th scope="col" className="px-4 py-3">Tên đăng nhập</th>
+                <th scope="col" className="px-4 py-3">Mã tài khoản</th>
+                <th scope="col" className="px-4 py-3">Trạng thái</th>
+                <th scope="col" className="px-4 py-3 text-right">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((u) => (
+                <tr key={u.id} className="border-b border-line last:border-b-0">
+                  <td className="max-w-[260px] truncate px-4 py-2.5 text-[15px] font-semibold">{u.displayName}</td>
+                  <td className="px-4 py-2.5 text-muted">{u.username}</td>
+                  <td className="px-4 py-2.5 font-numeric text-[13px] tracking-[0.04em]">{u.accountCode}</td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex gap-1.5">
+                      {u.role === 'admin' && (
+                        <span className="rounded-full bg-rent-bg px-2.5 py-1 text-[12px] font-semibold text-rent-fg">Quản trị</span>
+                      )}
+                      {u.banned && (
+                        <span className="rounded-full bg-unpaid-bg px-2.5 py-1 text-[12px] font-semibold text-unpaid-fg">Đã khóa</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex justify-end gap-2">
+                      <button type="button" disabled={pending} onClick={() => onReset(u)} className={ghostButton}>
+                        Đặt lại mật khẩu
+                      </button>
+                      {u.id !== currentUserId && (
+                        <button type="button" disabled={pending} onClick={() => onToggleBan(u)} className={ghostButton}>
+                          {u.banned ? 'Mở khóa' : 'Khóa'}
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
     </div>
   )

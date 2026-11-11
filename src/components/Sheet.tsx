@@ -51,7 +51,7 @@ export function Sheet({
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
-        className="flex max-h-[92dvh] w-full max-w-[430px] flex-col overflow-hidden rounded-t-[28px] border-t border-line bg-[var(--c-create-sheet)] shadow-[0_-10px_50px_var(--c-create-glow)] outline-none"
+        className="flex max-h-[92dvh] w-full max-w-[430px] flex-col md:max-w-[560px] overflow-hidden rounded-t-[28px] border-t border-line bg-[var(--c-create-sheet)] shadow-[0_-10px_50px_var(--c-create-glow)] outline-none"
       >
         <div aria-hidden="true" className="mt-2 h-[5px] w-9 shrink-0 self-center rounded-[3px] bg-line2" />
         <div className="flex shrink-0 items-center justify-between px-5 pt-2.5">

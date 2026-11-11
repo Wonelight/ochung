@@ -26,7 +26,7 @@ export function CreateSheet({ data, initialTab }: { data: CreateData; initialTab
 
   return (
     <div className="fixed inset-0 z-30 flex justify-center bg-[var(--c-create-backdrop)]">
-      <div className="relative h-full w-full max-w-[430px]">
+      <div className="relative h-full w-full max-w-[430px] md:max-w-[560px]">
         <div
           role="dialog"
           aria-label={closed ? 'Sửa hóa đơn tháng' : 'Tạo hóa đơn tháng'}
