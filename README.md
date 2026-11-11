@@ -81,11 +81,21 @@ Mọi dịch vụ dưới đây đều có gói miễn phí (Vercel Hobby, Neon 
 
 1. Vào [vercel.com](https://vercel.com) > **Add New… > Project**, import repo git của dự án (gói **Hobby**). Framework tự nhận Next.js, giữ lệnh build mặc định (`next build`).
 2. Trước khi bấm Deploy, mở **Environment Variables** và khai đủ các biến trong `.env.example`:
-   `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
-   (áp cho Production, Preview nếu cần).
+   `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`.
+   **Chỉ tick Production, bỏ tick Preview và Development**: bản Preview (mỗi nhánh/PR) mà có các biến này sẽ chạy thẳng trên
+   database production, và `BETTER_AUTH_URL` không khớp origin của URL preview nên đăng nhập, Face ID ở đó đều hỏng.
+   Vùng chạy hàm đã đặt sẵn trong `vercel.json` (`"regions": ["sin1"]`, Singapore) cho cùng vùng với Neon ở bước 1:
+   mặc định Vercel chạy ở `iad1` (Mỹ) và mỗi lần mở Trang chủ phải đi qua Thái Bình Dương hơn chục lượt truy vấn.
+   Đổi vùng của Neon thì sửa vùng trong `vercel.json` theo.
 3. Tab **Storage > Create > Blob**, tạo một Blob store và **Connect** vào project: Vercel tự thêm `BLOB_READ_WRITE_TOKEN`
    (ảnh minh chứng chuyển khoản được nén còn khoảng 200KB trước khi tải lên).
 4. **Deploy**. Nếu `BETTER_AUTH_URL` chưa khớp URL thật Vercel cấp, sửa biến rồi **Redeploy**.
+5. **Bản cập nhật có migration mới** (thư mục `drizzle/` có tệp mới): chạy `npm run db:migrate` vào Neon (như bước 1.3)
+   **trước khi** promote bản deploy đó lên Production, nếu không mã mới sẽ chạy trên schema cũ.
+
+Phiên đăng nhập không bật `session.cookieCache` của Better Auth (cố ý): mỗi lần đọc phiên là một truy vấn vào bảng `session`,
+đổi lại việc khóa tài khoản và cờ "phải đổi mật khẩu tạm" có hiệu lực ngay. Bật cache thì trong `maxAge` giây trình duyệt vẫn
+dùng bản phiên cũ trong cookie: người vừa bị khóa còn thao tác được, người vừa đổi mật khẩu tạm bị đưa lại màn đổi mật khẩu.
 
 ### 4. Tạo quản trị viên đầu tiên trên production
 
