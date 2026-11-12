@@ -8,6 +8,7 @@ import type { ExpenseInput } from '@/lib/billing/types'
 import { formatVnd } from '@/lib/money'
 import { dayMonth } from '@/lib/vn-time'
 import { MoneyInput } from '../../nha/_ui/settings-parts'
+import { EXPENSE_MAX } from '@/lib/validation'
 import { addExpenseAction, deleteExpenseAction, updateExpenseAction } from '../actions'
 import { SheetFooter } from './sheet-footer'
 import type { ExpenseTabData } from './types'
@@ -211,6 +212,7 @@ export function ExpenseTab({ data, onChanged }: { data: ExpenseTabData; onChange
 
   async function submit() {
     if (form.amount === null || form.amount <= 0) return setError('Hãy nhập số tiền')
+    if (form.amount > EXPENSE_MAX) return setError(`Số tiền không quá ${formatVnd(EXPENSE_MAX)} đ`)
     if (form.description.trim() === '') return setError('Hãy nhập nội dung khoản chi')
     const input = { amount: form.amount, description: form.description, spentOn: form.spentOn, paidByMemberId: form.payer, participantIds: form.participants }
     if (editing) {

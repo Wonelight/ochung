@@ -5,7 +5,7 @@ import { expenses, periodMembers, periods, user } from '@/db/schema'
 import { consumptionMonthDefault, daysInMonth, resolveExpenseMonth } from '@/lib/billing/period-month'
 import type { YM } from '@/lib/billing/types'
 import { AppError } from '@/lib/errors'
-import { MAX_MONEY } from '@/lib/validation'
+import { EXPENSE_MAX } from '@/lib/validation'
 import { todayVn } from '@/lib/vn-time'
 import type { Actor } from './actor'
 import { requireActiveMember, requireMember, type Tx } from './houses'
@@ -30,8 +30,8 @@ function cleanDescription(raw: string): string {
 }
 
 function cleanAmount(n: number): number {
-  if (!Number.isSafeInteger(n) || n < 1 || n > MAX_MONEY) {
-    throw new AppError('INVALID', 'AMOUNT_INVALID', 'Số tiền phải là số nguyên đồng, lớn hơn 0 và không quá 100 tỷ')
+  if (!Number.isSafeInteger(n) || n < 1 || n > EXPENSE_MAX) {
+    throw new AppError('INVALID', 'AMOUNT_INVALID', 'Số tiền phải là số nguyên đồng, lớn hơn 0 và không quá 100.000.000 đ')
   }
   return n
 }

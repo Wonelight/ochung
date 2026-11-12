@@ -5,6 +5,8 @@ import { AppError } from './errors'
 
 export const NAME_MAX = 60
 export const MAX_MONEY = 100_000_000_000 // 100 tỷ đồng: đủ cho mọi khoản nhà trọ, chặn nhập nhầm
+/** Trần của một khoản chi lẻ: 100 triệu đồng (đủ cho đồ dùng chung, chặn nhập nhầm thêm số 0). */
+export const EXPENSE_MAX = 100_000_000
 export const MAX_QTY = 99
 export const MAX_TIERS = 12
 export const MAX_SURCHARGES = 6

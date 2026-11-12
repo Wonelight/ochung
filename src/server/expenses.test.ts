@@ -204,6 +204,9 @@ describe('chi phát sinh', () => {
     await expectApp(addExpense(db, s.owner, s.houseId, { ...base, amount: -5 }), 'INVALID', 'AMOUNT_INVALID')
     await expectApp(addExpense(db, s.owner, s.houseId, { ...base, amount: 10.5 }), 'INVALID', 'AMOUNT_INVALID')
     await expectApp(addExpense(db, s.owner, s.houseId, { ...base, amount: 100_000_000_001 }), 'INVALID', 'AMOUNT_INVALID')
+    // trần của một khoản chi lẻ là 100 triệu đồng (cả chủ nhà lẫn thành viên)
+    await expectApp(addExpense(db, s.owner, s.houseId, { ...base, amount: 100_000_001 }), 'INVALID', 'AMOUNT_INVALID')
+    await expectApp(addExpense(db, s.an, s.houseId, { ...base, amount: 100_000_001 }), 'INVALID', 'AMOUNT_INVALID')
     await expectApp(addExpense(db, s.owner, s.houseId, { ...base, description: '   ' }), 'INVALID', 'DESCRIPTION_INVALID')
     await expectApp(addExpense(db, s.owner, s.houseId, { ...base, spentOn: '2026-02-30' }), 'INVALID', 'SPENT_ON_INVALID')
     await expectApp(addExpense(db, s.owner, s.houseId, { ...base, ym: { year: 2026, month: 0 } }), 'INVALID', 'MONTH_INVALID')
@@ -220,6 +223,13 @@ describe('chi phát sinh', () => {
     await expectApp(deleteExpense(db, s.owner, newId()), 'NOT_FOUND')
     expect((await periodRow(s.periodId)).revision).toBe(0)
     expect((await getPeriodView(db, s.an, s.periodId)).result.grandTotal).toBe(190_000)
+  })
+
+  it('khoản chi đúng trần 100 triệu đồng thì được; sửa vượt trần thì bị từ chối', async () => {
+    const s = await setup()
+    const ok = await addExpense(db, s.owner, s.houseId, { description: 'Mua tủ lạnh', amount: 100_000_000, spentOn: '2026-11-02', paidByMemberId: s.anId })
+    expect((await db.select().from(expenses).where(eq(expenses.id, ok.expenseId)))[0].amount).toBe(100_000_000)
+    await expectApp(updateExpense(db, s.owner, ok.expenseId, { amount: 100_000_001 }), 'INVALID', 'AMOUNT_INVALID')
   })
 
   describe('thành viên (không phải chủ nhà)', () => {
