@@ -86,6 +86,9 @@ function validate(input: PeriodInput): void {
     if (!isRealDate(e.spentOn)) {
       invalid('SPENT_ON_INVALID', `Ngày chi của khoản "${e.description}" không hợp lệ`)
     }
+    for (const id of e.participantIds ?? []) {
+      if (!seen.has(id)) invalid('PARTICIPANT_NOT_FOUND', `Người chia khoản chi "${e.description}" không có trong danh sách thành viên`)
+    }
   }
 }
 
@@ -205,19 +208,25 @@ export function computePeriod(input: PeriodInput): PeriodResult {
   addUtility('electricity', 'Điện', electricity)
   addUtility('water', 'Nước', water)
 
-  // 3. Khoản phát sinh: mỗi khoản chia đều và là một dòng riêng
+  // 3. Khoản phát sinh: mỗi khoản chia đều cho những người cùng chịu (mặc định cả nhà) và là một dòng riêng
   const nameOf = new Map(input.members.map((m) => [m.memberId, m.name]))
   const advancedBy = new Map<string, number>()
   for (const e of input.expenses) {
-    const parts = allocate(e.amount, ones)
-    const detail = `${nameOf.get(e.paidByMemberId)} trả ${formatVnd(e.amount)} · ${dayMonth(e.spentOn)}`
-    active.forEach((_, i) =>
-      lines[i].push({
+    const chosen = e.participantIds == null ? null : new Set(e.participantIds)
+    const takers = active.flatMap((m, i) => (chosen === null || chosen.has(m.memberId) ? [i] : []))
+    if (takers.length === 0) {
+      invalid('EXPENSE_NO_PARTICIPANTS', `Khoản chi "${e.description}" không còn ai được tính để chia. Hãy chọn lại người chia`)
+    }
+    const parts = allocate(e.amount, takers.map(() => 1))
+    const who = takers.length < M ? ` · chia cho ${takers.length} người` : ''
+    const detail = `${nameOf.get(e.paidByMemberId)} trả ${formatVnd(e.amount)} · ${dayMonth(e.spentOn)}${who}`
+    takers.forEach((memberIdx, k) =>
+      lines[memberIdx].push({
         key: `expense:${e.id}`,
         group: 'expense',
         label: e.description,
         detail,
-        amount: parts[i],
+        amount: parts[k],
       }),
     )
     advancedBy.set(e.paidByMemberId, (advancedBy.get(e.paidByMemberId) ?? 0) + e.amount)

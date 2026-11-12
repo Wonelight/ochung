@@ -173,13 +173,19 @@ export async function requirePeriodViewer(
   throw new AppError('FORBIDDEN', 'NOT_MEMBER', 'Bạn không còn ở nhà này')
 }
 
+/** Thành viên (chủ nhà hoặc không) đang ở một nhà chưa lưu trữ: đủ điều kiện cho các thao tác ghi mà thành viên được làm, như thêm khoản chi. */
+export async function requireActiveMember(db: Db, actor: Actor, houseId: string): Promise<Member> {
+  const member = await requireMember(db, actor, houseId)
+  const [house] = await db.select({ archivedAt: houses.archivedAt }).from(houses).where(eq(houses.id, houseId)).limit(1)
+  if (!house || house.archivedAt) throw new AppError('FORBIDDEN', 'HOUSE_ARCHIVED', 'Nhà đã được lưu trữ, chỉ xem được')
+  return member
+}
+
 /** Chủ nhà của nhà đang dùng. Nhà đã lưu trữ chỉ đọc nên cũng bị chặn ở đây. */
 export async function requireOwner(db: Db, actor: Actor, houseId: string): Promise<Member> {
   const member = await requireMember(db, actor, houseId)
   if (member.role !== 'owner') throw new AppError('FORBIDDEN', 'NOT_OWNER', 'Chỉ chủ nhà được thực hiện thao tác này')
-  const [house] = await db.select({ archivedAt: houses.archivedAt }).from(houses).where(eq(houses.id, houseId)).limit(1)
-  if (!house || house.archivedAt) throw new AppError('FORBIDDEN', 'HOUSE_ARCHIVED', 'Nhà đã được lưu trữ, chỉ xem được')
-  return member
+  return requireActiveMember(db, actor, houseId)
 }
 
 export type HousePatch = {

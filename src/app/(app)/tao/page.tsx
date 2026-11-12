@@ -5,22 +5,55 @@ import { AppError } from '@/lib/errors'
 import { pickCreateMonth } from '@/lib/period-pick'
 import { todayVn } from '@/lib/vn-time'
 import { requireCurrentHouse } from '@/server/current-house'
+import { listMyExpenses } from '@/server/expenses'
 import { listAvatarSeeds, listMembers } from '@/server/houses'
 import { getOrCreateDraftPeriod, getPeriodEditor, listPeriods, previewPeriod } from '@/server/periods'
 import { periodParam } from '../_lib/period-data'
 import { CreateForm } from './_ui/create-form'
+import { MemberExpenseForm } from './_ui/member-expense-form'
 import type { Preview } from './_ui/use-period-editor'
 
 export const metadata = { title: 'Tạo mới' }
 
-// Màn Tạo (nút "+"), chỉ chủ nhà của nhà đang dùng. Tháng của tab hóa đơn: `?ky=<id>` (sửa một tháng, kể cả đã chốt),
+// Màn Tạo (nút "+"). Chủ nhà: hóa đơn tháng và khoản chi lẻ. Thành viên: chỉ khoản chi lẻ của chính mình (xem `MemberExpenseForm`).
+// Nhà đã lưu trữ hoặc đã rời thì không có gì để tạo. Tháng của tab hóa đơn: `?ky=<id>` (sửa một tháng, kể cả đã chốt),
 // không thì tháng tiêu thụ mặc định / nháp đang dở (`pickCreateMonth`); tháng đó chưa có thì tạo nháp khi mở.
 // `?tab=chi-le` mở thẳng tab Khoản chi lẻ.
 export default async function CreatePage({ searchParams }: PageProps<'/tao'>) {
   const { actor, current } = await requireCurrentHouse()
-  if (current.role !== 'owner' || current.archived) redirect('/')
+  if (current.archived || current.former) redirect('/')
   const sp = await searchParams
   const now = new Date()
+
+  if (current.role !== 'owner') {
+    const [members, seeds, mine] = await Promise.all([
+      listMembers(db, actor, current.houseId),
+      listAvatarSeeds(db, actor, current.houseId),
+      listMyExpenses(db, actor, current.houseId),
+    ])
+    const me = members.find((m) => m.userId === actor.userId)
+    if (!me) redirect('/')
+    return (
+      <MemberExpenseForm
+        data={{
+          houseId: current.houseId,
+          today: todayVn(now),
+          meId: me.id,
+          payers: [{ id: me.id, name: me.displayName }],
+          editPayers: [{ id: me.id, name: me.displayName }],
+          participantChoices: members.map((m) => ({ id: m.id, name: m.displayName })),
+          participantEditChoices: members.map((m) => ({ id: m.id, name: m.displayName })),
+          seeds,
+          expenses: mine.map((e) => ({ id: e.id, description: e.description, amount: e.amount, spentOn: e.spentOn, paidByMemberId: e.paidByMemberId, participantIds: e.participantIds })),
+          listTitle: 'Khoản bạn đã thêm',
+          month: null,
+          closedMonth: false,
+          uncountedIds: [],
+          selfOnly: true,
+        }}
+      />
+    )
+  }
 
   const periods = await listPeriods(db, actor, current.houseId)
   const ky = periodParam(sp.ky)

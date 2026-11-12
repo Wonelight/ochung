@@ -620,3 +620,85 @@ describe('computePeriod: bất biến Σ share === grandTotal', () => {
     }
   })
 })
+
+describe('computePeriod: khoản chi chia cho một số người', () => {
+  function reasonOf(fn: () => unknown): string {
+    try {
+      fn()
+    } catch (e) {
+      expect(e).toBeInstanceOf(AppError)
+      expect((e as AppError).code).toBe('INVALID')
+      return (e as AppError).reason
+    }
+    throw new Error('không throw')
+  }
+  const four = () => [
+    member('linh', { name: 'Linh', isOwner: true }),
+    member('an', { name: 'An' }),
+    member('binh', { name: 'Bình' }),
+    member('chi', { name: 'Chi' }),
+  ]
+  const exp = (over: Record<string, unknown> = {}) => ({
+    id: 'e1',
+    description: 'Máy lọc nước',
+    amount: 300_000,
+    paidByMemberId: 'an',
+    spentOn: '2026-11-20',
+    ...over,
+  })
+
+  it('chỉ chia cho người được chọn; người khác không có dòng, người trả vẫn được hoàn phần đã ứng', () => {
+    const r = byId(computePeriod(input({ members: four(), expenses: [exp({ participantIds: ['an', 'binh'] })] })))
+    expect([r.linh.share, r.an.share, r.binh.share, r.chi.share]).toEqual([0, 150_000, 150_000, 0])
+    expect(r.linh.lines).toEqual([])
+    expect(r.chi.lines).toEqual([])
+    expect(r.an.lines[0]).toMatchObject({ key: 'expense:e1', amount: 150_000, detail: 'An trả 300.000 · 20/11 · chia cho 2 người' })
+    expect(r.an.due).toBe(150_000 - 300_000)
+    expect(r.binh.due).toBe(150_000)
+  })
+
+  it('"mua hộ": Bình trả, chỉ An chịu → An gánh đủ, Bình được hoàn đủ', () => {
+    const res = computePeriod(input({ members: four(), expenses: [exp({ amount: 200_000, paidByMemberId: 'binh', participantIds: ['an'] })] }))
+    const r = byId(res)
+    expect(r.an.share).toBe(200_000)
+    expect(r.an.due).toBe(200_000)
+    expect(r.binh.share).toBe(0)
+    expect(r.binh.advanced).toBe(200_000)
+    expect(r.binh.due).toBe(-200_000)
+    expect(res.grandTotal).toBe(200_000)
+  })
+
+  it('người được chọn nhưng không được tính tháng này thì bị bỏ khỏi khoản chi, phần chia cho những người còn lại', () => {
+    const members = [...four().slice(0, 3), member('chi', { name: 'Chi', included: false })]
+    const r = byId(computePeriod(input({ members, expenses: [exp({ participantIds: ['an', 'chi'] })] })))
+    expect(r.an.share).toBe(300_000)
+    expect(r.chi).toBeUndefined()
+  })
+
+  it('không còn ai được tính trong danh sách chia → EXPENSE_NO_PARTICIPANTS (không để mất khoản chi khỏi tổng)', () => {
+    const members = [...four().slice(0, 3), member('chi', { name: 'Chi', included: false })]
+    expect(reasonOf(() => computePeriod(input({ members, expenses: [exp({ participantIds: ['chi'] })] })))).toBe('EXPENSE_NO_PARTICIPANTS')
+    expect(reasonOf(() => computePeriod(input({ members: four(), expenses: [exp({ participantIds: [] })] })))).toBe('EXPENSE_NO_PARTICIPANTS')
+  })
+
+  it('id người chia không có trong tháng → PARTICIPANT_NOT_FOUND', () => {
+    expect(reasonOf(() => computePeriod(input({ members: four(), expenses: [exp({ participantIds: ['an', 'ghost'] })] })))).toBe('PARTICIPANT_NOT_FOUND')
+  })
+
+  it('null hoặc danh sách trùng/đủ người: chia như cả nhà; id lặp chỉ tính một lần', () => {
+    const base = byId(computePeriod(input({ members: four(), expenses: [exp()] })))
+    const all = byId(computePeriod(input({ members: four(), expenses: [exp({ participantIds: ['linh', 'an', 'binh', 'chi'] })] })))
+    const nul = byId(computePeriod(input({ members: four(), expenses: [exp({ participantIds: null })] })))
+    for (const r of [all, nul]) {
+      expect(['linh', 'an', 'binh', 'chi'].map((id) => r[id].share)).toEqual(['linh', 'an', 'binh', 'chi'].map((id) => base[id].share))
+    }
+    expect(all.an.lines[0].detail).toBe('An trả 300.000 · 20/11') // đủ cả nhà: không ghi "chia cho"
+    const dup = byId(computePeriod(input({ members: four(), expenses: [exp({ participantIds: ['an', 'an', 'binh'] })] })))
+    expect([dup.an.share, dup.binh.share]).toEqual([150_000, 150_000])
+  })
+
+  it('đồng dư khi chia cho nhóm nhỏ vào người đứng trước trong thứ tự thành viên', () => {
+    const r = byId(computePeriod(input({ members: four(), expenses: [exp({ amount: 100_001, participantIds: ['chi', 'an'] })] })))
+    expect([r.an.share, r.chi.share]).toEqual([50_001, 50_000])
+  })
+})

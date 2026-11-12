@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, type FocusEvent } from 'react'
 import { Avatar } from '@/components/Avatar'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import type { ExpenseInput } from '@/lib/billing/types'
@@ -10,7 +10,7 @@ import { dayMonth } from '@/lib/vn-time'
 import { MoneyInput } from '../../nha/_ui/settings-parts'
 import { addExpenseAction, deleteExpenseAction, updateExpenseAction } from '../actions'
 import { SheetFooter } from './sheet-footer'
-import type { CreateData } from './types'
+import type { ExpenseTabData } from './types'
 
 // Tab "Khoản chi lẻ" (spec §6): ngày chi (mặc định hôm nay, có mũi tên ‹ ›), nội dung, số tiền (nút cộng nhanh), "Ai đã trả"
 // (mặc định là mình) và lưới ô gợi ý nội dung bấm một lần là điền. Mỗi mục là một hàng nhãn trái + ô nhập phải.
@@ -20,7 +20,8 @@ import type { CreateData } from './types'
 
 const OFFLINE = 'Không kết nối được. Hãy kiểm tra mạng rồi thử lại'
 
-type Form = { amount: number | null; description: string; spentOn: string; payer: string }
+/** `participants`: những người cùng chịu khoản chi; null = cả nhà. */
+type Form = { amount: number | null; description: string; spentOn: string; payer: string; participants: string[] | null }
 
 const WEEKDAY = ['CN', 'Th 2', 'Th 3', 'Th 4', 'Th 5', 'Th 6', 'Th 7']
 const rowClass = 'flex min-h-14 items-center gap-3 border-b border-line px-3.5 py-2 last:border-b-0'
@@ -28,12 +29,13 @@ const rowLabelClass = 'w-[72px] shrink-0 text-[14px] font-semibold'
 const stepBtnClass =
   'flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-line2 bg-transparent p-0 text-text disabled:cursor-default disabled:opacity-40'
 
-/** "2026-11-11" → "11/11/2026 (Th 4)". Tính theo UTC để không lệch ngày theo múi giờ của máy. */
-function formatDay(ymd: string): string {
+/** "2026-11-11" → "Th 4, 11/11" (cùng năm với hôm nay) hoặc "Th 4, 11/11/2025". Tính theo UTC để không lệch ngày theo múi giờ của máy. */
+function formatDay(ymd: string, today: string): string {
   const [y, m, d] = ymd.split('-').map(Number)
   if (!y || !m || !d) return ymd
   const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay()
-  return `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y} (${WEEKDAY[dow]})`
+  const dm = `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}`
+  return `${WEEKDAY[dow]}, ${y === Number(today.slice(0, 4)) ? dm : `${dm}/${y}`}`
 }
 
 function shiftDay(ymd: string, delta: number): string {
@@ -91,23 +93,91 @@ function PayerChips({
   )
 }
 
-export function ExpenseTab({ data, onChanged }: { data: CreateData; onChanged: () => void }) {
+/**
+ * "Chia cho": mặc định cả nhà (một dòng, không tốn thao tác). Bấm "Chọn" để chọn riêng từng người: mọi chip đang bật thì chạm
+ * một chip là bỏ người đó ra; chọn lại đủ mọi người thì quay về "Cả nhà" (null) để người vào nhà sau vẫn được chia.
+ * Luôn giữ ít nhất một người.
+ */
+function ParticipantsRow({
+  people,
+  seeds,
+  value,
+  onChange,
+}: {
+  people: { id: string; name: string }[]
+  seeds: Record<string, string>
+  value: string[] | null
+  onChange: (v: string[] | null) => void
+}) {
+  const [open, setOpen] = useState(value !== null)
+  const picked = value ?? people.map((p) => p.id)
+  const summary = value === null ? 'Cả nhà' : people.filter((p) => value.includes(p.id)).map((p) => p.name).join(', ') || 'Chưa chọn ai'
+
+  function toggle(id: string) {
+    const next = picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id]
+    if (next.length === 0) return
+    onChange(people.every((p) => next.includes(p.id)) ? null : next)
+  }
+
+  return (
+    <div className="flex flex-col gap-2 border-b border-line px-3.5 py-2.5">
+      <div className="flex min-h-11 items-center gap-3">
+        <span className={rowLabelClass}>Chia cho</span>
+        <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{summary}</span>
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+          className="h-11 shrink-0 cursor-pointer border-0 bg-transparent px-1 font-[inherit] text-[14px] font-semibold text-accent-text"
+        >
+          {open ? 'Xong' : 'Chọn'}
+        </button>
+      </div>
+      {open && (
+        <div role="group" aria-label="Chia cho" className="flex flex-wrap gap-2 pl-[84px]">
+          {people.map((p) => {
+            const on = picked.includes(p.id)
+            return (
+              <button
+                key={p.id}
+                type="button"
+                aria-pressed={on}
+                onClick={() => toggle(p.id)}
+                className={`flex h-11 cursor-pointer items-center gap-2 rounded-[22px] border-0 pl-1.5 pr-3.5 font-[inherit] text-[14px] font-semibold ${
+                  on ? 'bg-[var(--c-create-seg-on)] text-text shadow-[inset_0_0_0_1.5px_#E8833A]' : 'bg-transparent text-muted shadow-[inset_0_0_0_1px_var(--c-line2)]'
+                }`}
+              >
+                <span className={on ? '' : 'opacity-50'}>
+                  <Avatar seed={seeds[p.id] ?? p.name} size={32} />
+                </span>
+                {p.name}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function ExpenseTab({ data, onChanged }: { data: ExpenseTabData; onChanged: () => void }) {
   const router = useRouter()
-  const { period, snapshot } = data
-  const blank: Form = { amount: null, description: '', spentOn: data.today, payer: data.meId }
+  const blank: Form = { amount: null, description: '', spentOn: data.today, payer: data.meId, participants: null }
   const [form, setForm] = useState<Form>(blank)
   const [editing, setEditing] = useState<ExpenseInput | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const names = new Map(snapshot.members.map((m) => [m.memberId, m.name]))
+  /** Tăng sau mỗi lần thêm xong để ô "Chia cho" được dựng lại (đóng, về "Cả nhà"). */
+  const [formEpoch, setFormEpoch] = useState(0)
+  const names = new Map([...data.payers, ...data.editPayers, ...data.participantChoices, ...data.participantEditChoices].map((p) => [p.id, p.name]))
   // sửa: người trả phải có trong tháng của khoản chi; thêm: người đang ở nhà
-  const people = editing ? snapshot.members.map((m) => ({ id: m.memberId, name: m.name })) : data.payers
+  const people = editing ? data.editPayers : data.payers
 
   function startEdit(e: ExpenseInput) {
     setEditing(e)
-    setForm({ amount: e.amount, description: e.description, spentOn: e.spentOn, payer: e.paidByMemberId })
+    setForm({ amount: e.amount, description: e.description, spentOn: e.spentOn, payer: e.paidByMemberId, participants: e.participantIds ?? null })
     setError(null)
     setNotice(null)
   }
@@ -142,7 +212,7 @@ export function ExpenseTab({ data, onChanged }: { data: CreateData; onChanged: (
   async function submit() {
     if (form.amount === null || form.amount <= 0) return setError('Hãy nhập số tiền')
     if (form.description.trim() === '') return setError('Hãy nhập nội dung khoản chi')
-    const input = { amount: form.amount, description: form.description, spentOn: form.spentOn, paidByMemberId: form.payer }
+    const input = { amount: form.amount, description: form.description, spentOn: form.spentOn, paidByMemberId: form.payer, participantIds: form.participants }
     if (editing) {
       const ok = await run(() => updateExpenseAction(editing.id, input))
       if (ok !== null) {
@@ -154,11 +224,14 @@ export function ExpenseTab({ data, onChanged }: { data: CreateData; onChanged: (
     const res = await run(() => addExpenseAction(data.houseId, input))
     if (!res) return
     setForm(blank)
+    setFormEpoch((n) => n + 1)
     const what = `Đã thêm “${input.description.trim()}”`
     setNotice(
-      res.movedFromClosed
-        ? `${what}: chi ngày ${dayMonth(input.spentOn)}, tính vào T${res.ym.month}`
-        : `${what} vào tháng ${res.ym.month}/${res.ym.year}`,
+      data.selfOnly
+        ? `${what}. Chủ nhà sẽ tính vào hóa đơn tháng ${res.ym.month}/${res.ym.year}`
+        : res.movedFromClosed
+          ? `${what}: chi ngày ${dayMonth(input.spentOn)}, tính vào T${res.ym.month}`
+          : `${what} vào tháng ${res.ym.month}/${res.ym.year}`,
     )
   }
 
@@ -172,10 +245,49 @@ export function ExpenseTab({ data, onChanged }: { data: CreateData; onChanged: (
     }
   }
 
+  // Gõ vào ô nào thì kéo ô đó lên khỏi chân trang dính đáy (ô nhập có `scroll-mb-32` chừa chỗ cho chân trang), không để bàn phím che mất.
+  function keepVisible(e: FocusEvent<HTMLDivElement>) {
+    const el = e.target
+    if (el instanceof HTMLInputElement && el.type !== 'date') setTimeout(() => el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 250)
+  }
+
+  function pickTile(label: string) {
+    setForm((f) => ({ ...f, description: label }))
+    // chọn gợi ý xong chỉ còn thiếu số tiền: đưa con trỏ tới đó
+    requestAnimationFrame(() => document.getElementById('expense-amount')?.focus())
+  }
+
   return (
     <>
       <div className="flex flex-1 flex-col gap-2.5 px-5 pb-6 pt-3.5">
-        <div className="flex flex-col rounded-[20px] border border-line bg-[var(--c-create-panel)]">
+        <section aria-label="Gợi ý nhanh" className="flex flex-col gap-1.5">
+          <h2 className="m-0 text-[12px] font-semibold uppercase tracking-[0.12em] text-muted">Gợi ý nhanh</h2>
+          <div className="-mx-5 flex snap-x gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {TILES.map((t) => {
+              const on = form.description.trim() === t.label
+              return (
+                <button
+                  key={t.label}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => pickTile(t.label)}
+                  className={`flex h-11 shrink-0 cursor-pointer snap-start items-center gap-2 whitespace-nowrap rounded-[22px] border bg-[var(--c-create-panel)] pl-3 pr-3.5 font-[inherit] text-[14px] font-medium text-text ${
+                    on ? 'border-accent shadow-[0_0_0_1.5px_#E8833A]' : 'border-line'
+                  }`}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={t.color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    {t.paths.map((d) => (
+                      <path key={d} d={d} />
+                    ))}
+                  </svg>
+                  {t.label}
+                </button>
+              )
+            })}
+          </div>
+        </section>
+
+        <div onFocus={keepVisible} className="flex flex-col rounded-[20px] border border-line bg-[var(--c-create-panel)]">
           {editing && (
             <div className="flex items-center justify-between gap-3 border-b border-line px-3.5">
               <h2 className="m-0 text-[15px] font-semibold">Sửa khoản chi</h2>
@@ -183,38 +295,6 @@ export function ExpenseTab({ data, onChanged }: { data: CreateData; onChanged: (
                 Hủy
               </button>
             </div>
-          )}
-
-          <div className={rowClass}>
-            <label htmlFor="expense-date" className={rowLabelClass}>
-              Ngày chi
-            </label>
-            <button type="button" aria-label="Ngày trước" onClick={() => setForm((f) => ({ ...f, spentOn: shiftDay(f.spentOn, -1) }))} className={stepBtnClass}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="m15 18-6-6 6-6" />
-              </svg>
-            </button>
-            <div className="relative flex h-11 min-w-0 flex-1 items-center justify-center rounded-[12px] border border-line2 bg-input text-[15px] font-semibold tabular-nums">
-              {formatDay(form.spentOn)}
-              <input
-                id="expense-date"
-                type="date"
-                required
-                value={form.spentOn}
-                onChange={(e) => setForm((f) => ({ ...f, spentOn: e.target.value || data.today }))}
-                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-              />
-            </div>
-            <button type="button" aria-label="Ngày sau" onClick={() => setForm((f) => ({ ...f, spentOn: shiftDay(f.spentOn, 1) }))} className={stepBtnClass}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="m9 18 6-6-6-6" />
-              </svg>
-            </button>
-          </div>
-          {editing && (
-            <p className="m-0 border-b border-line px-3.5 py-2 text-[12px] leading-snug text-muted">
-              Đổi ngày chi không chuyển khoản này sang tháng khác. Muốn tính vào tháng khác, hãy xóa rồi thêm lại.
-            </p>
           )}
 
           <div className={rowClass}>
@@ -229,7 +309,7 @@ export function ExpenseTab({ data, onChanged }: { data: CreateData; onChanged: (
               placeholder="Chưa nhập vào"
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              className="box-border h-11 min-w-0 flex-1 border-0 bg-transparent p-0 font-[inherit] text-[16px] text-text outline-none placeholder:text-faint"
+              className="box-border h-11 min-w-0 flex-1 scroll-mb-32 rounded-[12px] border border-line2 bg-input px-3.5 font-[inherit] text-[16px] text-text outline-none placeholder:text-faint focus:border-[1.5px] focus:border-accent focus:shadow-[0_0_0_4px_rgba(232,131,58,0.14)]"
             />
           </div>
 
@@ -243,7 +323,7 @@ export function ExpenseTab({ data, onChanged }: { data: CreateData; onChanged: (
                 value={form.amount}
                 onChange={(amount) => setForm((f) => ({ ...f, amount }))}
                 placeholder="0"
-                className="box-border h-12 min-w-0 flex-1 rounded-[12px] border border-line2 bg-input px-3.5 font-[inherit] text-[22px] font-semibold tabular-nums text-text outline-none placeholder:text-faint focus:border-[1.5px] focus:border-accent focus:shadow-[0_0_0_4px_rgba(232,131,58,0.14)]"
+                className="box-border h-12 min-w-0 flex-1 scroll-mb-32 rounded-[12px] border border-line2 bg-input px-3.5 font-[inherit] text-[22px] font-semibold tabular-nums text-text outline-none placeholder:text-faint focus:border-[1.5px] focus:border-accent focus:shadow-[0_0_0_4px_rgba(232,131,58,0.14)]"
               />
             </div>
             <div className="flex gap-2 pl-[84px]">
@@ -261,12 +341,56 @@ export function ExpenseTab({ data, onChanged }: { data: CreateData; onChanged: (
             </div>
           </div>
 
-          <div className={rowClass}>
-            <span className={rowLabelClass}>Ai đã trả</span>
-            <div className="min-w-0 flex-1">
-              <PayerChips people={people} seeds={data.seeds} value={form.payer} onChange={(payer) => setForm((f) => ({ ...f, payer }))} />
+          {!data.selfOnly && (
+            <div className={rowClass}>
+              <span className={rowLabelClass}>Ai đã trả</span>
+              <div className="min-w-0 flex-1">
+                <PayerChips people={people} seeds={data.seeds} value={form.payer} onChange={(payer) => setForm((f) => ({ ...f, payer }))} />
+              </div>
             </div>
+          )}
+
+          <ParticipantsRow
+            // đổi sang khoản khác (hoặc thoát chế độ sửa) thì dựng lại, để trạng thái mở/đóng theo khoản đó
+            key={`${editing?.id ?? 'new'}-${formEpoch}`}
+            people={editing ? data.participantEditChoices : data.participantChoices}
+            seeds={data.seeds}
+            value={form.participants}
+            onChange={(participants) => setForm((f) => ({ ...f, participants }))}
+          />
+
+          <div className={rowClass}>
+            <label htmlFor="expense-date" className={rowLabelClass}>
+              Ngày chi
+            </label>
+            <button type="button" aria-label="Ngày trước" onClick={() => setForm((f) => ({ ...f, spentOn: shiftDay(f.spentOn, -1) }))} className={stepBtnClass}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="m15 18-6-6 6-6" />
+              </svg>
+            </button>
+            <div className="relative flex h-11 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-[12px] border border-line2 bg-input text-[15px] font-semibold tabular-nums">
+              {formatDay(form.spentOn, data.today)}
+              <input
+                id="expense-date"
+                type="date"
+                required
+                max={data.selfOnly ? data.today : undefined}
+                value={form.spentOn}
+                onChange={(e) => setForm((f) => ({ ...f, spentOn: e.target.value || data.today }))}
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              />
+            </div>
+            <button type="button" aria-label="Ngày sau" disabled={data.selfOnly && form.spentOn >= data.today} onClick={() => setForm((f) => ({ ...f, spentOn: shiftDay(f.spentOn, 1) }))} className={stepBtnClass}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="m9 18 6-6-6-6" />
+              </svg>
+            </button>
           </div>
+          {editing && (
+            <p className="m-0 border-b border-line px-3.5 py-2 text-[12px] leading-snug text-muted">
+              Đổi ngày chi không chuyển khoản này sang tháng khác. Muốn tính vào tháng khác, hãy xóa rồi thêm lại.
+            </p>
+          )}
 
           {editing && (
             <div className="px-3.5 pb-3.5 pt-1">
@@ -282,58 +406,35 @@ export function ExpenseTab({ data, onChanged }: { data: CreateData; onChanged: (
           )}
         </div>
 
-        <section aria-label="Gợi ý nhanh" className="flex flex-col gap-2">
-          <h2 className="m-0 mt-1 text-[12px] font-semibold uppercase tracking-[0.12em] text-muted">Gợi ý nhanh</h2>
-          <div className="grid grid-cols-3 gap-2">
-            {TILES.map((t) => {
-              const on = form.description.trim() === t.label
-              return (
-                <button
-                  key={t.label}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => setForm((f) => ({ ...f, description: t.label }))}
-                  className={`flex h-[78px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-[16px] border bg-[var(--c-create-panel)] px-1 font-[inherit] text-[13px] font-medium text-text ${
-                    on ? 'border-accent shadow-[0_0_0_1.5px_#E8833A]' : 'border-line'
-                  }`}
-                >
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={t.color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    {t.paths.map((d) => (
-                      <path key={d} d={d} />
-                    ))}
-                  </svg>
-                  <span className="max-w-full truncate">{t.label}</span>
-                </button>
-              )
-            })}
-          </div>
-        </section>
-
         {notice && (
           <p role="status" className="m-0 text-[13px] font-medium text-accent-text">
             {notice}
           </p>
         )}
 
-        {snapshot.expenses.length > 0 && (
+        {data.expenses.length > 0 && (
           <section className="mt-1.5 flex flex-col gap-2">
-            <h2 className="m-0 text-[12px] font-semibold uppercase tracking-[0.12em] text-muted">Khoản chi tháng {period.month}</h2>
+            <h2 className="m-0 text-[12px] font-semibold uppercase tracking-[0.12em] text-muted">{data.listTitle}</h2>
             <div className="flex flex-col rounded-[20px] border border-line bg-[var(--c-create-panel)] px-3.5 py-0.5">
-              {snapshot.expenses.map((e, i) => (
+              {data.expenses.map((e, i) => (
                 <button
                   key={e.id}
                   type="button"
                   onClick={() => startEdit(e)}
                   aria-label={`Sửa khoản chi ${e.description}`}
                   className={`flex min-h-14 cursor-pointer items-center gap-3 border-0 bg-transparent p-0 py-2 text-left font-[inherit] text-text ${
-                    i < snapshot.expenses.length - 1 ? 'border-b border-solid border-line' : ''
+                    i < data.expenses.length - 1 ? 'border-b border-solid border-line' : ''
                   } ${editing?.id === e.id ? 'opacity-60' : ''}`}
                 >
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <span className="truncate text-[15px] font-medium">{e.description}</span>
                     <span className="text-[12px] text-muted">
                       {names.get(e.paidByMemberId) ?? '—'} trả · {dayMonth(e.spentOn)}
+                      {e.participantIds && ` · chia cho ${e.participantIds.map((id) => names.get(id) ?? '—').join(', ')}`}
                     </span>
+                    {e.participantIds?.some((id) => data.uncountedIds.includes(id)) && (
+                      <span className="text-[12px] text-unpaid-fg">Có người không được tính tháng này, khoản chi chỉ chia cho những người còn lại</span>
+                    )}
                   </span>
                   <span className="shrink-0 text-[14px] font-semibold tabular-nums">{formatVnd(e.amount)} đ</span>
                 </button>
@@ -358,8 +459,8 @@ export function ExpenseTab({ data, onChanged }: { data: CreateData; onChanged: (
       {confirmDelete && editing && (
         <ConfirmSheet
           title="Xóa khoản chi này?"
-          body={`“${editing.description}” · ${formatVnd(editing.amount)} đ sẽ bị xóa khỏi tháng ${period.month}${
-            period.status === 'closed' ? ', phiếu của cả nhà được tính lại' : ''
+          body={`“${editing.description}” · ${formatVnd(editing.amount)} đ sẽ bị xóa${data.month === null ? '' : ` khỏi tháng ${data.month}`}${
+            data.closedMonth ? ', phiếu của cả nhà được tính lại' : ''
           }.`}
           confirmLabel="Xóa"
           pending={busy}

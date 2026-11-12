@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, ne, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, isNotNull, ne, sql } from 'drizzle-orm'
 import type { Db } from '@/db'
 import { newId } from '@/db/ids'
 import {
@@ -39,7 +39,7 @@ const UTILITY_LABEL: Record<Utility, string> = { electricity: 'Điện', water: 
 /** Cột chỉ số là integer (int4); 9 chữ số là quá đủ cho công tơ điện, nước. */
 const READING_MAX = 999_999_999
 
-type PeriodRow = typeof periods.$inferSelect
+export type PeriodRow = typeof periods.$inferSelect
 
 export type UtilityView = { mode: 'tiered' | 'total'; prev: number | null; curr: number | null; total: number | null; tariff: Tariff | null }
 
@@ -302,6 +302,18 @@ export async function addMemberToDraftsTx(tx: Tx, houseId: string, memberId: str
         sortOrder: m.sortOrder,
       })
       .onConflictDoNothing()
+    // khoản chi chia riêng cho dòng thành viên cũ của người này: chuyển sang dòng mới, không thì không còn ai được chia
+    if (earlier.length > 0) {
+      const chosen = await tx
+        .select({ id: expenses.id, participantIds: expenses.participantIds })
+        .from(expenses)
+        .where(and(eq(expenses.periodId, draft.id), isNotNull(expenses.participantIds)))
+      for (const e of chosen) {
+        if (!e.participantIds?.some((id) => earlier.includes(id))) continue
+        const next = [...new Set(e.participantIds.map((id) => (earlier.includes(id) ? memberId : id)))]
+        await tx.update(expenses).set({ participantIds: next }).where(eq(expenses.id, e.id))
+      }
+    }
   }
 }
 
@@ -362,6 +374,7 @@ async function loadSnapshot(db: Db, period: PeriodRow) {
       amount: expenses.amount,
       paidByMemberId: expenses.paidByMemberId,
       spentOn: expenses.spentOn,
+      participantIds: expenses.participantIds,
     })
     .from(expenses)
     .where(eq(expenses.periodId, period.id))
@@ -463,10 +476,13 @@ export async function writePeriod(
   actor: Actor,
   periodId: string,
   write: (tx: Tx, period: PeriodRow) => Promise<boolean>,
+  /** Thay cho kiểm quyền chủ nhà mặc định (chạy sau khi đã khóa tháng): dùng cho thao tác thành viên cũng được làm. */
+  authorize?: (tx: Tx, period: PeriodRow) => Promise<void>,
 ): Promise<void> {
   const edited = await db.transaction(async (tx) => {
     const period = await lockPeriod(tx, periodId)
-    await requireOwner(tx, actor, period.houseId)
+    if (authorize) await authorize(tx, period)
+    else await requireOwner(tx, actor, period.houseId)
     if (!(await write(tx, period))) return false
     return recomputeIfClosedTx(tx, period)
   })

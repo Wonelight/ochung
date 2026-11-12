@@ -58,7 +58,7 @@ export async function updateClosedPeriodAction(periodId: string, edits: PeriodEd
 
 export async function addExpenseAction(
   houseId: string,
-  input: { description: string; amount: number; spentOn: string; paidByMemberId: string },
+  input: { description: string; amount: number; spentOn: string; paidByMemberId: string; participantIds?: string[] | null },
 ) {
   return runAction(async (): Promise<{ ym: YM; movedFromClosed: boolean }> => {
     const actor = await getActor()

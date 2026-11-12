@@ -69,7 +69,7 @@ Một tài khoản có thể thuộc nhiều nhà (chuyển nhà vẫn giữ đ�
 | **Cố định, chia đều** | Tiền nhà, phí dịch vụ, internet, rác | Chia đều cho tất cả thành viên được tính trong tháng, **dù có ai vắng** |
 | **Cố định, theo người** | Tiền xe | Chỉ tính cho người có xe: số xe × đơn giá. **[quyết định của Claude, chủ dự án không phản đối]** |
 | **Điện, nước** | | Chia theo **số ngày ở** của từng người |
-| **Chi phát sinh** | Nước giặt, giấy vệ sinh, bóng đèn | Chia đều cho tất cả thành viên được tính trong tháng; người đã ứng tiền được trừ lại |
+| **Chi phát sinh** | Nước giặt, giấy vệ sinh, bóng đèn | Chia đều cho tất cả thành viên được tính trong tháng, hoặc chỉ cho nhóm người được chọn ("Chia cho"); người đã ứng tiền được trừ lại |
 
 Danh sách khoản cố định do chủ nhà tự quản lý: thêm, sửa, xóa, đặt tên, chọn cách chia. Mỗi tháng có thể bật/tắt từng khoản, như các công tắc trong màn "Tạo hóa đơn" của mockup.
 
@@ -119,11 +119,13 @@ Kiểm tra: tổng chi 10.855.000 = tổng 4 phần. Chủ nhà ứng 10.655.000
 
 ## 6. Vòng đời một tháng
 
-1. **Nháp:** chủ nhà bấm "+" rồi chọn "Hóa đơn tháng", nhập chỉ số hoặc tổng tiền điện nước, bật/tắt các khoản cố định, sửa số ngày ở. App hiện tổng tiền và số của từng người ngay khi đang nhập. Chi phát sinh thì nhập lúc nào cũng được, qua "+" rồi "Khoản chi lẻ": số tiền, nội dung, ngày, ai đã trả.
+1. **Nháp:** chủ nhà bấm "+" rồi chọn "Hóa đơn tháng", nhập chỉ số hoặc tổng tiền điện nước, bật/tắt các khoản cố định, sửa số ngày ở. App hiện tổng tiền và số của từng người ngay khi đang nhập. Chi phát sinh thì nhập lúc nào cũng được, qua "+" rồi "Khoản chi lẻ": số tiền, nội dung, ngày, ai đã trả. Thành viên cũng có nút "+" nhưng chỉ nhập được khoản chi lẻ do chính mình trả (không có hóa đơn tháng): khoản vào tháng nháp, chủ nhà tính vào hóa đơn khi chốt sổ; thành viên sửa/xóa được khoản mình thêm khi tháng còn nháp, không chọn được tháng đã chốt và không ghi ngày chưa tới.
 2. **Chốt sổ** (nút "Tạo & gửi hóa đơn"): app lưu cố định (snapshot) toàn bộ đơn giá, khoản và bảng giá tại thời điểm chốt, rồi gửi thông báo đẩy cho cả nhà: "Tháng 11: bạn cần chuyển 2.600.000đ".
 3. **Thu tiền:** xem mục 7.
 4. **Sửa sau khi chốt:** **[quyết định của Claude]** chủ nhà vẫn sửa được. App tính lại và gửi thông báo "Phiếu tháng 11 đã cập nhật". Trạng thái của từng người được tính lại theo số tiền đã thực nhận (xem 7), nên ai đã đóng mà số tiền tăng lên sẽ chuyển sang "Còn thiếu X".
 5. **Hạn đóng:** chủ nhà đặt một ngày cố định trong tháng, ví dụ mùng 10. Hạn này chỉ để hiển thị, app không tự gửi nhắc.
+
+**Chi phát sinh chia cho ai** **[quyết định theo yêu cầu của chủ dự án]**: mặc định cả nhà (lưu là "tất cả", nên người vào nhà sau hay đổi "Tính tháng này" vẫn đúng). Người nhập có thể chọn riêng những người cùng chịu, ví dụ khoản chỉ dùng cho người đang ở, hoặc "mua hộ" (B trả, chỉ A chịu). Người trả không bắt buộc nằm trong danh sách chia. Người trong danh sách nhưng bị tắt "Tính tháng này" tự bị bỏ khỏi khoản đó và chủ nhà thấy cảnh báo; không còn ai được tính thì tháng không tính/chốt được cho tới khi sửa. Thành viên ngang hàng nhau: ai nhập cũng chọn được người chia, và mọi thành viên đều xem được sổ khoản chi của cả nhà (kể cả tháng nháp: ai trả, ai nhập, chia cho ai) để minh bạch. Tiền vẫn đi qua chủ nhà: mỗi người chỉ có một số cần chuyển (phần của mình trừ phần đã ứng), khoản ứng của người này được bù trừ vào số người khác nộp.
 
 **Chi phát sinh thuộc tháng nào** **[quyết định của Claude]**: tính vào tháng của ngày chi, nếu tháng đó vẫn còn nháp. Nếu tháng đó đã chốt thì mặc định chuyển sang **tháng nháp gần nhất**, app ghi rõ trên phiếu "chi ngày 28/11, tính vào T12". Chủ nhà vẫn có thể chủ động chọn tháng đã chốt (tức là sửa sau chốt). Vì vậy sửa sau chốt chỉ là trường hợp hiếm.
 
@@ -182,7 +184,7 @@ Bố cục theo mockup. Những màn đánh dấu ✚ là màn mới hoặc ph�
 | Trang chủ | mockup | ✚ Với thành viên: ô đầu trang hiện **số tiền của bạn** và trạng thái thay cho "mỗi người · chia 4". Danh sách cả nhà hiện **số tiền riêng của từng người** |
 | Biểu phí tháng / **Phiếu thanh toán** | mockup + ✚ | Hiện chi tiết từng dòng của người đang xem, kèm cách tính (như ví dụ 5.4), số cần chuyển và nút mã QR. Chủ nhà xem được phiếu của bất kỳ ai |
 | Hóa đơn và trạng thái | mockup | số tiền của từng người khác nhau ✚; thêm thao tác Từ chối ✚ |
-| Tạo (nút +): Hóa đơn tháng / Khoản chi lẻ | mockup | ✚ 2 chế độ điện nước, số ngày ở của từng người, chọn ai đã trả cho khoản chi lẻ. Thành viên không thấy nút "+" |
+| Tạo (nút +): Hóa đơn tháng / Khoản chi lẻ | mockup | ✚ 2 chế độ điện nước, số ngày ở của từng người, chọn ai đã trả cho khoản chi lẻ. Thành viên thấy nút "+" nhưng chỉ có form Khoản chi lẻ (luôn là mình trả) |
 | Quản lý nhà | mockup | ✚ thêm: các khoản cố định, bảng giá bậc thang, tài khoản ngân hàng, hạn đóng, số xe của từng người, quản lý link mời, sửa/xóa nhà |
 | Tạo nhà mới ✚ | mới | |
 | Vào nhà | mockup | |

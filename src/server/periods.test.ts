@@ -625,11 +625,7 @@ describe('vòng đời tháng', () => {
       await expectApp(setPeriodItemEnabled(db, h.an, item.id, false), 'FORBIDDEN', 'NOT_OWNER')
       await expectApp(previewPeriod(db, h.an, h.periodId), 'FORBIDDEN', 'NOT_OWNER')
       await expectApp(getOrCreateDraftPeriod(db, h.an, h.houseId, T12), 'FORBIDDEN', 'NOT_OWNER')
-      await expectApp(
-        addExpense(db, h.an, h.houseId, { description: 'X', amount: 1_000, spentOn: '2026-11-20', paidByMemberId: h.anId }),
-        'FORBIDDEN',
-        'NOT_OWNER',
-      )
+      // thành viên thêm khoản chi do chính mình trả thì được phép: xem expenses.test.ts, mục "thành viên (không phải chủ nhà)"
       expect(await previewPeriod(db, h.linh, h.periodId)).toMatchObject({ grandTotal: 10_855_000 })
       expect((await periodRow(h.periodId)).status).toBe('draft')
       expect(await db.select().from(periods).where(and(eq(periods.houseId, h.houseId), eq(periods.month, 12)))).toEqual([])

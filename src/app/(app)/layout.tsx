@@ -13,7 +13,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-[430px] bg-bg text-text md:max-w-[560px] md:border-x md:border-line">
       {children}
-      {current && <AppNav showCreate={current.role === 'owner' && !current.archived} />}
+      {current && <AppNav showCreate={!current.archived && !current.former} />}
       <PasskeyPrompt userId={actor.userId} />
     </div>
   )

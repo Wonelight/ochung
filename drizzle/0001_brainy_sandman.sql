@@ -1,0 +1,1 @@
+ALTER TABLE "expenses" ADD COLUMN "participant_ids" text[];

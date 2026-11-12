@@ -51,6 +51,11 @@ export type ExpenseInput = {
   paidByMemberId: string
   /** Ngày chi, dạng YYYY-MM-DD. */
   spentOn: string
+  /**
+   * Những người cùng chịu khoản chi này. null/thiếu = mọi người được tính trong tháng. Người trong danh sách nhưng không
+   * được tính tháng này bị bỏ qua; người trả không bắt buộc nằm trong danh sách (mua hộ: B trả, chỉ A chịu).
+   */
+  participantIds?: string[] | null
 }
 
 /** `members` đã sắp theo sortOrder; thứ tự này cũng là thứ tự ưu tiên khi chia dư đồng. */

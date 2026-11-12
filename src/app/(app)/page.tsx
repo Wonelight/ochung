@@ -61,7 +61,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
   if (!pick) {
     const ym = consumptionMonthDefault(now)
     return (
-      <main className="flex flex-col gap-[18px] px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(58px,env(safe-area-inset-top))]">
+      <main className="flex flex-col gap-[18px] px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]">
         {header}
         <InstallGuide />
         <MonthHero year={ym.year} month={ym.month}>
@@ -168,7 +168,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
   }
 
   return (
-    <main className="flex flex-col gap-[18px] px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(58px,env(safe-area-inset-top))]">
+    <main className="flex flex-col gap-[18px] px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]">
       {header}
       <InstallGuide />
 
@@ -196,7 +196,6 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
             Tiếp tục nhập
           </Link>
         )}
-        {view && <MonthTiles tiles={homeTiles(view)} href={payslipHref} />}
       </MonthHero>
 
       {rows.length > 0 && (
@@ -229,6 +228,25 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
             ))}
           </div>
         </section>
+      )}
+
+      {view && (
+        <section aria-label="Các khoản trong tháng" className="flex flex-col gap-1.5">
+          <h2 className="m-0 text-[17px] font-semibold">Các khoản trong tháng</h2>
+          <MonthTiles tiles={homeTiles(view)} href={payslipHref} />
+        </section>
+      )}
+
+      {!current.former && (
+        <Link href="/chi-tieu" className="flex min-h-14 items-center gap-3 rounded-[20px] border border-line bg-surface px-4 text-text no-underline">
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="text-[15px] font-semibold">Khoản chi của nhà</span>
+            <span className="text-[12px] text-muted">Ai đã trả, chia cho ai. Cả nhà cùng xem</span>
+          </span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0 text-faint">
+            <path d="m9 18 6-6-6-6" />
+          </svg>
+        </Link>
       )}
     </main>
   )

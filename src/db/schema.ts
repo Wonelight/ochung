@@ -374,6 +374,8 @@ export const expenses = pgTable(
       .notNull()
       .references(() => houseMembers.id),
     spentOn: date('spent_on', { mode: 'string' }).notNull(),
+    /** Những người cùng chịu khoản chi (id thành viên). null = mọi người được tính trong tháng. */
+    participantIds: text('participant_ids').array(),
     createdBy: text('created_by')
       .notNull()
       .references(() => user.id),

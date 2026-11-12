@@ -160,6 +160,9 @@ await removeMember(db, linh, A.houseId, mDung)
 const nov = (await getOrCreateDraftPeriod(db, linh, A.houseId, ym(2026, 11))).periodId
 await applyPeriodEdits(db, linh, nov, { utilities: { electricity: { prev: 1590, curr: 1642 } } })
 await addExpense(db, linh, A.houseId, { description: 'Mua bột giặt', amount: 130_000, spentOn: '2026-11-05', paidByMemberId: mAn, ym: ym(2026, 11) })
+// thành viên tự nhập khoản chi của mình, chia cho một số người (không phải cả nhà)
+await addExpense(db, an, A.houseId, { description: 'Bóng đèn phòng An và Bình', amount: 90_000, spentOn: '2026-11-08', paidByMemberId: mAn, participantIds: [mAn, mBinh] })
+await addExpense(db, binh, A.houseId, { description: 'Mua hộ thuốc cho Chi', amount: 60_000, spentOn: '2026-11-09', paidByMemberId: mBinh, participantIds: [mChi] })
 
 // Lời mời: một link đang hiệu lực + Hà xin vào bằng mã nhà (chờ duyệt).
 await createInviteLink(db, linh, A.houseId)
