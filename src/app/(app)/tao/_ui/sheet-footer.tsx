@@ -43,11 +43,11 @@ export function SheetFooter({
         <div className="flex items-center gap-3">
           <div className="flex min-w-0 flex-1 flex-col">
             <span className="truncate text-[12px] leading-tight text-muted">{label}</span>
-            <span className="truncate font-numeric text-[19px] font-semibold leading-tight tracking-[-0.04em] tabular-nums">
+            <span className="whitespace-nowrap font-numeric text-[18px] font-semibold leading-tight tracking-[-0.04em] tabular-nums">
               {total === null ? '—' : `${formatVnd(total)} đ`}
             </span>
             {rightLabel && rightValue !== null && (
-              <span className="truncate text-[12px] leading-tight text-muted">
+              <span className="text-[12px] leading-tight text-muted">
                 {rightLabel} <span className="font-numeric font-semibold tracking-[-0.03em] text-accent-text tabular-nums">{formatVnd(rightValue)} đ</span>
               </span>
             )}
@@ -56,7 +56,7 @@ export function SheetFooter({
             type="button"
             disabled={disabled || busy}
             onClick={onCta}
-            className="flex h-12 shrink-0 cursor-pointer items-center justify-center whitespace-nowrap rounded-[24px] border-0 bg-accent px-5 font-[inherit] text-[15px] font-bold text-[#1A0F06] shadow-[0_6px_18px_rgba(232,131,58,0.28)] disabled:cursor-default disabled:opacity-50"
+            className="flex h-12 shrink-0 cursor-pointer items-center justify-center whitespace-nowrap rounded-[24px] border-0 bg-accent px-4 font-[inherit] text-[14px] font-bold text-[#1A0F06] shadow-[0_6px_18px_rgba(232,131,58,0.28)] disabled:cursor-default disabled:opacity-50"
           >
             {busy ? 'Đang lưu…' : cta}
           </button>

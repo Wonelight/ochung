@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-// Đầu thẻ tháng của Trang chủ, chép từ mockup: số tháng Lexend 56px, "Tháng" + năm, hai nút mũi tên 44px.
+// Đầu thẻ tháng của Trang chủ, chép từ mockup: số tháng Lexend 44px, "Tháng" + năm, hai nút mũi tên 44px.
 // Mũi tên dẫn tới tháng liền kề trong danh sách tháng người xem thấy được; hết tháng thì nút bị tắt như mockup.
 
 const arrowOn = 'flex size-11 items-center justify-center rounded-[22px] border border-line2 bg-raised p-0 text-text'
@@ -40,7 +40,7 @@ export function MonthHeader({
   return (
     <div className="relative flex items-end justify-between">
       <div className="flex items-end gap-2.5">
-        <span className="font-numeric text-[56px] font-semibold leading-[0.86] tracking-[-0.04em]">{month}</span>
+        <span className="font-numeric text-[44px] font-semibold leading-[0.86] tracking-[-0.04em]">{month}</span>
         <div className="flex flex-col pb-0.5">
           <span className="text-[12px] uppercase tracking-[0.12em] text-muted">Tháng</span>
           <span className="text-[15px] font-semibold">{year}</span>

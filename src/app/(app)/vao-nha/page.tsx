@@ -24,7 +24,7 @@ export default async function JoinHousePage() {
   const old = houses.filter((h) => h.archived || h.former)
 
   return (
-    <main className="flex flex-col gap-5 px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(58px,env(safe-area-inset-top))]">
+    <main className="flex flex-col gap-5 px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]">
       <header className="flex items-center gap-3">
         <Link href="/cai-dat" aria-label="Hồ sơ của bạn" className="flex size-11 shrink-0 rounded-[22px]">
           <Avatar seed={avatarSeed(profile?.name ?? '', profile?.avatarVariant ?? 0)} size={44} />

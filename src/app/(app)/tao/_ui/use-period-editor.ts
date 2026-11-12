@@ -122,12 +122,13 @@ export function usePeriodEditor({
   }, [closed, snapshot, state])
 
   /** Câu báo thiếu điện/nước, giống hệt câu server trả khi chốt sổ (UTILITY_MISSING). */
-  const missing = useMemo(() => {
-    const names = UTILITY_KEYS.filter((u) => utilityInputOf({ ...snapshot.utilities[u], ...state.utilities[u] }) === null).map(
-      (u) => UTILITY_LABEL[u],
-    )
-    return names.length > 0 ? `Chưa nhập đủ số liệu ${names.join(' và ')}. Hãy nhập chỉ số (hoặc tổng tiền) trước khi chốt sổ` : null
-  }, [snapshot, state])
+  const missingNames = useMemo(
+    () => UTILITY_KEYS.filter((u) => utilityInputOf({ ...snapshot.utilities[u], ...state.utilities[u] }) === null).map((u) => UTILITY_LABEL[u]),
+    [snapshot, state],
+  )
+  const missing = missingNames.length > 0 ? `Chưa nhập đủ số liệu ${missingNames.join(' và ')}. Hãy nhập chỉ số (hoặc tổng tiền) trước khi chốt sổ` : null
+  /** Bản rút gọn một dòng của `missing` cho chân trang. */
+  const missingShort = missingNames.length > 0 ? `Còn thiếu chỉ số ${missingNames.join(' và ')}` : null
 
   const pending: PeriodEdits | null = useMemo(() => (closed ? diffEdits(initial, state) : null), [closed, initial, state])
 
@@ -139,6 +140,7 @@ export function usePeriodEditor({
     saveError,
     preview: localPreview ?? serverPreview,
     missing,
+    missingShort,
     pending,
   }
 }

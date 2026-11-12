@@ -49,7 +49,7 @@ export default async function HouseManagePage() {
     .map((l) => ({ id: l.id, url: l.url, expiresAt: l.expiresAt.toISOString() }))
 
   return (
-    <main className="flex flex-col gap-4 px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(58px,env(safe-area-inset-top))]">
+    <main className="flex flex-col gap-4 px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]">
       <PageHeader title="Quản lý nhà" backHref="/" />
 
       <HousePicker

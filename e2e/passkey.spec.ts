@@ -68,12 +68,14 @@ test('hồ sơ, giao diện và Face ID trong Cài đặt; đăng nhập bằng 
   })
 
   await test.step('sửa hồ sơ: tên, ngày sinh, "Tạo hình mới"', async () => {
+    await page.getByRole('button', { name: 'Sửa hồ sơ' }).click() // form hồ sơ gập sẵn, mở khi cần sửa
     await page.getByLabel('Tên hiển thị').fill('Bảo Nguyễn')
     await page.getByLabel('Ngày sinh').fill('1998-05-20')
     await page.getByRole('button', { name: 'Tạo hình mới' }).click()
     await page.getByRole('button', { name: 'Lưu thay đổi' }).click()
     await expect(page.getByRole('button', { name: 'Đã lưu' })).toBeVisible()
     await page.reload()
+    await page.getByRole('button', { name: 'Sửa hồ sơ' }).click()
     await expect(page.getByLabel('Tên hiển thị')).toHaveValue('Bảo Nguyễn')
     await expect(page.getByLabel('Ngày sinh')).toHaveValue('1998-05-20')
     await expect(page.getByRole('img', { name: 'Ảnh đại diện tự sinh của Bảo Nguyễn#1' })).toBeVisible()

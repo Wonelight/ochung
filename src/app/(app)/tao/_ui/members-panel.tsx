@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { Avatar } from '@/components/Avatar'
 import type { PeriodMember, Payslip } from '@/lib/billing/types'
 import { formatVnd } from '@/lib/money'
@@ -38,18 +39,35 @@ export function MembersPanel({
   month: number
   onChange: (memberId: string, patch: { days?: number; included?: boolean }) => void
 }) {
+  // Gần như tháng nào cả nhà cũng ở đủ: khi đó chỉ hiện một dòng tóm tắt, mở ra khi cần chỉnh. Có người vắng hoặc không tính thì mở sẵn.
+  const rest = members.filter((m) => {
+    const v = values[m.memberId] ?? { days: m.days, included: m.included }
+    return !v.included || v.days < daysInMonth
+  })
+  const [open, setOpen] = useState(rest.length > 0)
+  const summary = rest.length === 0 ? `Cả ${members.length} người ở đủ ${daysInMonth} ngày` : `${rest.length} người vắng hoặc không tính`
+
   return (
     <section aria-label="Số ngày ở" className="flex flex-col rounded-[20px] border border-line bg-[var(--c-create-panel)] px-3.5 py-1">
-      <div className="flex min-h-[52px] items-center justify-between gap-3 border-b border-line py-1.5">
-        <div className="flex flex-col">
-          <h2 className="m-0 text-[15px] font-semibold">Số ngày ở</h2>
-          <span className="text-[12px] text-muted">
-            Tháng {month} có {daysInMonth} ngày
-          </span>
-        </div>
-        <span className="text-right text-[12px] text-muted">Tính tháng này</span>
-      </div>
-      {members.map((m, i) => {
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className={`flex min-h-[52px] w-full cursor-pointer items-center justify-between gap-3 border-0 bg-transparent p-0 py-1.5 text-left font-[inherit] text-text ${open ? 'border-b border-solid border-line' : ''}`}
+      >
+        <span className="flex flex-col">
+          <span className="text-[15px] font-semibold">Số ngày ở</span>
+          <span className="text-[12px] text-muted">{open ? `Tháng ${month} có ${daysInMonth} ngày` : summary}</span>
+        </span>
+        <span className="flex shrink-0 items-center gap-1 text-[13px] font-semibold text-accent-text">
+          {open ? 'Thu gọn' : 'Chỉnh'}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={open ? 'rotate-180' : ''}>
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </span>
+      </button>
+      {open &&
+        members.map((m, i) => {
         const v = values[m.memberId] ?? { days: m.days, included: m.included }
         const slip = payslips?.find((p) => p.memberId === m.memberId)
         return (

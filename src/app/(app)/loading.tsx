@@ -7,7 +7,7 @@ export default function Loading() {
     <main
       aria-busy="true"
       aria-label="Đang tải"
-      className="flex flex-col gap-[18px] px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(58px,env(safe-area-inset-top))]"
+      className="flex flex-col gap-[18px] px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]"
     >
       <div className="flex items-center gap-3">
         <Skeleton className="size-11 rounded-full" />

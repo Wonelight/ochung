@@ -20,7 +20,7 @@ export function BillTab({ data, editor }: { data: CreateData; editor: ReturnType
   const router = useRouter()
   const { period, snapshot } = data
   const closed = period.status === 'closed'
-  const { state, update, preview, missing, pending, saveError, saving, save } = editor
+  const { state, update, preview, missing, missingShort, pending, saveError, saving, save } = editor
   const [confirm, setConfirm] = useState(false)
   const [busy, setBusy] = useState(false)
   const [confirmError, setConfirmError] = useState<string | null>(null)
@@ -100,7 +100,7 @@ export function BillTab({ data, editor }: { data: CreateData; editor: ReturnType
         rightLabel={ownerSlip ? 'Phần của bạn' : null}
         rightValue={ownerSlip ? ownerSlip.share : null}
         message={message}
-        hint={missing}
+        hint={missingShort}
         cta={closed ? 'Cập nhật' : 'Tạo & gửi hóa đơn'}
         disabled={disabled}
         onCta={() => {

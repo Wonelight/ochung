@@ -70,8 +70,14 @@ export function DioneBar({ active, showCreate }: { active: 'home' | 'settings'; 
         <g transform="translate(390 0) scale(-1 1)">
           <Shell id="dioneGrille" />
         </g>
-        <circle cx="195" cy="50" r="34" fill="none" stroke={LED} strokeOpacity="0.18" strokeWidth="4" />
-        <circle cx="195" cy="50" r="34" fill="none" stroke={LED} strokeWidth="1.2" />
+        {showCreate ? (
+          <>
+            <circle cx="195" cy="50" r="34" fill="none" stroke={LED} strokeOpacity="0.18" strokeWidth="4" />
+            <circle cx="195" cy="50" r="34" fill="none" stroke={LED} strokeWidth="1.2" />
+          </>
+        ) : (
+          <circle cx="195" cy="50" r="34" fill="none" strokeWidth="1" style={{ stroke: 'var(--c-text)', strokeOpacity: 'var(--c-bar-edge-op)' }} />
+        )}
       </svg>
 
       <Link href="/" aria-label="Trang chủ" style={{ ...tabStyle(active === 'home'), left: 54 }}>

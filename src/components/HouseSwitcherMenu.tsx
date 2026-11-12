@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { selectHouseAction } from '@/app/(app)/nha/actions'
 import type { HouseSummary } from '@/server/houses'
+import { RoleChip } from './RoleChip'
 
 export function HouseSwitcherMenu({
   houses,
@@ -47,7 +48,7 @@ export function HouseSwitcherMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className={`flex min-h-[26px] max-w-full cursor-pointer items-center gap-1 border-0 bg-transparent p-0 font-[inherit] text-[17px] font-semibold text-text ${centered ? 'mx-auto' : ''}`}
+        className={`flex min-h-11 max-w-full cursor-pointer items-center gap-1 border-0 bg-transparent px-2 py-0 font-[inherit] text-[17px] font-semibold text-text ${centered ? 'mx-auto' : ''}`}
       >
         <span className="truncate">{current?.name ?? 'Chọn nhà'}</span>
         <svg
@@ -85,12 +86,17 @@ export function HouseSwitcherMenu({
                 role="menuitemradio"
                 aria-checked={h.houseId === currentId}
                 onClick={() => choose(h.houseId)}
-                className="flex min-h-[52px] cursor-pointer items-center gap-2 border-0 border-b border-line bg-transparent p-0 text-left font-[inherit] text-[15px] font-semibold text-text"
+                className="flex min-h-[60px] cursor-pointer items-center gap-2 border-0 border-b border-line bg-transparent p-0 text-left font-[inherit] text-[15px] font-semibold text-text"
               >
-                <span className="min-w-0 flex-1 truncate">{h.name}</span>
-                {(h.former || h.archived) && (
-                  <span className="text-[12px] font-medium text-muted">{h.former ? 'Đã rời' : 'Đã lưu trữ'}</span>
-                )}
+                <span className="flex min-w-0 flex-1 flex-col items-start gap-1 py-2">
+                  <span className="max-w-full truncate">{h.name}</span>
+                  <span className="flex items-center gap-1.5">
+                    <RoleChip role={h.role} />
+                    {(h.former || h.archived) && (
+                      <span className="text-[12px] font-medium text-muted">{h.former ? 'Đã rời' : 'Đã lưu trữ'}</span>
+                    )}
+                  </span>
+                </span>
                 {h.houseId === currentId && (
                   <svg
                     width="18"

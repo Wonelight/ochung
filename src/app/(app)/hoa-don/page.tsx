@@ -29,7 +29,7 @@ export default async function BillsPage({ searchParams }: PageProps<'/hoa-don'>)
 
   if (!pick) {
     return (
-      <main className="flex flex-col gap-4 px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(58px,env(safe-area-inset-top))]">
+      <main className="flex flex-col gap-4 px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]">
         <PageHeader title="Hóa đơn" backHref="/" />
         <p className="m-0 rounded-[20px] border border-line bg-surface p-4 text-[14px] text-muted">Chưa có hóa đơn nào.</p>
       </main>
@@ -61,7 +61,7 @@ export default async function BillsPage({ searchParams }: PageProps<'/hoa-don'>)
   const previousStatuses = await Promise.all(previous.map((x) => getStatuses(db, x.id)))
 
   return (
-    <main className="flex flex-col gap-4 px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(58px,env(safe-area-inset-top))]">
+    <main className="flex flex-col gap-4 px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]">
       <header className="flex items-center gap-2">
         <Link
           href={`/?ky=${p.id}`}

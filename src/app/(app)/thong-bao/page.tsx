@@ -19,7 +19,7 @@ export default async function NotificationsPage() {
   const canCompose = current !== null && current.role === 'owner' && !current.archived
 
   return (
-    <main className="flex flex-col gap-[18px] px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(58px,env(safe-area-inset-top))]">
+    <main className="flex flex-col gap-[18px] px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]">
       <PageHeader title="Thông báo" backHref="/" />
       <MarkAllRead hasUnread={items.some((n) => n.readAt === null)} />
 

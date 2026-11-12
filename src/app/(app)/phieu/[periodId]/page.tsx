@@ -34,7 +34,7 @@ export default async function PayslipPage({ params, searchParams }: PageProps<'/
   if (!view) {
     if (!error) notFound()
     return (
-      <main className="flex flex-col gap-4 px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(58px,env(safe-area-inset-top))]">
+      <main className="flex flex-col gap-4 px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]">
         <PageHeader title="Biểu phí tháng" backHref="/" />
         <p role="alert" className="m-0 rounded-[20px] border border-line bg-surface p-4 text-[14px] font-medium text-unpaid-fg">
           {error}
@@ -66,7 +66,7 @@ export default async function PayslipPage({ params, searchParams }: PageProps<'/
   const ym = { year: period.year, month: period.month }
 
   return (
-    <main className="flex flex-col gap-4 px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(58px,env(safe-area-inset-top))]">
+    <main className="flex flex-col gap-4 px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]">
       <header className="flex items-center gap-2">
         <Link
           href={`/?ky=${period.id}`}
@@ -89,6 +89,51 @@ export default async function PayslipPage({ params, searchParams }: PageProps<'/
           <span className="w-11 shrink-0" />
         )}
       </header>
+
+      {isOwner && result.payslips.length > 0 && (
+        <SubjectPicker
+          periodId={period.id}
+          selectedId={subjectId}
+          people={result.payslips.map((p) => ({ id: p.memberId, name: names.get(p.memberId) ?? '—', seed: seeds[p.memberId] ?? names.get(p.memberId) ?? '' }))}
+        />
+      )}
+
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="m-0 text-[17px] font-semibold">{self ? 'Phiếu của bạn' : `Phiếu của ${subjectName}`}</h2>
+        {pill && <StatusPill tone={pill.tone} text={pill.text} />}
+      </div>
+
+      {!slip || !s ? (
+        <p className="m-0 rounded-[20px] border border-line bg-surface p-4 text-[14px] text-muted">
+          {self ? 'Bạn' : subjectName} không được tính trong tháng này.
+        </p>
+      ) : (
+        <>
+          <section aria-label="Tổng kết phiếu" className="flex flex-col gap-2.5 rounded-[22px] border border-line bg-card p-4">
+            {s.rows.map((r) => (
+              <div key={r.label} className="flex items-baseline justify-between gap-3 text-[14px]">
+                <span className="text-muted">{r.label}</span>
+                <span className="font-semibold tabular-nums">{r.amount < 0 ? `− ${formatVnd(-r.amount)}` : formatVnd(r.amount)} đ</span>
+              </div>
+            ))}
+            {s.rows.length > 0 && <div className="h-px bg-line2" />}
+            <div className="flex items-end justify-between gap-3">
+              <span className="text-[13px] text-muted">{s.final.label}</span>
+              <span className="font-numeric text-[24px] font-semibold tracking-[-0.04em] text-accent-text tabular-nums">
+                {formatVnd(s.final.amount)} đ
+              </span>
+            </div>
+          </section>
+
+          {cta && (
+            <QrSheetButton cta={cta} className={`${primaryLinkClass} h-[54px] cursor-pointer rounded-[27px] font-[inherit] text-[17px]`}>
+              Mã QR chuyển khoản
+            </QrSheetButton>
+          )}
+
+          <PayslipLines lines={slip.lines} ym={ym} spentOnById={new Map(view.expenses.map((e) => [e.id, e.spentOn]))} />
+        </>
+      )}
 
       <section
         aria-label={`Tháng ${period.month} năm ${period.year}`}
@@ -127,51 +172,6 @@ export default async function PayslipPage({ params, searchParams }: PageProps<'/
           )}
         </div>
       </section>
-
-      {isOwner && result.payslips.length > 0 && (
-        <SubjectPicker
-          periodId={period.id}
-          selectedId={subjectId}
-          people={result.payslips.map((p) => ({ id: p.memberId, name: names.get(p.memberId) ?? '—', seed: seeds[p.memberId] ?? names.get(p.memberId) ?? '' }))}
-        />
-      )}
-
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="m-0 text-[17px] font-semibold">{self ? 'Phiếu của bạn' : `Phiếu của ${subjectName}`}</h2>
-        {pill && <StatusPill tone={pill.tone} text={pill.text} />}
-      </div>
-
-      {!slip || !s ? (
-        <p className="m-0 rounded-[20px] border border-line bg-surface p-4 text-[14px] text-muted">
-          {self ? 'Bạn' : subjectName} không được tính trong tháng này.
-        </p>
-      ) : (
-        <>
-          <PayslipLines lines={slip.lines} ym={ym} spentOnById={new Map(view.expenses.map((e) => [e.id, e.spentOn]))} />
-
-          <section aria-label="Tổng kết phiếu" className="flex flex-col gap-2.5 rounded-[22px] border border-line bg-card p-4">
-            {s.rows.map((r) => (
-              <div key={r.label} className="flex items-baseline justify-between gap-3 text-[14px]">
-                <span className="text-muted">{r.label}</span>
-                <span className="font-semibold tabular-nums">{r.amount < 0 ? `− ${formatVnd(-r.amount)}` : formatVnd(r.amount)} đ</span>
-              </div>
-            ))}
-            {s.rows.length > 0 && <div className="h-px bg-line2" />}
-            <div className="flex items-end justify-between gap-3">
-              <span className="text-[13px] text-muted">{s.final.label}</span>
-              <span className="font-numeric text-[24px] font-semibold tracking-[-0.04em] text-accent-text tabular-nums">
-                {formatVnd(s.final.amount)} đ
-              </span>
-            </div>
-          </section>
-
-          {cta && (
-            <QrSheetButton cta={cta} className={`${primaryLinkClass} h-[54px] cursor-pointer rounded-[27px] font-[inherit] text-[17px]`}>
-              Mã QR chuyển khoản
-            </QrSheetButton>
-          )}
-        </>
-      )}
     </main>
   )
 }

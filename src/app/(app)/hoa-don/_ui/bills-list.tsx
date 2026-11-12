@@ -79,13 +79,7 @@ export function BillsList({ rows, showFilters, owner }: { rows: PaymentRow[]; sh
             avatarSeed={r.avatarSeed}
             note={r.isOwner ? 'Phần của chủ nhà' : r.note}
             last={i === shown.length - 1}
-            below={
-              r.pill ? (
-                <StatusPill compact tone={r.pill.tone} text={r.pill.text} className="mt-1 self-start" />
-              ) : r.isOwner ? (
-                <StatusPill compact tone="neutral" text="Chủ nhà" className="mt-1 self-start" />
-              ) : null
-            }
+            below={r.pill ? <StatusPill compact tone={r.pill.tone} text={r.pill.text} className="mt-1 self-start" /> : null}
             aside={
               <div className="flex shrink-0 flex-col items-end gap-2">
                 <span className="font-numeric text-[14px] font-semibold tracking-[-0.03em] tabular-nums">{formatVnd(r.amount)} đ</span>

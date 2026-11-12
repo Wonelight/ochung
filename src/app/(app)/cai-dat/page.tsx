@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { db } from '@/db'
 import { InstallGuide } from '@/components/InstallGuide'
+import { PageHeader } from '@/components/PageHeader'
 import { PushToggle } from '@/components/PushToggle'
 import { todayVn } from '@/lib/vn-time'
 import { readOwnProfile } from '@/server/account'
@@ -38,8 +39,8 @@ export default async function SettingsPage() {
     : 'Chưa thuộc nhà nào'
 
   return (
-    <main className="flex flex-col gap-[18px] px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(58px,env(safe-area-inset-top))]">
-      <h1 className="m-0 font-numeric text-[22px] font-semibold uppercase tracking-[0.12em]">Cài đặt</h1>
+    <main className="flex flex-col gap-[18px] px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]">
+      <PageHeader title="Cài đặt" />
 
       <ProfileEditor
         initialName={profile.name}
