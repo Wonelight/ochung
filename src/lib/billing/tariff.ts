@@ -27,7 +27,8 @@ function percentOf(base: number, pct: number): number {
 }
 
 /**
- * Tính tiền theo bậc. Mốc `upTo` cộng dồn; khi `perPerson` mỗi mốc nhân `registeredPeople`.
+ * Tính tiền theo bậc. Mốc `upTo` cộng dồn; khi `perPerson` mỗi mốc nhân `registeredPeople` (hệ số nhân: số HỘ dùng chung
+ * công tơ với điện, số NHÂN KHẨU với nước TP.HCM; tên trường giữ nguyên để không phải đổi dữ liệu đã lưu).
  * Chỉ trả các bậc có dùng (units > 0). VAT và từng phụ phí = round(base × pct / 100),
  * cùng tính trên `base` (phụ phí không chịu VAT và không chồng lên nhau).
  */

@@ -179,17 +179,17 @@ export function UtilitySettings({
 
           <div className="flex items-center gap-3">
             <div className="flex min-w-0 flex-1 flex-col">
-              <span className="text-[15px]">Định mức theo số người</span>
+              <span className="text-[15px]">Nhân mốc bậc theo hộ/người</span>
               <span className="text-[12px] leading-snug text-muted">
-                {perPerson ? 'Mốc các bậc nhân với số người đăng ký' : 'Mốc các bậc cố định cho cả hộ'}
+                {perPerson ? 'Mốc mỗi bậc nhân với hệ số bên dưới. Điện dùng chung công tơ: số hộ. Nước TP.HCM: số nhân khẩu' : 'Mốc các bậc cố định cho cả hộ'}
               </span>
             </div>
-            <Switch checked={perPerson} onChange={setPerPerson} label={`Định mức ${title.toLowerCase()} theo số người`} />
+            <Switch checked={perPerson} onChange={setPerPerson} label={`Nhân mốc bậc ${title.toLowerCase()} theo hộ/người`} />
           </div>
           {perPerson && (
             <div className="flex items-center gap-3">
-              <span className="flex-1 text-[15px]">Số người đăng ký</span>
-              <Stepper label="số người đăng ký" value={people} min={1} max={99} onChange={setPeople} />
+              <span className="flex-1 text-[15px]">Hệ số nhân</span>
+              <Stepper label="hệ số nhân (số hộ hoặc số người)" value={people} min={1} max={99} onChange={setPeople} />
             </div>
           )}
 
