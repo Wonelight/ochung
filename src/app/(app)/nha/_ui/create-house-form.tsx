@@ -75,7 +75,7 @@ export function CreateHouseForm() {
       <button
         type="submit"
         disabled={pending}
-        className="flex h-[50px] cursor-pointer items-center justify-center rounded-[25px] border-0 bg-accent font-[inherit] text-[15px] font-bold text-[#1A0F06] disabled:cursor-default disabled:opacity-60"
+        className="flex h-[50px] cursor-pointer items-center justify-center rounded-[25px] border-0 bg-accent font-[inherit] text-[15px] font-bold text-on-solid disabled:cursor-default disabled:opacity-60"
       >
         {pending ? 'Đang tạo…' : 'Tạo nhà'}
       </button>

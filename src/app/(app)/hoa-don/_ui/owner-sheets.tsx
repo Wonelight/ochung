@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Sheet, sheetCtaClass } from '@/components/Sheet'
+import { Sheet, sheetCtaClass, sheetDangerCtaClass } from '@/components/Sheet'
 import { formatVnd } from '@/lib/money'
 import { MoneyInput, inputClass, useSave } from '@/app/(app)/nha/_ui/settings-parts'
 import { recordCashPaymentAction, recordRefundAction, rejectPaymentAction } from '../actions'
@@ -11,7 +11,7 @@ import { recordCashPaymentAction, recordRefundAction, rejectPaymentAction } from
 
 const REASON_MAX = 200
 
-function Footer({ error, busy, disabled, label, onSubmit }: { error: string | null; busy: boolean; disabled: boolean; label: string; onSubmit: () => void }) {
+function Footer({ error, busy, disabled, label, danger = false, onSubmit }: { error: string | null; busy: boolean; disabled: boolean; label: string; danger?: boolean; onSubmit: () => void }) {
   return (
     <>
       {error && (
@@ -19,7 +19,7 @@ function Footer({ error, busy, disabled, label, onSubmit }: { error: string | nu
           {error}
         </p>
       )}
-      <button type="button" disabled={busy || disabled} onClick={onSubmit} className={sheetCtaClass}>
+      <button type="button" disabled={busy || disabled} onClick={onSubmit} className={danger ? sheetDangerCtaClass : sheetCtaClass}>
         {busy ? 'Đang lưu…' : label}
       </button>
     </>
@@ -40,7 +40,7 @@ export function RejectSheet({ paymentId, name, onClose }: { paymentId: string; n
       title="Từ chối khoản chuyển"
       onClose={onClose}
       busy={busy}
-      footer={<Footer error={error} busy={busy} disabled={trimmed.length === 0} label="Từ chối" onSubmit={submit} />}
+      footer={<Footer error={error} busy={busy} disabled={trimmed.length === 0} label="Từ chối" danger onSubmit={submit} />}
     >
       <p className="m-0 text-[14px] leading-normal text-muted">
         {name} sẽ thấy lý do này và báo chuyển khoản lại được.

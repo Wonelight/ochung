@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import { PlusIcon } from '@/components/button-icons'
+import { btnAddLg } from '@/components/button-styles'
 import { eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { user } from '@/db/schema'
@@ -74,8 +76,9 @@ export default async function JoinHousePage() {
 
       <Link
         href="/nha/moi"
-        className="flex h-12 items-center justify-center rounded-[24px] border border-line2 bg-transparent text-[15px] font-semibold text-text no-underline"
+        className={`${btnAddLg} no-underline`}
       >
+        <PlusIcon />
         Tạo nhà mới
       </Link>
     </main>

@@ -152,7 +152,7 @@ export function AdminPanel({ users, currentUserId }: { users: UserRow[]; current
           <button
             type="submit"
             disabled={pending}
-            className="h-12 cursor-pointer rounded-[24px] border-0 bg-accent font-[inherit] text-[16px] font-bold text-[#1A0F06] disabled:cursor-default disabled:opacity-60"
+            className="h-12 cursor-pointer rounded-[24px] border-0 bg-accent font-[inherit] text-[16px] font-bold text-on-solid disabled:cursor-default disabled:opacity-60"
           >
             {pending ? 'Đang xử lý…' : 'Tạo tài khoản'}
           </button>

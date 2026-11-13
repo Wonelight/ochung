@@ -1,5 +1,7 @@
 'use client'
 
+import { TrashIcon } from '@/components/button-icons'
+import { btnAddLg, btnDanger } from '@/components/button-styles'
 import { useState } from 'react'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { formatVnd } from '@/lib/money'
@@ -14,7 +16,6 @@ import {
   inputClass,
   listCardClass,
   primaryButtonClass,
-  secondaryButtonClass,
   useSave,
 } from './settings-parts'
 
@@ -155,8 +156,9 @@ export function FixedCharges({ houseId, items }: { houseId: string; items: Charg
                     setConfirmDelete(item)
                   }
                 }}
-                className={`${ghostButtonClass} ml-auto text-unpaid-fg`}
+                className={`${btnDanger} ml-auto`}
               >
+                <TrashIcon />
                 Xóa
               </button>
             )}
@@ -165,7 +167,7 @@ export function FixedCharges({ houseId, items }: { houseId: string; items: Charg
       ) : (
         <>
           <ErrorText>{save.error}</ErrorText>
-          <button type="button" onClick={() => open({ name: '', kind: 'equal', amount: null })} className={`${secondaryButtonClass} h-[50px] w-full`}>
+          <button type="button" onClick={() => open({ name: '', kind: 'equal', amount: null })} className={`${btnAddLg} w-full`}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M12 5v14M5 12h14" />
             </svg>

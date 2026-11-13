@@ -1,5 +1,7 @@
 'use client'
 
+import { PlusIcon } from '@/components/button-icons'
+import { btnAdd, btnIcon } from '@/components/button-styles'
 import { useState } from 'react'
 import type { Tariff } from '@/lib/billing/types'
 import { saveUtilityTariffAction } from '../actions'
@@ -171,9 +173,10 @@ export function UtilitySettings({
             <button
               type="button"
               onClick={() => setTiers((ts) => [...ts.slice(0, -1), { upTo: '', price: null }, ts[ts.length - 1]])}
-              className="flex h-11 w-fit cursor-pointer items-center gap-1.5 rounded-[22px] border border-line2 bg-transparent px-4 font-[inherit] text-[14px] font-semibold text-accent-text"
+              className={`${btnAdd} w-fit`}
             >
-              + Thêm bậc
+              <PlusIcon />
+              Thêm bậc
             </button>
           </div>
 
@@ -229,9 +232,10 @@ export function UtilitySettings({
             <button
               type="button"
               onClick={() => setSurcharges((ss) => [...ss, { name: '', pct: '' }])}
-              className="flex h-11 w-fit cursor-pointer items-center gap-1.5 rounded-[22px] border border-line2 bg-transparent px-4 font-[inherit] text-[14px] font-semibold text-accent-text"
+              className={`${btnAdd} w-fit`}
             >
-              + Thêm phụ phí
+              <PlusIcon />
+              Thêm phụ phí
             </button>
           </div>
         </>
@@ -291,7 +295,7 @@ function IconButton({ label, onClick, children }: { label: string; onClick: () =
       type="button"
       aria-label={label}
       onClick={onClick}
-      className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-[22px] border-0 bg-transparent p-0 text-muted"
+      className={btnIcon}
     >
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         {children}

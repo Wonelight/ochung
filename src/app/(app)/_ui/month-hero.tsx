@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { btnPrimary } from '@/components/button-styles'
 
 // Khung thẻ tháng của Trang chủ, chép từ mockup: nền card, viền line, bo 28, đệm 18, khoảng cách 18,
 // hình trang trí (mặt trời, trăng, hai dải đồi) phủ 120px trên cùng.
@@ -36,7 +37,6 @@ export function CollectProgress({ ratio, left, right }: { ratio: number; left: R
   )
 }
 
-export const primaryLinkClass =
-  'flex h-11 items-center justify-center rounded-[22px] border-0 bg-accent px-5 text-[14px] font-bold text-[#1A0F06] no-underline disabled:opacity-50'
+export const primaryLinkClass = `${btnPrimary} no-underline`
 export const secondaryLinkClass =
   'flex h-11 items-center justify-center rounded-[22px] border border-line2 bg-raised px-5 text-[14px] font-semibold text-text no-underline'

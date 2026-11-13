@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { db } from '@/db'
+import { PlusIcon } from '@/components/button-icons'
+import { btnPrimary } from '@/components/button-styles'
 import { PageHeader } from '@/components/PageHeader'
 import { StatusPill } from '@/components/StatusPill'
 import { formatVnd } from '@/lib/money'
@@ -22,7 +24,8 @@ export default async function LedgerPage() {
       <PageHeader title="Khoản chi của nhà" backHref="/" />
       <p className="m-0 text-[13px] leading-snug text-muted">Chi lẻ từng tháng, không gồm tiền nhà, điện, nước. Ai trong nhà cũng xem được.</p>
       {canAdd && (
-        <Link href="/tao?tab=chi-le" className="flex h-11 items-center justify-center rounded-[22px] border-0 bg-accent px-5 text-[14px] font-bold text-[#1A0F06] no-underline">
+        <Link href="/tao?tab=chi-le" className={`${btnPrimary} no-underline`}>
+          <PlusIcon />
           Thêm khoản chi
         </Link>
       )}

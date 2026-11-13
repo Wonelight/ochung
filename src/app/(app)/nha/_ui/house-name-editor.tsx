@@ -50,7 +50,7 @@ export function HouseNameEditor({ houseId, name, canEdit }: { houseId: string; n
           <button
             type="submit"
             disabled={pending}
-            className="h-11 cursor-pointer rounded-[22px] border-0 bg-accent px-4 font-[inherit] text-[14px] font-bold text-[#1A0F06] disabled:cursor-default disabled:opacity-60"
+            className="h-11 cursor-pointer rounded-[22px] border-0 bg-accent px-4 font-[inherit] text-[14px] font-bold text-on-solid disabled:cursor-default disabled:opacity-60"
           >
             {pending ? 'Đang lưu…' : 'Lưu'}
           </button>

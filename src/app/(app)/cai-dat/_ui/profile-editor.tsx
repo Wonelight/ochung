@@ -169,7 +169,7 @@ export function ProfileEditor({
           <button
             type="submit"
             disabled={pending}
-            className="h-[50px] cursor-pointer rounded-[25px] border-0 bg-accent font-[inherit] text-[15px] font-bold text-[#1A0F06] disabled:cursor-default disabled:opacity-60"
+            className="h-[50px] cursor-pointer rounded-[25px] border-0 bg-accent font-[inherit] text-[15px] font-bold text-on-solid disabled:cursor-default disabled:opacity-60"
           >
             {pending ? 'Đang lưu…' : saved ? 'Đã lưu' : 'Lưu thay đổi'}
           </button>

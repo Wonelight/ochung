@@ -7,7 +7,11 @@ import { useEffect, useRef, type ReactNode } from 'react'
 // chân tấm nền panel viền trên, đệm 14/20/34, nút chính cao 54 bo 27 màu #E8833A có bóng.
 
 export const sheetCtaClass =
-  'flex h-[54px] w-full cursor-pointer items-center justify-center rounded-[27px] border-0 bg-accent font-[inherit] text-[17px] font-bold text-[#1A0F06] shadow-[0_8px_24px_rgba(232,131,58,0.28)] disabled:cursor-default disabled:opacity-50'
+  'flex h-[54px] w-full cursor-pointer items-center justify-center rounded-[27px] border-0 bg-accent font-[inherit] text-[17px] font-bold text-on-solid shadow-[0_8px_24px_rgba(232,131,58,0.28)] disabled:cursor-default disabled:opacity-50'
+
+/** Nút chính của tấm khi hành động là từ chối/xóa (bước chốt): cùng kích cỡ với `sheetCtaClass`, đặc đỏ. */
+export const sheetDangerCtaClass =
+  'flex h-[54px] w-full cursor-pointer items-center justify-center rounded-[27px] border-0 bg-danger font-[inherit] text-[17px] font-bold text-on-solid transition-transform active:scale-[.98] active:bg-danger-press focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-default disabled:opacity-45'
 
 export function Sheet({
   title,

@@ -81,7 +81,7 @@ export function MembersList({
               <Avatar seed={avatarSeed(m.displayName, m.avatarVariant)} size={40} />
               <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">{m.displayName}</span>
               <span
-                className={`rounded-full px-[9px] py-1 text-[12px] font-semibold ${owner ? 'bg-accent text-[#1A0F06]' : 'bg-inner text-muted'}`}
+                className={`rounded-full px-[9px] py-1 text-[12px] font-semibold ${owner ? 'bg-accent text-on-solid' : 'bg-inner text-muted'}`}
               >
                 {owner ? 'Chủ nhà' : 'Thành viên'}
               </span>
@@ -133,7 +133,7 @@ export function MembersList({
                         setMenuFor(null)
                         setConfirm({ kind: action, member: m })
                       }}
-                      className="flex min-h-11 cursor-pointer items-center border-0 bg-transparent p-0 text-left font-[inherit] text-[15px] font-semibold text-unpaid-fg"
+                      className="flex min-h-11 cursor-pointer items-center border-0 bg-transparent p-0 text-left font-[inherit] text-[15px] font-semibold text-danger-fg"
                     >
                       {action === 'remove' ? 'Xóa khỏi nhà' : 'Rời nhà'}
                     </button>

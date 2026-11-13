@@ -123,7 +123,7 @@ export function JoinCard({ pending }: { pending: PendingRequest[] }) {
       <button
         type="submit"
         disabled={busy}
-        className="h-[54px] cursor-pointer rounded-[27px] border-0 bg-accent font-[inherit] text-[16px] font-bold text-[#1A0F06] disabled:cursor-default disabled:opacity-60"
+        className="h-[54px] cursor-pointer rounded-[27px] border-0 bg-accent font-[inherit] text-[16px] font-bold text-on-solid disabled:cursor-default disabled:opacity-60"
       >
         {busy ? 'Đang gửi…' : 'Gửi yêu cầu vào nhà'}
       </button>

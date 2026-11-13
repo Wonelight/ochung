@@ -1,13 +1,14 @@
 'use client'
 
 import Link from 'next/link'
+import { PlusIcon } from '@/components/button-icons'
+import { btnAdd, btnSecondary } from '@/components/button-styles'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { selectHouseAction } from '../actions'
 
 export type PickerHouse = { houseId: string; name: string; role: 'owner' | 'member'; archived: boolean }
 
-const linkClass = 'flex min-h-11 flex-1 items-center justify-center rounded-[16px] border border-line bg-surface px-3 text-[14px] font-semibold text-text no-underline'
 
 /**
  * Danh sách mọi nhà của người dùng ở đầu trang Quản lý nhà: nhà đang quản lý được đánh dấu, chạm vào nhà khác để chuyển
@@ -70,10 +71,11 @@ export function HousePicker({ houses, currentId }: { houses: PickerHouse[]; curr
         </p>
       )}
       <div className="flex gap-2">
-        <Link href="/nha/moi" className={linkClass}>
+        <Link href="/nha/moi" className={`${btnAdd} flex-1 no-underline`}>
+          <PlusIcon />
           Tạo nhà mới
         </Link>
-        <Link href="/vao-nha" className={linkClass}>
+        <Link href="/vao-nha" className={`${btnSecondary} flex-1 no-underline`}>
           Vào nhà bằng mã
         </Link>
       </div>

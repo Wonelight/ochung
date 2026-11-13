@@ -1,5 +1,8 @@
 'use client'
 
+import { TrashIcon } from '@/components/button-icons'
+import { btnDangerIcon } from '@/components/button-styles'
+import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { createInviteLinkAction, revokeInviteLinkAction } from '../invite-actions'
@@ -49,6 +52,7 @@ export function InviteShare({
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null)
 
   function report(outcome: ShareOutcome, created: boolean) {
     if (outcome === 'copied') setNotice('Đã sao chép link mời, dán vào Zalo hoặc Messenger để gửi')
@@ -99,7 +103,7 @@ export function InviteShare({
         type="button"
         disabled={busy}
         onClick={() => void share(links[0] ?? null)}
-        className="flex h-[50px] cursor-pointer items-center justify-center gap-2 rounded-[25px] border-0 bg-accent font-[inherit] text-[15px] font-bold text-[#1A0F06] disabled:cursor-default disabled:opacity-60"
+        className="flex h-[50px] cursor-pointer items-center justify-center gap-2 rounded-[25px] border-0 bg-accent font-[inherit] text-[15px] font-bold text-on-solid disabled:cursor-default disabled:opacity-60"
       >
         <svg
           width="18"
@@ -155,22 +159,10 @@ export function InviteShare({
                 type="button"
                 aria-label="Hủy link này"
                 disabled={busy}
-                onClick={() => void revoke(l.id)}
-                className="flex size-11 cursor-pointer items-center justify-center rounded-[22px] border border-line2 bg-transparent p-0 text-muted disabled:cursor-default disabled:opacity-60"
+                onClick={() => setConfirmRevoke(l.id)}
+                className={btnDangerIcon}
               >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M18 6 6 18M6 6l12 12" />
-                </svg>
+                <TrashIcon />
               </button>
             </div>
           ))}
@@ -185,6 +177,21 @@ export function InviteShare({
         <p role="alert" className="m-0 text-[14px] font-medium text-unpaid-fg">
           {error}
         </p>
+      )}
+      {confirmRevoke && (
+        <ConfirmSheet
+          title="Hủy link mời này?"
+          body="Link sẽ không dùng được nữa. Người đã vào nhà bằng link này vẫn ở trong nhà."
+          confirmLabel="Hủy link"
+          cancelLabel="Giữ link"
+          pending={busy}
+          error={error}
+          onConfirm={async () => {
+            await revoke(confirmRevoke)
+            setConfirmRevoke(null)
+          }}
+          onCancel={() => setConfirmRevoke(null)}
+        />
       )}
     </>
   )

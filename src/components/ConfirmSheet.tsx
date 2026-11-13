@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { TrashIcon } from './button-icons'
 
 /**
  * Hộp xác nhận. `danger` (mặc định, trước khi xóa/rời/lưu trữ): nút dùng màu "chưa trả" của bộ token;
@@ -75,10 +76,11 @@ export function ConfirmSheet({
             type="button"
             disabled={pending}
             onClick={onConfirm}
-            className={`h-[50px] flex-1 cursor-pointer rounded-[25px] border-0 font-[inherit] text-[15px] font-bold disabled:cursor-default disabled:opacity-60 ${
-              tone === 'primary' ? 'bg-accent text-[#1A0F06]' : 'bg-unpaid-bg text-unpaid-fg'
+            className={`flex h-[50px] flex-1 cursor-pointer items-center justify-center gap-2 rounded-[25px] border-0 font-[inherit] text-[15px] font-bold transition-transform active:scale-[.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-default disabled:opacity-45 ${
+              tone === 'primary' ? 'bg-accent text-on-solid active:bg-accent-press' : 'bg-danger text-on-solid active:bg-danger-press'
             }`}
           >
+            {!pending && tone === 'danger' && <TrashIcon />}
             {pending ? 'Đang xử lý…' : confirmLabel}
           </button>
         </div>

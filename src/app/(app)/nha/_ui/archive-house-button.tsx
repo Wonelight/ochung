@@ -1,5 +1,7 @@
 'use client'
 
+import { TrashIcon } from '@/components/button-icons'
+import { btnDangerLg } from '@/components/button-styles'
 import { useState } from 'react'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { archiveHouseAction } from '../actions'
@@ -42,8 +44,9 @@ export function ArchiveHouseButton({ houseId, houseName }: { houseId: string; ho
       <button
         type="button"
         onClick={() => setStep(1)}
-        className="h-[50px] cursor-pointer rounded-[25px] border border-line2 bg-transparent font-[inherit] text-[15px] font-semibold text-unpaid-fg"
+        className={btnDangerLg}
       >
+        <TrashIcon />
         Xóa nhà
       </button>
       {step === 1 && (

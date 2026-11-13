@@ -1,5 +1,8 @@
 'use client'
 
+import { TrashIcon } from '@/components/button-icons'
+import { btnDanger } from '@/components/button-styles'
+import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { useState } from 'react'
 import { ACCOUNT_NAME_MAX, ACCOUNT_NO_MAX, BANKS, findBank, normalizeAccountName } from '@/lib/banks'
 import { saveBankInfoAction, saveDueDayAction } from '../actions'
@@ -8,7 +11,6 @@ import {
   FieldLabel,
   NoticeText,
   formCardClass,
-  ghostButtonClass,
   inputClass,
   primaryButtonClass,
   useSave,
@@ -33,6 +35,7 @@ export function BankSettings({
   accountName: string | null
 }) {
   const [bin, setBin] = useState(bankBin ?? '')
+  const [confirmClear, setConfirmClear] = useState(false)
   const [no, setNo] = useState(accountNo ?? '')
   const [name, setName] = useState(accountName ?? '')
   const { busy, error, notice, run, reset } = useSave()
@@ -111,11 +114,26 @@ export function BankSettings({
           {busy ? 'Đang lưu…' : 'Lưu'}
         </button>
         {hasSaved && (
-          <button type="button" disabled={busy} onClick={onClear} className={ghostButtonClass}>
+          <button type="button" disabled={busy} onClick={() => setConfirmClear(true)} className={btnDanger}>
+            <TrashIcon />
             Xóa thông tin
           </button>
         )}
       </div>
+      {confirmClear && (
+        <ConfirmSheet
+          title="Xóa thông tin ngân hàng?"
+          body="Thành viên sẽ không còn thấy mã QR chuyển khoản cho tới khi bạn nhập lại."
+          confirmLabel="Xóa thông tin"
+          pending={busy}
+          error={null}
+          onConfirm={async () => {
+            await onClear()
+            setConfirmClear(false)
+          }}
+          onCancel={() => setConfirmClear(false)}
+        />
+      )}
     </form>
   )
 }

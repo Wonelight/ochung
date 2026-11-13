@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { db } from '@/db'
+import { PlusIcon } from '@/components/button-icons'
+import { btnAdd } from '@/components/button-styles'
 import { PageHeader } from '@/components/PageHeader'
 import { StatusPill } from '@/components/StatusPill'
 import { AppError } from '@/lib/errors'
@@ -31,7 +33,8 @@ export default async function LedgerDetailPage({ params }: PageProps<'/chi-tieu/
       <div className="flex items-center gap-2">
         {data.status === 'draft' ? <StatusPill compact tone="draft" text="Đang nhập" /> : <StatusPill compact tone="neutral" text="Đã chốt" />}
         {canAdd && data.status === 'draft' && (
-          <Link href="/tao?tab=chi-le" className="ml-auto flex h-10 items-center rounded-full border border-line2 bg-raised px-3 text-[13px] font-semibold text-accent-text no-underline">
+          <Link href="/tao?tab=chi-le" className={`${btnAdd} ml-auto no-underline`}>
+            <PlusIcon />
             Thêm khoản chi
           </Link>
         )}

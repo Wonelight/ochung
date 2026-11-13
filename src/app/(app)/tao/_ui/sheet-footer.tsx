@@ -14,6 +14,7 @@ export function SheetFooter({
   message,
   hint,
   cta,
+  icon,
   disabled,
   busy,
   onCta,
@@ -29,6 +30,8 @@ export function SheetFooter({
   /** Lời nhắc chưa phải lỗi, ví dụ còn thiếu điện/nước trước khi gửi (chữ nhạt). */
   hint?: string | null
   cta: string
+  /** Biểu tượng đứng trước chữ của nút chính (dấu + khi nút chính là hành động "Thêm"). */
+  icon?: React.ReactNode
   disabled: boolean
   busy?: boolean
   onCta: () => void
@@ -67,8 +70,9 @@ export function SheetFooter({
             type="button"
             disabled={disabled || busy}
             onClick={onCta}
-            className="flex h-12 shrink-0 cursor-pointer items-center justify-center whitespace-nowrap rounded-[24px] border-0 bg-accent px-4 font-[inherit] text-[14px] font-bold text-[#1A0F06] shadow-[0_6px_18px_rgba(232,131,58,0.28)] disabled:cursor-default disabled:opacity-50"
+            className="flex h-12 shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-[24px] border-0 bg-accent px-4 font-[inherit] text-[14px] font-bold text-on-solid shadow-[0_6px_18px_rgba(232,131,58,0.28)] transition-transform active:scale-[.97] active:bg-accent-press focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-default disabled:opacity-45"
           >
+            {!busy && icon}
             {busy ? 'Đang lưu…' : cta}
           </button>
         </div>

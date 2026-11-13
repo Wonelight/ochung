@@ -35,7 +35,7 @@ export function AcceptInvite({ token }: { token: string }) {
           </p>
           <Link
             href="/vao-nha"
-            className="flex h-[54px] items-center justify-center rounded-[27px] bg-accent text-[16px] font-bold text-[#1A0F06] no-underline"
+            className="flex h-[54px] items-center justify-center rounded-[27px] bg-accent text-[16px] font-bold text-on-solid no-underline"
           >
             Vào nhà bằng mã
           </Link>

@@ -95,7 +95,7 @@ export function PrimaryButton({ pending, children, pendingLabel }: { pending: bo
     <button
       type="submit"
       disabled={pending}
-      className="mt-2 h-[54px] cursor-pointer rounded-[27px] border-0 bg-accent font-[inherit] text-[17px] font-bold text-[#1A0F06] shadow-[0_8px_24px_rgba(232,131,58,0.28)] disabled:cursor-default disabled:opacity-60"
+      className="mt-2 h-[54px] cursor-pointer rounded-[27px] border-0 bg-accent font-[inherit] text-[17px] font-bold text-on-solid shadow-[0_8px_24px_rgba(232,131,58,0.28)] disabled:cursor-default disabled:opacity-60"
     >
       {pending ? pendingLabel : children}
     </button>

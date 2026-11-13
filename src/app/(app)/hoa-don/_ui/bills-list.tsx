@@ -36,7 +36,7 @@ type SheetState =
 
 // Vùng bấm 44px: nút cao 36 như mockup, phần chạm nới thêm 4px mỗi phía.
 const hit = "relative before:absolute before:inset-x-0 before:-inset-y-1 before:content-['']"
-const confirmBtn = `${hit} h-9 min-w-11 cursor-pointer rounded-[18px] border-0 bg-accent px-3.5 font-[inherit] text-[13px] font-bold text-[#1A0F06] disabled:cursor-default disabled:opacity-60`
+const confirmBtn = `${hit} h-9 min-w-11 cursor-pointer rounded-[18px] border-0 bg-accent px-3.5 font-[inherit] text-[13px] font-bold text-on-solid disabled:cursor-default disabled:opacity-60`
 const outlineBtn = `${hit} h-9 min-w-11 cursor-pointer rounded-[18px] border border-line2 bg-transparent px-3.5 font-[inherit] text-[13px] font-semibold text-text disabled:cursor-default disabled:opacity-60`
 
 export function BillsList({ rows, showFilters, owner }: { rows: PaymentRow[]; showFilters: boolean; owner: OwnerBills | null }) {

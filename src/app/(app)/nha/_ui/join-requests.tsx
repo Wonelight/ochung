@@ -1,5 +1,6 @@
 'use client'
 
+import { btnIcon } from '@/components/button-styles'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { Avatar } from '@/components/Avatar'
@@ -52,7 +53,7 @@ export function JoinRequests({ requests }: { requests: RequestRow[] }) {
               aria-label={`Từ chối ${r.name}`}
               disabled={busyId !== null}
               onClick={() => void decide(r.id, 'reject')}
-              className="flex size-11 cursor-pointer items-center justify-center rounded-[22px] border border-line2 bg-transparent p-0 text-muted disabled:cursor-default disabled:opacity-60"
+              className={btnIcon}
             >
               <svg
                 width="16"
@@ -73,7 +74,7 @@ export function JoinRequests({ requests }: { requests: RequestRow[] }) {
               aria-label={`Duyệt ${r.name}`}
               disabled={busyId !== null}
               onClick={() => void decide(r.id, 'approve')}
-              className="h-11 cursor-pointer rounded-[22px] border-0 bg-accent px-4 font-[inherit] text-[14px] font-bold text-[#1A0F06] disabled:cursor-default disabled:opacity-60"
+              className="h-11 cursor-pointer rounded-[22px] border-0 bg-accent px-4 font-[inherit] text-[14px] font-bold text-on-solid disabled:cursor-default disabled:opacity-60"
             >
               Duyệt
             </button>

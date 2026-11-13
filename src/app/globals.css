@@ -60,9 +60,9 @@ body {
 }
 
 /* Màu riêng của màn Cài đặt: viền nút "Đăng xuất" (`dangerLine` trong tokens() của mockup đó). */
-:root { --c-danger-line: #5A2E16; }
+:root { --c-signout-line: #5A2E16; }
 @media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) { --c-danger-line: #E2B79A; }
+  :root:not([data-theme="dark"]) { --c-signout-line: #E2B79A; }
 }
-:root[data-theme="dark"] { --c-danger-line: #5A2E16; }
-:root[data-theme="light"] { --c-danger-line: #E2B79A; }
+:root[data-theme="dark"] { --c-signout-line: #5A2E16; }
+:root[data-theme="light"] { --c-signout-line: #E2B79A; }

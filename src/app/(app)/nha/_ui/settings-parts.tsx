@@ -1,5 +1,6 @@
 'use client'
 
+import { btnPrimary, btnSecondary } from '@/components/button-styles'
 import { useRouter } from 'next/navigation'
 import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { caretAfterDigits, readMoneyInput, showMoneyInput } from '@/lib/money-input'
@@ -13,10 +14,8 @@ export const inputClass =
   'h-[50px] min-w-0 rounded-[14px] border border-line2 bg-input px-3.5 font-[inherit] text-[16px] text-text outline-none placeholder:text-faint focus:border-accent'
 export const compactInputClass =
   'h-11 min-w-0 rounded-[14px] border border-line2 bg-input px-3 font-[inherit] text-[16px] text-text outline-none placeholder:text-faint focus:border-accent'
-export const secondaryButtonClass =
-  'flex h-11 cursor-pointer items-center justify-center gap-1.5 rounded-[14px] border border-line2 bg-inner px-4 font-[inherit] text-[15px] font-semibold text-text disabled:cursor-default disabled:opacity-60'
-export const primaryButtonClass =
-  'flex h-11 cursor-pointer items-center justify-center rounded-[22px] border-0 bg-accent px-5 font-[inherit] text-[14px] font-bold text-[#1A0F06] disabled:cursor-default disabled:opacity-60'
+export const secondaryButtonClass = btnSecondary
+export const primaryButtonClass = btnPrimary
 export const ghostButtonClass =
   'flex h-11 cursor-pointer items-center justify-center rounded-[22px] border border-line2 bg-transparent px-4 font-[inherit] text-[14px] font-semibold text-muted disabled:cursor-default disabled:opacity-60'
 export const listCardClass = 'flex flex-col rounded-[20px] border border-line bg-surface px-3.5 py-0.5'
@@ -95,7 +94,7 @@ export function Segmented<T extends string>({
             disabled={disabled}
             onClick={() => onChange(o.value)}
             className={`h-11 min-w-0 flex-1 cursor-pointer rounded-[10px] border-0 px-2 font-[inherit] text-[14px] font-semibold ${
-              on ? 'bg-accent text-[#1A0F06]' : 'bg-transparent text-muted'
+              on ? 'bg-accent text-on-solid' : 'bg-transparent text-muted'
             }`}
           >
             {o.label}

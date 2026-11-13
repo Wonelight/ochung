@@ -8,6 +8,8 @@ import type { ExpenseInput } from '@/lib/billing/types'
 import { formatVnd } from '@/lib/money'
 import { dayMonth } from '@/lib/vn-time'
 import { MoneyInput } from '../../nha/_ui/settings-parts'
+import { PlusIcon, TrashIcon } from '@/components/button-icons'
+import { btnDanger } from '@/components/button-styles'
 import { EXPENSE_MAX } from '@/lib/validation'
 import { addExpenseAction, deleteExpenseAction, updateExpenseAction } from '../actions'
 import { SheetFooter } from './sheet-footer'
@@ -47,15 +49,15 @@ function shiftDay(ymd: string, delta: number): string {
 const QUICK_AMOUNTS = [10_000, 50_000, 100_000, 500_000]
 
 // Ô gợi ý nội dung (biểu tượng nét như phần còn lại của app). Chạm là điền vào ô "Nội dung", vẫn sửa được.
-const TILES: { label: string; color: string; paths: string[] }[] = [
-  { label: 'Nước giặt', color: '#3B82F6', paths: ['M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z'] },
-  { label: 'Đồ vệ sinh', color: '#10B981', paths: ['M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z', 'M20 3v4', 'M22 5h-4'] },
-  { label: 'Đồ dùng chung', color: '#EC4899', paths: ['M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12', 'M8 21h.01', 'M19 21h.01'] },
-  { label: 'Nước lọc', color: '#0EA5E9', paths: ['M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z'] },
-  { label: 'Bóng đèn', color: '#F59E0B', paths: ['M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5', 'M9 18h6', 'M10 22h4'] },
-  { label: 'Sửa chữa', color: '#8B5CF6', paths: ['M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z'] },
-  { label: 'Gas', color: '#EF4444', paths: ['M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z'] },
-  { label: 'Internet', color: '#E8833A', paths: ['M5 12.55a11 11 0 0 1 14.08 0', 'M1.42 9a16 16 0 0 1 21.16 0', 'M8.53 16.11a6 6 0 0 1 6.95 0', 'M12 20h.01'] },
+const TILES: { label: string; tone: string; paths: string[] }[] = [
+  { label: 'Nước giặt', tone: 'text-water-fg', paths: ['M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z'] },
+  { label: 'Đồ vệ sinh', tone: 'text-trash-fg', paths: ['M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z', 'M20 3v4', 'M22 5h-4'] },
+  { label: 'Đồ dùng chung', tone: 'text-rent-fg', paths: ['M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12', 'M8 21h.01', 'M19 21h.01'] },
+  { label: 'Nước lọc', tone: 'text-water-fg', paths: ['M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z'] },
+  { label: 'Bóng đèn', tone: 'text-elec-fg', paths: ['M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5', 'M9 18h6', 'M10 22h4'] },
+  { label: 'Sửa chữa', tone: 'text-muted', paths: ['M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z'] },
+  { label: 'Gas', tone: 'text-accent-text', paths: ['M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z'] },
+  { label: 'Internet', tone: 'text-net-fg', paths: ['M5 12.55a11 11 0 0 1 14.08 0', 'M1.42 9a16 16 0 0 1 21.16 0', 'M8.53 16.11a6 6 0 0 1 6.95 0', 'M12 20h.01'] },
 ]
 
 function PayerChips({
@@ -277,7 +279,7 @@ export function ExpenseTab({ data, onChanged }: { data: ExpenseTabData; onChange
                     on ? 'border-accent shadow-[0_0_0_1.5px_#E8833A]' : 'border-line'
                   }`}
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={t.color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={t.tone} aria-hidden="true">
                     {t.paths.map((d) => (
                       <path key={d} d={d} />
                     ))}
@@ -400,8 +402,9 @@ export function ExpenseTab({ data, onChanged }: { data: ExpenseTabData; onChange
                 type="button"
                 disabled={busy}
                 onClick={() => setConfirmDelete(true)}
-                className="flex h-11 w-full cursor-pointer items-center justify-center rounded-[22px] border border-line2 bg-transparent font-[inherit] text-[14px] font-semibold text-unpaid-fg disabled:opacity-60"
+                className={`${btnDanger} w-full`}
               >
+                <TrashIcon />
                 Xóa khoản này
               </button>
             </div>
@@ -453,6 +456,7 @@ export function ExpenseTab({ data, onChanged }: { data: ExpenseTabData; onChange
         rightValue={null}
         message={error}
         cta={editing ? 'Lưu thay đổi' : 'Thêm khoản chi'}
+        icon={editing ? undefined : <PlusIcon />}
         disabled={false}
         busy={busy}
         onCta={submit}

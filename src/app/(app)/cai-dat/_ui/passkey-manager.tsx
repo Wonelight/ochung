@@ -1,5 +1,7 @@
 'use client'
 
+import { PlusIcon, TrashIcon } from '@/components/button-icons'
+import { btnAdd, btnDanger } from '@/components/button-styles'
 import { useCallback, useEffect, useState } from 'react'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { authClient } from '@/lib/auth-client'
@@ -12,7 +14,7 @@ import {
   webAuthnSupported,
 } from '@/lib/passkey-client'
 import { signOutClient } from '@/lib/sign-out'
-import { ErrorText, ghostButtonClass, secondaryButtonClass } from '../../nha/_ui/settings-parts'
+import { ErrorText, secondaryButtonClass } from '../../nha/_ui/settings-parts'
 
 type PasskeyRow = { id: string; name: string; createdAt: Date | null }
 
@@ -118,7 +120,8 @@ export function PasskeyManager({ userId }: { userId: string }) {
                 <span className="truncate text-[15px] font-medium">{p.name}</span>
                 {p.createdAt && <span className="text-[12px] text-muted">Thêm ngày {dateFormat.format(p.createdAt)}</span>}
               </div>
-              <button type="button" onClick={() => setRemoving(p)} className={`${ghostButtonClass} text-unpaid-fg`}>
+              <button type="button" onClick={() => setRemoving(p)} className={btnDanger}>
+                <TrashIcon />
                 Xóa
               </button>
             </li>
@@ -127,7 +130,8 @@ export function PasskeyManager({ userId }: { userId: string }) {
       )}
 
       {supported && (
-        <button type="button" onClick={onAdd} disabled={busy} className={secondaryButtonClass}>
+        <button type="button" onClick={onAdd} disabled={busy} className={btnAdd}>
+          {!(busy && !removing) && <PlusIcon />}
           {busy && !removing ? 'Đang chờ xác nhận…' : list && list.length > 0 ? 'Thêm Face ID cho thiết bị này' : 'Bật Face ID'}
         </button>
       )}
