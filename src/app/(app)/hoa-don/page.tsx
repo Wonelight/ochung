@@ -20,7 +20,7 @@ export const metadata = { title: 'Hóa đơn' }
 const PREVIOUS_MAX = 6
 
 // Màn Hóa đơn theo mockup `Hóa đơn tháng 11`: thẻ "Đã thu", bộ lọc Tất cả / Chưa trả / Chờ duyệt / Đã trả, danh sách
-// từng người với số tiền riêng (spec §10), "Các tháng trước". Tháng nháp (chỉ chủ nhà thấy) chưa có trạng thái nên không có bộ lọc.
+// từng người với số tiền riêng (spec §10), "Các tháng trước". Tháng nháp ("Tạm tính", ai cũng xem được) chưa có trạng thái thanh toán nên không có bộ lọc.
 export default async function BillsPage({ searchParams }: PageProps<'/hoa-don'>) {
   const { actor, current } = await requireCurrentHouse()
   const now = new Date()
@@ -94,7 +94,7 @@ export default async function BillsPage({ searchParams }: PageProps<'/hoa-don'>)
         <div className="flex flex-col gap-2.5 rounded-[22px] border border-line bg-card p-4">
           <div className="flex items-baseline justify-between">
             <span className="text-[13px] text-muted">Tổng tháng {p.month}</span>
-            <StatusPill tone="draft" text="Nháp — chưa gửi" />
+            <StatusPill tone="draft" text="Tạm tính" />
           </div>
           <span className="font-numeric text-[24px] font-semibold tracking-[-0.04em] tabular-nums">{formatVnd(view.result.grandTotal)} đ</span>
           {canEdit && (

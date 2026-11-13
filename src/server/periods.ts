@@ -709,15 +709,13 @@ function periodInfo(period: PeriodRow): PeriodView['period'] {
 }
 
 /**
- * Cả nhà xem được tháng đã chốt (kể cả nhà đã lưu trữ); tháng nháp chỉ chủ nhà xem. Người đã rời nhà xem lại (chỉ đọc)
- * các tháng đã chốt có tên mình (`requirePeriodViewer`).
+ * Mọi thành viên đang ở đều xem được mọi tháng của nhà, kể cả tháng còn nháp (số tính trực tiếp, chỉ đọc; chỉ chủ nhà sửa)
+ * và nhà đã lưu trữ. Người đã rời nhà xem lại (chỉ đọc) các tháng đã chốt có tên mình, không xem được tháng nháp
+ * (`requirePeriodViewer`).
  */
 export async function getPeriodView(db: Db, actor: Actor, periodId: string): Promise<PeriodView> {
   const period = await findPeriod(db, periodId)
   const me = await requirePeriodViewer(db, actor, period)
-  if (period.status === 'draft' && me.role !== 'owner') {
-    throw new AppError('FORBIDDEN', 'PERIOD_DRAFT', 'Tháng này chưa chốt sổ')
-  }
   const { input, utilities } = await loadSnapshot(db, period)
   const result = period.status === 'closed' && period.result ? period.result : computePeriod(input)
   return {
@@ -745,13 +743,13 @@ export async function getPeriodEditor(db: Db, actor: Actor, periodId: string): P
 }
 
 /**
- * Các tháng của nhà, mới nhất trước. Thành viên chỉ thấy tháng đã chốt; tháng nháp có grandTotal null.
- * Người đã rời nhà chỉ thấy các tháng đã chốt có tên mình.
+ * Các tháng của nhà, mới nhất trước. Mọi thành viên đang ở thấy cả tháng nháp (grandTotal null: số tính trực tiếp khi mở
+ * từng tháng). Người đã rời nhà chỉ thấy các tháng đã chốt có tên mình.
  */
 export async function listPeriods(db: Db, actor: Actor, houseId: string): Promise<PeriodListItem[]> {
   const me = await requireViewer(db, actor, houseId)
   const closedOnly = and(eq(periods.houseId, houseId), eq(periods.status, 'closed'))
-  let where = me.member.role === 'owner' && !me.former ? eq(periods.houseId, houseId) : closedOnly
+  let where = !me.former ? eq(periods.houseId, houseId) : closedOnly
   if (me.former) {
     const mine = await db
       .selectDistinct({ periodId: periodMembers.periodId })

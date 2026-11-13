@@ -100,7 +100,7 @@ export default async function PayslipPage({ params, searchParams }: PageProps<'/
 
       <div className="flex items-center justify-between gap-3">
         <h2 className="m-0 text-[17px] font-semibold">{self ? 'Phiếu của bạn' : `Phiếu của ${subjectName}`}</h2>
-        {pill && <StatusPill tone={pill.tone} text={pill.text} />}
+        {pill ? <StatusPill tone={pill.tone} text={pill.text} /> : period.status === 'draft' ? <StatusPill tone="draft" text="Tạm tính" /> : null}
       </div>
 
       {!slip || !s ? (
@@ -151,7 +151,7 @@ export default async function PayslipPage({ params, searchParams }: PageProps<'/
           {period.status === 'closed' && period.closedAt ? (
             <StatusPill tone="neutral" text={`Chốt sổ ${dateVn(period.closedAt)}`} />
           ) : (
-            <StatusPill tone="draft" text="Nháp — chưa gửi" />
+            <StatusPill tone="draft" text="Tạm tính" />
           )}
         </div>
 

@@ -649,20 +649,31 @@ describe('vòng đời tháng', () => {
       await expectApp(getPeriodView(db, stranger, newId()), 'NOT_FOUND')
     })
 
-    it('thành viên xem tháng nháp → FORBIDDEN; tháng đã chốt → OK; listPeriods của thành viên bỏ tháng nháp', async () => {
+    it('thành viên đang ở xem được cả tháng nháp (chỉ đọc, số tính trực tiếp) lẫn tháng đã chốt; listPeriods giống chủ nhà', async () => {
       const h = await draft54()
-      await expectApp(getPeriodView(db, h.an, h.periodId), 'FORBIDDEN', 'PERIOD_DRAFT')
+      const draftView = await getPeriodView(db, h.an, h.periodId)
+      expect(draftView.period.status).toBe('draft')
+      expect(draftView.result.grandTotal).toBe(10_855_000)
+      expect(draftView.viewer.role).toBe('member')
       await closePeriod(db, h.linh, h.periodId)
       await getOrCreateDraftPeriod(db, h.linh, h.houseId, T12)
       expect((await getPeriodView(db, h.an, h.periodId)).period.status).toBe('closed')
-      expect(await listPeriods(db, h.an, h.houseId)).toEqual([
-        { id: h.periodId, year: 2026, month: 11, status: 'closed', grandTotal: 10_855_000 },
-      ])
-      const all = await listPeriods(db, h.linh, h.houseId)
-      expect(all.map((p) => [p.month, p.status, p.grandTotal])).toEqual([
+      const expected = [
         [12, 'draft', null],
         [11, 'closed', 10_855_000],
-      ])
+      ]
+      for (const who of [h.linh, h.an]) {
+        expect((await listPeriods(db, who, h.houseId)).map((p) => [p.month, p.status, p.grandTotal])).toEqual(expected)
+      }
+    })
+
+    it('thành viên vẫn không sửa được tháng nháp mà mình xem; người đã rời nhà không xem được tháng nháp', async () => {
+      const h = await draft54()
+      await expectApp(getPeriodEditor(db, h.an, h.periodId), 'FORBIDDEN', 'NOT_OWNER')
+      await expectApp(setUtilityReading(db, h.an, h.periodId, 'water', { total: 1 }), 'FORBIDDEN', 'NOT_OWNER')
+      await removeMember(db, h.linh, h.houseId, h.anId)
+      await expectApp(getPeriodView(db, h.an, h.periodId), 'FORBIDDEN', 'NOT_MEMBER')
+      expect((await listPeriods(db, h.an, h.houseId)).filter((p) => p.status === 'draft')).toEqual([])
     })
 
     it('chọn cách nhập theo tháng: nhập thẳng tiền thay cho chỉ số, giữ qua lần đổi cài đặt giá; theo chỉ số cần có bảng giá', async () => {

@@ -42,7 +42,7 @@ export default async function NotificationsPage() {
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className={`text-[15px] leading-snug ${n.readAt === null ? 'font-semibold' : 'font-medium'}`}>{n.title}</span>
                 <span className="text-[13px] leading-snug text-muted">{n.body}</span>
-                <span className="text-[12px] text-faint">{timeAgoVi(n.createdAt, now)}</span>
+                <span className="text-[12px] text-muted">{timeAgoVi(n.createdAt, now)}</span>
               </span>
             </Link>
           ))}

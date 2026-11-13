@@ -93,7 +93,7 @@ export function PushToggle() {
     state === 'unsupported'
       ? 'Thêm vào Màn hình chính để nhận thông báo'
       : state === 'blocked'
-        ? 'Thông báo đang bị chặn. Bật lại trong Cài đặt của iPhone, mục Thông báo.'
+        ? 'Thông báo đang bị chặn. Bật lại trong cài đặt thông báo của thiết bị.'
         : 'Nhận thông báo khi chủ nhà chốt sổ, cập nhật phiếu hoặc nhắc đóng tiền.'
 
   return (

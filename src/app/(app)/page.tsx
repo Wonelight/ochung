@@ -1,3 +1,4 @@
+import { cookies } from 'next/headers'
 import Link from 'next/link'
 import { db } from '@/db'
 import { Bell } from '@/components/Bell'
@@ -14,6 +15,7 @@ import { homeTiles } from '@/lib/home-tiles'
 import { formatVnd } from '@/lib/money'
 import { collectionSummary, memberBalance, paymentRows, pillFor } from '@/lib/payments-view'
 import { pickPeriod } from '@/lib/period-pick'
+import { INSTALL_GUIDE_COOKIE } from '@/lib/install-guide'
 import { greetingVi } from '@/lib/vn-time'
 import { readOwnProfile } from '@/server/account'
 import { requireCurrentHouse } from '@/server/current-house'
@@ -25,6 +27,7 @@ import { loadPayCta } from './_lib/pay-data'
 import { loadPeriodView, periodParam } from './_lib/period-data'
 import { CollectProgress, MonthHero, primaryLinkClass, secondaryLinkClass } from './_ui/month-hero'
 import { MonthTiles } from './_ui/month-tiles'
+import { OwedCard } from './_ui/owed-card'
 
 // Trang chủ theo mockup `Trang chủ — tháng 11`. Khác mockup theo spec §10: thành viên thấy số tiền của mình + trạng thái
 // + "Xem phiếu"/"Mã QR" thay cho "mỗi người · chia 4"; chủ nhà thấy tiến độ "Đã thu X / Y đ"; danh sách thanh toán hiện
@@ -38,6 +41,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
     readOwnProfile(db, actor),
     listAvatarSeeds(db, actor, current.houseId),
   ])
+  const showInstallGuide = !(await cookies()).get(INSTALL_GUIDE_COOKIE)
   const isOwner = current.role === 'owner'
   const canEdit = isOwner && !current.archived
   const pick = pickPeriod(periods, periodParam((await searchParams).ky))
@@ -63,7 +67,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
     return (
       <main className="flex flex-col gap-[18px] px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]">
         {header}
-        <InstallGuide />
+        {showInstallGuide && <InstallGuide dismissible />}
         <MonthHero year={ym.year} month={ym.month}>
           <MonthHeader year={ym.year} month={ym.month} olderHref={null} newerHref={null} />
           <div className="relative mt-2 flex flex-col gap-1">
@@ -86,6 +90,8 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
   const href = (id: string | null) => (id ? `/?ky=${id}` : null)
   const payslipHref = `/phieu/${p.id}`
   const draft = p.status === 'draft'
+  // thành viên đang xem tháng nháp: vẫn thấy ngay phần phải chuyển của tháng đã chốt gần nhất
+  const lastClosed = !isOwner && draft ? periods.find((x) => x.status === 'closed') : undefined
   const result = view?.result
   const mySlip = result?.payslips.find((s) => s.memberId === view?.viewer.memberId)
   const names = new Map(view?.members.map((m) => [m.memberId, m.name]) ?? [])
@@ -107,10 +113,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
       if (draft) {
         action = (
           <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-2.5">
-              <StatusPill tone="draft" text="Nháp — chưa gửi" />
-              <span className="text-[13px] text-muted">Cả nhà chưa thấy tháng này</span>
-            </div>
+            <StatusPill tone="draft" text="Tạm tính" className="self-start" />
             {canEdit && (
               <Link href={`/tao?ky=${p.id}`} className={primaryLinkClass}>
                 Tiếp tục nhập
@@ -128,6 +131,25 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
           />
         )
       }
+    } else if (draft) {
+      // tháng nháp: chỉ xem số tạm tính, chưa chuyển tiền được (QR và "Tôi đã chuyển" mở sau khi chốt sổ)
+      const draftBal = mySlip ? memberBalance(mySlip, undefined) : null
+      summary = draftBal ? (
+        <>
+          {draftBal.text}
+          {draftBal.amount !== null && <span className="font-semibold text-text"> {formatVnd(draftBal.amount)} đ</span>}
+        </>
+      ) : (
+        'Bạn không được tính trong tháng này'
+      )
+      action = (
+        <div className="flex flex-col gap-3">
+          <StatusPill tone="draft" text="Tạm tính" className="self-start" />
+          <Link href={payslipHref} className={secondaryLinkClass}>
+            Xem phiếu
+          </Link>
+        </div>
+      )
     } else {
       const status = mySlip ? statuses[mySlip.memberId] : undefined
       const pill = status ? pillFor(status) : null
@@ -170,7 +192,9 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
   return (
     <main className="flex flex-col gap-[18px] px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]">
       {header}
-      <InstallGuide />
+      {showInstallGuide && <InstallGuide dismissible />}
+
+      {lastClosed && <OwedCard actor={actor} houseId={current.houseId} period={lastClosed} memberName={myName} />}
 
       <MonthHero year={p.year} month={p.month}>
         <MonthHeader year={p.year} month={p.month} olderHref={href(pick.olderId)} newerHref={href(pick.newerId)} />
@@ -190,7 +214,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
           {summary && <span className="text-[13px] text-muted">{summary}</span>}
         </div>
         {action}
-        {!result && draft && <StatusPill tone="draft" text="Nháp — chưa gửi" className="self-start" />}
+        {!result && draft && <StatusPill tone="draft" text="Tạm tính" className="self-start" />}
         {!result && canEdit && (
           <Link href={`/tao?ky=${p.id}`} className={primaryLinkClass}>
             Tiếp tục nhập
@@ -233,7 +257,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
       {view && (
         <section aria-label="Các khoản trong tháng" className="flex flex-col gap-1.5">
           <h2 className="m-0 text-[17px] font-semibold">Các khoản trong tháng</h2>
-          <MonthTiles tiles={homeTiles(view)} href={payslipHref} />
+          <MonthTiles tiles={homeTiles(view)} href={payslipHref} expensesHref={`/chi-tieu/${p.id}`} />
         </section>
       )}
 

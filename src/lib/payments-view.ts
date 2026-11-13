@@ -120,7 +120,7 @@ export function paymentRows(v: {
     const s = v.status === 'closed' ? v.statuses[p.memberId] : undefined
     let note: string
     if (p.due < 0) note = 'Chủ nhà cần trả lại'
-    else if (!s) note = p.advanced > 0 ? `Đã ứng ${formatVnd(p.advanced)} đ` : 'Chưa gửi hóa đơn'
+    else if (!s) note = p.advanced > 0 ? `Đã ứng ${formatVnd(p.advanced)} đ` : 'Tạm tính'
     else if (s.kind === 'paid') note = 'Đã trả đủ'
     else if (s.kind === 'pending') note = 'Đã báo chuyển khoản'
     else note = dueNote(v.dueDate, v.now)

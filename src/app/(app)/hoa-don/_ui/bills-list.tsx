@@ -17,7 +17,7 @@ import { AmountSheet, RejectSheet } from './owner-sheets'
 const FILTERS: { value: BillFilter; label: string }[] = [
   { value: 'all', label: 'Tất cả' },
   { value: 'unpaid', label: 'Chưa trả' },
-  { value: 'pending', label: 'Chờ duyệt' },
+  { value: 'pending', label: 'Chờ xác nhận' },
   { value: 'paid', label: 'Đã trả' },
 ]
 
@@ -49,7 +49,7 @@ export function BillsList({ rows, showFilters, owner }: { rows: PaymentRow[]; sh
   return (
     <>
       {showFilters && (
-        <div role="tablist" aria-label="Lọc theo trạng thái" className="grid grid-cols-4 gap-1 rounded-[16px] border border-line bg-surface p-1">
+        <div role="tablist" aria-label="Lọc theo trạng thái" className="flex gap-1 rounded-[16px] border border-line bg-surface p-1">
           {FILTERS.map((f) => {
             const sel = f.value === filter
             return (
@@ -59,7 +59,7 @@ export function BillsList({ rows, showFilters, owner }: { rows: PaymentRow[]; sh
                 role="tab"
                 aria-selected={sel}
                 onClick={() => setFilter(f.value)}
-                className={`h-10 cursor-pointer whitespace-nowrap rounded-[12px] border-0 px-1 font-[inherit] text-[12px] font-semibold ${
+                className={`h-10 min-w-0 flex-auto cursor-pointer whitespace-nowrap rounded-[12px] border-0 px-1 font-[inherit] text-[12px] font-semibold ${
                   sel ? 'bg-inner text-text shadow-[inset_0_0_0_1px_var(--c-line2)]' : 'bg-transparent text-muted'
                 }`}
               >
