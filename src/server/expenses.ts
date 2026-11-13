@@ -298,8 +298,8 @@ export type MyExpense = {
 }
 
 /**
- * Khoản chi chính mình đã thêm ở các tháng còn nháp (mới nhất trước): thành viên không xem được tháng nháp,
- * nên đây là chỗ duy nhất họ thấy lại khoản vừa nhập để sửa hoặc xóa. Tháng đã chốt thì chủ nhà giữ quyền sửa.
+ * Khoản chi chính mình đã thêm ở các tháng còn nháp (mới nhất trước): danh sách để thành viên sửa hoặc xóa khoản vừa nhập.
+ * Tháng đã chốt thì chủ nhà giữ quyền sửa.
  */
 export async function listMyExpenses(db: Db, actor: Actor, houseId: string): Promise<MyExpense[]> {
   await requireActiveMember(db, actor, houseId)
@@ -339,22 +339,8 @@ export type LedgerMonth = { periodId: string; ym: YM; status: 'draft' | 'closed'
 
 const LEDGER_MONTHS = 6
 
-/**
- * Sổ khoản chi của nhà cho MỌI thành viên đang ở (kể cả tháng còn nháp): ai trả, ai nhập, chia cho ai, bao nhiêu.
- * Chỉ trả khoản chi, không trả điện/nước/tổng tháng nên không lộ số của tháng nháp. Mới nhất trước, tối đa
- * `LEDGER_MONTHS` tháng có khoản chi. Nhà đã lưu trữ vẫn xem được.
- */
-export async function listHouseExpenses(db: Db, actor: Actor, houseId: string): Promise<LedgerMonth[]> {
-  await requireMember(db, actor, houseId)
-  // chỉ nạp các tháng gần nhất có khoản chi, không kéo cả lịch sử của nhà về rồi mới cắt
-  const recent = await db
-    .selectDistinct({ id: periods.id, year: periods.year, month: periods.month })
-    .from(periods)
-    .innerJoin(expenses, eq(expenses.periodId, periods.id))
-    .where(eq(periods.houseId, houseId))
-    .orderBy(desc(periods.year), desc(periods.month))
-    .limit(LEDGER_MONTHS)
-  const periodIds = recent.map((p) => p.id)
+/** Khoản chi của các tháng đã cho (người xem đã được kiểm quyền): ai trả, ai nhập, chia cho ai. Mới nhất trước. */
+async function loadLedger(db: Db, actorUserId: string, houseId: string, periodIds: string[]): Promise<LedgerMonth[]> {
   if (periodIds.length === 0) return []
   const rows = await db
     .select({
@@ -398,8 +384,77 @@ export async function listHouseExpenses(db: Db, actor: Actor, houseId: string): 
       paidByName: name(r.paidByMemberId),
       createdByName: r.createdByName,
       participants: r.participantIds ? r.participantIds.map((id) => ({ id, name: name(id) })) : null,
-      mine: r.createdBy === actor.userId,
+      mine: r.createdBy === actorUserId,
     })
   }
   return [...months.values()]
+}
+
+export type ExpenseMonthSummary = {
+  periodId: string
+  ym: YM
+  status: 'draft' | 'closed'
+  /** Tổng các khoản chi lẻ của tháng (không gồm khoản cố định, điện, nước). */
+  total: number
+  count: number
+  /** Mỗi người đã ứng bao nhiêu, nhiều nhất trước. */
+  byPayer: { memberId: string; name: string; total: number; count: number }[]
+}
+
+/**
+ * View nhanh theo tháng cho MỌI thành viên đang ở (kể cả tháng còn nháp): tổng chi lẻ, số khoản và người ứng của từng
+ * tháng. Mới nhất trước, tối đa `LEDGER_MONTHS` tháng có khoản chi. Không trả điện/nước/tổng tháng. Nhà đã lưu trữ vẫn xem được.
+ */
+export async function summarizeHouseExpenses(db: Db, actor: Actor, houseId: string): Promise<ExpenseMonthSummary[]> {
+  await requireMember(db, actor, houseId)
+  // chỉ nạp các tháng gần nhất có khoản chi, không kéo cả lịch sử của nhà về rồi mới cắt
+  const recent = await db
+    .selectDistinct({ id: periods.id, year: periods.year, month: periods.month })
+    .from(periods)
+    .innerJoin(expenses, eq(expenses.periodId, periods.id))
+    .where(eq(periods.houseId, houseId))
+    .orderBy(desc(periods.year), desc(periods.month))
+    .limit(LEDGER_MONTHS)
+  const months = await loadLedger(db, actor.userId, houseId, recent.map((p) => p.id))
+  return months.map((m) => {
+    const payers = new Map<string, { memberId: string; name: string; total: number; count: number }>()
+    for (const e of m.expenses) {
+      const p = payers.get(e.paidByMemberId) ?? { memberId: e.paidByMemberId, name: e.paidByName, total: 0, count: 0 }
+      payers.set(e.paidByMemberId, { ...p, total: p.total + e.amount, count: p.count + 1 })
+    }
+    return {
+      periodId: m.periodId,
+      ym: m.ym,
+      status: m.status,
+      total: m.expenses.reduce((s, e) => s + e.amount, 0),
+      count: m.expenses.length,
+      byPayer: [...payers.values()].sort((a, b) => b.total - a.total),
+    }
+  })
+}
+
+export type PeriodExpenses = LedgerMonth & { houseId: string; total: number }
+
+/**
+ * Chi tiết khoản chi lẻ của MỘT tháng (màn riêng): mọi thành viên đang ở xem được, kể cả tháng còn nháp. Tháng chưa có
+ * khoản nào trả danh sách rỗng. Người ngoài nhà hoặc đã rời → FORBIDDEN; id lạ → NOT_FOUND.
+ */
+export async function getPeriodExpenses(db: Db, actor: Actor, periodId: string): Promise<PeriodExpenses> {
+  const [period] = await db
+    .select({ id: periods.id, houseId: periods.houseId, year: periods.year, month: periods.month, status: periods.status })
+    .from(periods)
+    .where(eq(periods.id, periodId))
+    .limit(1)
+  if (!period) throw new AppError('NOT_FOUND', 'PERIOD_NOT_FOUND', 'Không tìm thấy tháng')
+  await requireMember(db, actor, period.houseId)
+  const [month] = await loadLedger(db, actor.userId, period.houseId, [period.id])
+  const list = month?.expenses ?? []
+  return {
+    periodId: period.id,
+    houseId: period.houseId,
+    ym: { year: period.year, month: period.month },
+    status: period.status,
+    expenses: list,
+    total: list.reduce((s, e) => s + e.amount, 0),
+  }
 }

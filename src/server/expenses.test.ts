@@ -7,7 +7,7 @@ import { expenses, periods, user } from '@/db/schema'
 import type { YM } from '@/lib/billing/types'
 import { AppError } from '@/lib/errors'
 import type { Actor } from './actor'
-import { addExpense, deleteExpense, listHouseExpenses, listMyExpenses, updateExpense } from './expenses'
+import { addExpense, deleteExpense, getPeriodExpenses, listMyExpenses, summarizeHouseExpenses, updateExpense } from './expenses'
 import { addMemberTx, archiveHouse, createHouse, listMembers, removeMember } from './houses'
 import * as events from './period-events'
 import { closePeriod, getOrCreateDraftPeriod, getPeriodView, listPeriods, setPeriodMember, setUtilityReading } from './periods'
@@ -248,8 +248,8 @@ describe('chi phát sinh', () => {
       expect(row).toMatchObject({ amount: 130_000, paidByMemberId: s.anId, createdBy: s.an.userId })
       expect((await periodRow(s.periodId)).revision).toBe(0)
       expect(spy).not.toHaveBeenCalled()
-      // thành viên vẫn không thấy tháng nháp
-      expect((await listPeriods(db, s.an, s.houseId)).map((p) => p.month)).toEqual([11])
+      // thành viên thấy cả tháng nháp T12 (chỉ đọc) lẫn tháng T11 đã chốt
+      expect((await listPeriods(db, s.an, s.houseId)).map((p) => p.month)).toEqual([12, 11])
     })
 
     it('không được ghi thay người khác, không được chọn tháng, không được ghi ngày ở tương lai', async () => {
@@ -377,31 +377,47 @@ describe('chi phát sinh', () => {
       expect(result.grandTotal).toBe(190_000)
     })
 
-    it('sổ khoản chi: mọi thành viên thấy khoản của mọi người kể cả tháng nháp, kèm người trả, người nhập, người chia', async () => {
+    it('chi tiết tháng: mọi thành viên thấy khoản của mọi người kể cả tháng nháp, kèm người trả, người nhập, người chia', async () => {
       const s = await three()
-      await addExpense(db, s.owner, s.houseId, { ...base, description: 'Của chủ', paidByMemberId: s.ownerId })
+      const owned = await addExpense(db, s.owner, s.houseId, { ...base, description: 'Của chủ', paidByMemberId: s.ownerId })
       await addExpense(db, s.an, s.houseId, { ...base, description: 'Của An', amount: 50_000, paidByMemberId: s.anId, participantIds: [s.binhId] })
-      const months = await listHouseExpenses(db, s.binh, s.houseId)
-      expect(months).toHaveLength(1)
-      expect(months[0]).toMatchObject({ ym: T11, status: 'draft' })
-      const byName = Object.fromEntries(months[0].expenses.map((e) => [e.description, e]))
+      const periodId = (await rowOf(owned.expenseId)).periodId
+      const view = await getPeriodExpenses(db, s.binh, periodId)
+      expect(view).toMatchObject({ periodId, ym: T11, status: 'draft', total: 350_000 })
+      const byName = Object.fromEntries(view.expenses.map((e) => [e.description, e]))
       expect(byName['Của chủ']).toMatchObject({ amount: 300_000, paidByName: 'Linh', createdByName: 'Linh', participants: null, mine: false })
       expect(byName['Của An']).toMatchObject({ paidByName: 'An', createdByName: 'An', mine: false })
       expect(byName['Của An'].participants).toEqual([{ id: s.binhId, name: 'Bình' }])
-      expect((await listHouseExpenses(db, s.an, s.houseId))[0].expenses.find((e) => e.description === 'Của An')!.mine).toBe(true)
+      expect((await getPeriodExpenses(db, s.an, periodId)).expenses.find((e) => e.description === 'Của An')!.mine).toBe(true)
     })
 
-    it('sổ khoản chi: tháng đã chốt vẫn hiện, mới nhất trước; người ngoài và người đã rời → FORBIDDEN', async () => {
-      const s = await closedT11()
+    it('tổng hợp theo tháng: tổng, số khoản, người ứng (nhiều nhất trước); tháng đã chốt vẫn hiện, mới nhất trước', async () => {
+      const s = await closedT11() // T11 đã chốt, có 1 khoản 40.000 do An ứng
       await addExpense(db, s.owner, s.houseId, { ...base, description: 'Sang T12', paidByMemberId: s.ownerId, spentOn: '2026-11-20' })
-      const months = await listHouseExpenses(db, s.an, s.houseId)
-      expect(months.map((m) => [m.ym.month, m.status, m.expenses.length])).toEqual([
-        [12, 'draft', 1],
-        [11, 'closed', 1],
+      await addExpense(db, s.an, s.houseId, { ...base, description: 'Của An T12', amount: 50_000, paidByMemberId: s.anId, spentOn: '2026-11-10' })
+      const months = await summarizeHouseExpenses(db, s.an, s.houseId)
+      expect(months.map((m) => [m.ym.month, m.status, m.count, m.total])).toEqual([
+        [12, 'draft', 2, 350_000],
+        [11, 'closed', 1, 40_000],
       ])
-      await expectApp(listHouseExpenses(db, await newUser('Lạ'), s.houseId), 'FORBIDDEN')
+      expect(months[0].byPayer.map((p) => [p.name, p.total, p.count])).toEqual([
+        ['Linh', 300_000, 1],
+        ['An', 50_000, 1],
+      ])
+      expect(months[1].byPayer).toEqual([{ memberId: s.anId, name: 'An', total: 40_000, count: 1 }])
+    })
+
+    it('tổng hợp và chi tiết tháng: tháng chưa có khoản nào trả rỗng; người ngoài, người đã rời → FORBIDDEN; id tháng lạ → NOT_FOUND', async () => {
+      const s = await closedT11()
+      const stranger = await newUser('Lạ')
+      const t12 = (await getOrCreateDraftPeriod(db, s.owner, s.houseId, { year: 2026, month: 12 })).periodId
+      expect(await getPeriodExpenses(db, s.an, t12)).toMatchObject({ status: 'draft', expenses: [], total: 0 })
+      await expectApp(summarizeHouseExpenses(db, stranger, s.houseId), 'FORBIDDEN')
+      await expectApp(getPeriodExpenses(db, stranger, s.periodId), 'FORBIDDEN')
+      await expectApp(getPeriodExpenses(db, s.an, newId()), 'NOT_FOUND')
       await removeMember(db, s.owner, s.houseId, s.anId)
-      await expectApp(listHouseExpenses(db, s.an, s.houseId), 'FORBIDDEN', 'NOT_MEMBER')
+      await expectApp(summarizeHouseExpenses(db, s.an, s.houseId), 'FORBIDDEN', 'NOT_MEMBER')
+      await expectApp(getPeriodExpenses(db, s.an, s.periodId), 'FORBIDDEN', 'NOT_MEMBER')
     })
 
     it('thành viên không tạo được tháng nháp quá khứ chưa có hóa đơn; tháng đã có sẵn, tháng tiêu thụ mặc định và tháng hiện tại thì được', async () => {
@@ -454,7 +470,8 @@ describe('chi phát sinh', () => {
       await expectApp(updateExpense(db, other.an, mine.expenseId, { amount: 1 }), 'FORBIDDEN', 'NOT_MEMBER')
       await expectApp(updateExpense(db, other.owner, mine.expenseId, { amount: 1 }), 'FORBIDDEN', 'NOT_MEMBER')
       await expectApp(deleteExpense(db, other.owner, mine.expenseId), 'FORBIDDEN', 'NOT_MEMBER')
-      await expectApp(listHouseExpenses(db, other.an, s.houseId), 'FORBIDDEN', 'NOT_MEMBER')
+      await expectApp(summarizeHouseExpenses(db, other.an, s.houseId), 'FORBIDDEN', 'NOT_MEMBER')
+      await expectApp(getPeriodExpenses(db, other.an, (await rowOf(mine.expenseId)).periodId), 'FORBIDDEN', 'NOT_MEMBER')
       await expectApp(listMyExpenses(db, other.an, s.houseId), 'FORBIDDEN', 'NOT_MEMBER')
       await expectApp(
         addExpense(db, s.owner, s.houseId, { ...base, paidByMemberId: s.ownerId, participantIds: [other.anId] }),
@@ -503,7 +520,7 @@ describe('chi phát sinh', () => {
           spentOn: `2026-${String(m).padStart(2, '0')}-02`,
         })
       }
-      expect((await listHouseExpenses(db, s.an, s.houseId)).map((m) => m.ym.month)).toEqual([8, 7, 6, 5, 4, 3])
+      expect((await summarizeHouseExpenses(db, s.an, s.houseId)).map((m) => m.ym.month)).toEqual([8, 7, 6, 5, 4, 3])
     })
   })
 })

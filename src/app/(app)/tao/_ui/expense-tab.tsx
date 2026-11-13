@@ -13,7 +13,7 @@ import { addExpenseAction, deleteExpenseAction, updateExpenseAction } from '../a
 import { SheetFooter } from './sheet-footer'
 import type { ExpenseTabData } from './types'
 
-// Tab "Khoản chi lẻ" (spec §6): ngày chi (mặc định hôm nay, có mũi tên ‹ ›), nội dung, số tiền (nút cộng nhanh), "Ai đã trả"
+// Tab "Khoản chi lẻ" (spec §6): ngày chi (mặc định hôm nay, có mũi tên ‹ ›; đặt đầu form để chọn nhanh), nội dung, số tiền (nút cộng nhanh), "Ai đã trả"
 // (mặc định là mình) và lưới ô gợi ý nội dung bấm một lần là điền. Mỗi mục là một hàng nhãn trái + ô nhập phải.
 // Khoản chi tự vào tháng của ngày chi, tháng đó đã chốt thì sang tháng chưa chốt kế tiếp và báo "chi ngày 28/11, tính vào T12".
 // Dưới form là các khoản chi của tháng đang làm hóa đơn, chạm để sửa hoặc xóa. Không có mockup riêng: dùng thẻ panel, ô nhập
@@ -300,68 +300,6 @@ export function ExpenseTab({ data, onChanged }: { data: ExpenseTabData; onChange
           )}
 
           <div className={rowClass}>
-            <label htmlFor="expense-desc" className={rowLabelClass}>
-              Nội dung
-            </label>
-            <input
-              id="expense-desc"
-              type="text"
-              maxLength={100}
-              autoComplete="off"
-              placeholder="Chưa nhập vào"
-              value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              className="box-border h-11 min-w-0 flex-1 scroll-mb-32 rounded-[12px] border border-line2 bg-input px-3.5 font-[inherit] text-[16px] text-text outline-none placeholder:text-faint focus:border-[1.5px] focus:border-accent focus:shadow-[0_0_0_4px_rgba(232,131,58,0.14)]"
-            />
-          </div>
-
-          <div className="flex flex-col gap-2 border-b border-line px-3.5 py-2.5">
-            <div className="flex items-center gap-3">
-              <label htmlFor="expense-amount" className={rowLabelClass}>
-                Số tiền
-              </label>
-              <MoneyInput
-                id="expense-amount"
-                value={form.amount}
-                onChange={(amount) => setForm((f) => ({ ...f, amount }))}
-                placeholder="0"
-                className="box-border h-12 min-w-0 flex-1 scroll-mb-32 rounded-[12px] border border-line2 bg-input px-3.5 font-[inherit] text-[22px] font-semibold tabular-nums text-text outline-none placeholder:text-faint focus:border-[1.5px] focus:border-accent focus:shadow-[0_0_0_4px_rgba(232,131,58,0.14)]"
-              />
-            </div>
-            <div className="flex gap-2 pl-[84px]">
-              {QUICK_AMOUNTS.map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  aria-label={`Cộng ${formatVnd(n)} đồng`}
-                  onClick={() => setForm((f) => ({ ...f, amount: (f.amount ?? 0) + n }))}
-                  className="h-9 min-w-0 flex-1 cursor-pointer rounded-[18px] border border-line2 bg-transparent p-0 font-[inherit] text-[13px] font-semibold text-text"
-                >
-                  +{n / 1000}k
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {!data.selfOnly && (
-            <div className={rowClass}>
-              <span className={rowLabelClass}>Ai đã trả</span>
-              <div className="min-w-0 flex-1">
-                <PayerChips people={people} seeds={data.seeds} value={form.payer} onChange={(payer) => setForm((f) => ({ ...f, payer }))} />
-              </div>
-            </div>
-          )}
-
-          <ParticipantsRow
-            // đổi sang khoản khác (hoặc thoát chế độ sửa) thì dựng lại, để trạng thái mở/đóng theo khoản đó
-            key={`${editing?.id ?? 'new'}-${formEpoch}`}
-            people={editing ? data.participantEditChoices : data.participantChoices}
-            seeds={data.seeds}
-            value={form.participants}
-            onChange={(participants) => setForm((f) => ({ ...f, participants }))}
-          />
-
-          <div className={rowClass}>
             <label htmlFor="expense-date" className={rowLabelClass}>
               Ngày chi
             </label>
@@ -393,6 +331,68 @@ export function ExpenseTab({ data, onChanged }: { data: ExpenseTabData; onChange
               Đổi ngày chi không chuyển khoản này sang tháng khác. Muốn tính vào tháng khác, hãy xóa rồi thêm lại.
             </p>
           )}
+
+          <div className={rowClass}>
+            <label htmlFor="expense-desc" className={rowLabelClass}>
+              Nội dung
+            </label>
+            <input
+              id="expense-desc"
+              type="text"
+              maxLength={100}
+              autoComplete="off"
+              placeholder="VD: Nước giặt"
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              className="box-border h-11 min-w-0 flex-1 scroll-mb-32 rounded-[12px] border border-line2 bg-input px-3.5 font-[inherit] text-[16px] text-text outline-none placeholder:text-faint focus:border-[1.5px] focus:border-accent focus:shadow-[0_0_0_4px_rgba(232,131,58,0.14)]"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2 border-b border-line px-3.5 py-2.5">
+            <div className="flex items-center gap-3">
+              <label htmlFor="expense-amount" className={rowLabelClass}>
+                Số tiền
+              </label>
+              <MoneyInput
+                id="expense-amount"
+                value={form.amount}
+                onChange={(amount) => setForm((f) => ({ ...f, amount }))}
+                placeholder="0"
+                className="box-border h-12 min-w-0 flex-1 scroll-mb-32 rounded-[12px] border border-line2 bg-input px-3.5 font-[inherit] text-[22px] font-semibold tabular-nums text-text outline-none placeholder:text-faint focus:border-[1.5px] focus:border-accent focus:shadow-[0_0_0_4px_rgba(232,131,58,0.14)]"
+              />
+            </div>
+            <div className="flex gap-2 pl-[84px]">
+              {QUICK_AMOUNTS.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  aria-label={`Cộng ${formatVnd(n)} đồng`}
+                  onClick={() => setForm((f) => ({ ...f, amount: (f.amount ?? 0) + n }))}
+                  className="h-10 min-w-0 flex-1 cursor-pointer rounded-[20px] border border-line2 bg-transparent p-0 font-[inherit] text-[13px] font-semibold text-text"
+                >
+                  +{n / 1000}k
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {!data.selfOnly && (
+            <div className={rowClass}>
+              <span className={rowLabelClass}>Ai đã trả</span>
+              <div className="min-w-0 flex-1">
+                <PayerChips people={people} seeds={data.seeds} value={form.payer} onChange={(payer) => setForm((f) => ({ ...f, payer }))} />
+              </div>
+            </div>
+          )}
+
+          <ParticipantsRow
+            // đổi sang khoản khác (hoặc thoát chế độ sửa) thì dựng lại, để trạng thái mở/đóng theo khoản đó
+            key={`${editing?.id ?? 'new'}-${formEpoch}`}
+            people={editing ? data.participantEditChoices : data.participantChoices}
+            seeds={data.seeds}
+            value={form.participants}
+            onChange={(participants) => setForm((f) => ({ ...f, participants }))}
+          />
 
           {editing && (
             <div className="px-3.5 pb-3.5 pt-1">

@@ -24,7 +24,7 @@ export type CreateData = {
 
 /**
  * Dữ liệu của tab Khoản chi lẻ. Chủ nhà dựng từ tháng đang làm hóa đơn (`expenseDataOf`); thành viên dựng từ các khoản chính mình
- * đã thêm ở tháng còn nháp (họ không xem được tháng nháp) và chỉ ghi được khoản do chính mình trả (`selfOnly`).
+ * đã thêm ở tháng còn nháp và chỉ ghi được khoản do chính mình trả (`selfOnly`).
  */
 export type ExpenseTabData = {
   houseId: string
