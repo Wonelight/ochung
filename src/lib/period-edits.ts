@@ -16,7 +16,7 @@ export type UtilitySnapshot = {
 }
 
 /** `undefined` = giữ nguyên, `null` = xóa. */
-export type UtilityPatch = { prev?: number | null; curr?: number | null; total?: number | null }
+export type UtilityPatch = { mode?: 'tiered' | 'total'; prev?: number | null; curr?: number | null; total?: number | null }
 
 export type PeriodEdits = {
   utilities?: Partial<Record<UtilityKey, UtilityPatch>>
@@ -34,7 +34,7 @@ export type EditorSnapshot = {
 }
 
 export type EditorState = {
-  utilities: Record<UtilityKey, { prev: number | null; curr: number | null; total: number | null }>
+  utilities: Record<UtilityKey, { mode: 'tiered' | 'total'; prev: number | null; curr: number | null; total: number | null }>
   members: Record<string, { days: number; included: boolean }>
   items: Record<string, boolean>
 }
@@ -48,7 +48,7 @@ export function utilityInputOf(u: UtilitySnapshot | undefined): UtilityInput | n
 }
 
 export function editorStateOf(s: EditorSnapshot): EditorState {
-  const pick = (u: UtilitySnapshot) => ({ prev: u.prev, curr: u.curr, total: u.total })
+  const pick = (u: UtilitySnapshot) => ({ mode: u.mode, prev: u.prev, curr: u.curr, total: u.total })
   return {
     utilities: { electricity: pick(s.utilities.electricity), water: pick(s.utilities.water) },
     members: Object.fromEntries(s.members.map((m) => [m.memberId, { days: m.days, included: m.included }])),
@@ -61,6 +61,7 @@ export function diffEdits(base: EditorState, next: EditorState): PeriodEdits | n
   const edits: PeriodEdits = {}
   for (const u of UTILITY_KEYS) {
     const patch: UtilityPatch = {}
+    if (next.utilities[u].mode !== base.utilities[u].mode) patch.mode = next.utilities[u].mode
     for (const f of ['prev', 'curr', 'total'] as const) {
       if (next.utilities[u][f] !== base.utilities[u][f]) patch[f] = next.utilities[u][f]
     }

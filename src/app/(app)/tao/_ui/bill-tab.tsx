@@ -24,12 +24,13 @@ export function BillTab({ data, editor }: { data: CreateData; editor: ReturnType
   const [confirm, setConfirm] = useState(false)
   const [busy, setBusy] = useState(false)
   const [confirmError, setConfirmError] = useState<string | null>(null)
+  const [badRanges, setBadRanges] = useState<string[]>([])
   const result = preview.result
   const ownerSlip = result?.payslips.find((p) => p.due === null)
   const prevMonth = period.month === 1 ? 12 : period.month - 1
   const leftIds = new Set(data.leftIds)
 
-  const message = saveError ?? preview.problem
+  const message = saveError ?? preview.problem ?? (badRanges.length > 0 ? `Khoảng ngày ở của ${badRanges.join(', ')} chưa hợp lệ` : null)
   const disabled = !!message || !!missing || (closed && !pending)
 
   async function submit() {
@@ -89,13 +90,16 @@ export function BillTab({ data, editor }: { data: CreateData; editor: ReturnType
           payslips={result?.payslips ?? null}
           leftIds={leftIds}
           daysInMonth={period.daysInMonth}
+          year={period.year}
           month={period.month}
+          onInvalidRanges={setBadRanges}
           onChange={(memberId, patch) => update((s) => ({ ...s, members: { ...s.members, [memberId]: { ...s.members[memberId], ...patch } } }))}
         />
       </div>
 
       <SheetFooter
-        label={`Tổng tháng ${period.month}${saving ? ' · Đang lưu…' : ''}`}
+        label={`Tổng tháng ${period.month}`}
+        saving={saving}
         total={result ? result.grandTotal : null}
         rightLabel={ownerSlip ? 'Phần của bạn' : null}
         rightValue={ownerSlip ? ownerSlip.share : null}
@@ -116,7 +120,7 @@ export function BillTab({ data, editor }: { data: CreateData; editor: ReturnType
           body={
             closed
               ? 'Phiếu của cả nhà được tính lại theo số mới. Ai đã trả mà số tiền tăng lên sẽ chuyển sang "Còn thiếu".'
-              : `Tổng ${result ? formatVnd(result.grandTotal) : '—'} đ. Cả nhà sẽ thấy phiếu và số tiền cần chuyển của mình. Bạn vẫn sửa được sau khi gửi.`
+              : `Tổng ${result ? formatVnd(result.grandTotal) : '—'} đ. Chốt sổ để cả nhà chuyển tiền. Bạn vẫn sửa được sau khi gửi.`
           }
           confirmLabel={closed ? 'Cập nhật' : 'Tạo & gửi'}
           pending={busy}

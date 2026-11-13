@@ -204,13 +204,20 @@ async function applyConfig(tx: Tx, cfg: HouseConfig, period: { id: string; year:
   }
 
   // điện, nước: chế độ và bảng giá theo cài đặt; chỉ số và tổng tiền giữ nguyên
-  const utilRows = await tx.select({ utility: periodUtilities.utility }).from(periodUtilities).where(eq(periodUtilities.periodId, period.id))
+  const utilRows = await tx
+    .select({ utility: periodUtilities.utility, modeOverride: periodUtilities.modeOverride })
+    .from(periodUtilities)
+    .where(eq(periodUtilities.periodId, period.id))
   for (const utility of UTILITIES) {
     const conf = cfg.tariffs.get(utility) ?? { mode: 'total' as const, tariff: DEFAULT_TARIFF }
-    if (utilRows.some((r) => r.utility === utility)) {
+    const existing = utilRows.find((r) => r.utility === utility)
+    if (existing) {
+      // cách nhập chủ nhà đã chọn riêng cho tháng này được giữ; không thì theo cài đặt của nhà
+      const hasTiers = Boolean(conf.tariff && conf.tariff.tiers.length > 0)
+      const kept = existing.modeOverride === 'tiered' && !hasTiers ? null : existing.modeOverride // bảng giá đã bị gỡ: bỏ lựa chọn "theo chỉ số"
       await tx
         .update(periodUtilities)
-        .set({ mode: conf.mode, tariff: conf.tariff })
+        .set({ mode: kept ?? conf.mode, tariff: conf.tariff })
         .where(and(eq(periodUtilities.periodId, period.id), eq(periodUtilities.utility, utility)))
     } else {
       const prev = await previousCurr(tx, cfg.houseId, ym, utility)
@@ -532,19 +539,30 @@ async function writeUtilityTx(tx: Tx, period: PeriodRow, utility: Utility, input
   const prev = readingValue(input.prev)
   const curr = readingValue(input.curr)
   const total = totalValue(input.total)
+  if (input.mode !== undefined && input.mode !== 'tiered' && input.mode !== 'total') {
+    throw new AppError('INVALID', 'UTILITY_MODE_INVALID', 'Cách nhập điện/nước không hợp lệ')
+  }
   const where = and(eq(periodUtilities.periodId, period.id), eq(periodUtilities.utility, utility))
   const [row] = await tx.select().from(periodUtilities).where(where).limit(1)
   if (!row) throw new AppError('NOT_FOUND', 'UTILITY_NOT_FOUND', 'Không tìm thấy số liệu điện nước của tháng này')
+  // "theo chỉ số" cần bảng giá của nhà; chưa có thì chỉ nhập thẳng tiền được
+  if (input.mode === 'tiered' && !(row.tariff && row.tariff.tiers.length > 0)) {
+    throw new AppError('INVALID', 'TARIFF_MISSING', 'Nhà chưa cài bảng giá cho mục này. Hãy cài ở Quản lý nhà hoặc nhập thẳng tiền')
+  }
   const next = {
     prev: prev === undefined ? row.prev : prev,
     curr: curr === undefined ? row.curr : curr,
     total: total === undefined ? row.total : total,
   }
-  if (next.prev === row.prev && next.curr === row.curr && next.total === row.total) return false
+  const nextMode = input.mode ?? row.mode
+  if (next.prev === row.prev && next.curr === row.curr && next.total === row.total && nextMode === row.mode) return false
   if (next.prev !== null && next.curr !== null && next.curr < next.prev) {
     throw new AppError('INVALID', 'READING_DECREASED', 'Chỉ số mới phải ≥ chỉ số cũ')
   }
-  await tx.update(periodUtilities).set(next).where(where)
+  await tx
+    .update(periodUtilities)
+    .set({ ...next, mode: nextMode, ...(input.mode !== undefined ? { modeOverride: input.mode } : {}) })
+    .where(where)
   if (next.curr !== null && next.curr !== row.curr) await carryReadingForward(tx, period, utility, row.curr, next.curr)
   return true
 }

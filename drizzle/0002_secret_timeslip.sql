@@ -1,0 +1,1 @@
+ALTER TABLE "period_utilities" ADD COLUMN "mode_override" text;

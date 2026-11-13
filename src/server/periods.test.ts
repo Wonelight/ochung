@@ -665,6 +665,30 @@ describe('vòng đời tháng', () => {
       ])
     })
 
+    it('chọn cách nhập theo tháng: nhập thẳng tiền thay cho chỉ số, giữ qua lần đổi cài đặt giá; theo chỉ số cần có bảng giá', async () => {
+      const h = await draft54()
+      await setUtilityTariff(db, h.linh, h.houseId, 'electricity', { mode: 'tiered', tariff: ELEC_TARIFF })
+      await setUtilityTariff(db, h.linh, h.houseId, 'water', { mode: 'total', tariff: null })
+      await setUtilityReading(db, h.linh, h.periodId, 'electricity', { prev: 1000, curr: 1100, total: 400_000 })
+      const modeOf = async () => (await getPeriodEditor(db, h.linh, h.periodId)).utilities.electricity.mode
+
+      await setUtilityReading(db, h.linh, h.periodId, 'electricity', { mode: 'total' })
+      expect((await getPeriodEditor(db, h.linh, h.periodId)).utilities.electricity).toMatchObject({ mode: 'total', total: 400_000, prev: 1000, curr: 1100 })
+      expect((await previewPeriod(db, h.linh, h.periodId)).electricity?.total).toBe(400_000)
+
+      // đổi cài đặt giá của nhà không làm mất lựa chọn của tháng này
+      await setUtilityTariff(db, h.linh, h.houseId, 'electricity', { mode: 'tiered', tariff: ELEC_TARIFF })
+      expect(await modeOf()).toBe('total')
+
+      await setUtilityReading(db, h.linh, h.periodId, 'electricity', { mode: 'tiered' })
+      expect(await modeOf()).toBe('tiered')
+
+      // nước chưa cài bảng giá: không chọn "theo chỉ số" được; giá trị lạ cũng bị từ chối
+      await expectApp(setUtilityReading(db, h.linh, h.periodId, 'water', { mode: 'tiered' }), 'INVALID', 'TARIFF_MISSING')
+      await expectApp(setUtilityReading(db, h.linh, h.periodId, 'water', { mode: 'xyz' as never }), 'INVALID', 'UTILITY_MODE_INVALID')
+      await expectApp(setUtilityReading(db, h.an, h.periodId, 'electricity', { mode: 'total' }), 'FORBIDDEN', 'NOT_OWNER')
+    })
+
     it('nhà đã lưu trữ: chủ nhà không ghi được, cả nhà vẫn xem được tháng đã chốt', async () => {
       const h = await draft54()
       await closePeriod(db, h.linh, h.periodId)

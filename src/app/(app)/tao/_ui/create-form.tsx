@@ -19,6 +19,15 @@ export function CreateForm({ data, initialTab }: { data: CreateData; initialTab:
     initialPreview: data.initialPreview,
   })
 
+  // tab hiện tại nằm trên địa chỉ (?tab=chi-le): tải lại hoặc bấm quay lại không bị đưa về tab hóa đơn
+  function chooseTab(next: 'bill' | 'expense') {
+    setTab(next)
+    const url = new URL(window.location.href)
+    if (next === 'expense') url.searchParams.set('tab', 'chi-le')
+    else url.searchParams.delete('tab')
+    window.history.replaceState(null, '', url)
+  }
+
   const tabClass = (on: boolean) =>
     `h-10 cursor-pointer rounded-[12px] border-0 font-[inherit] text-[14px] font-semibold ${
       on ? 'bg-[var(--c-create-seg-on)] text-text shadow-[inset_0_0_0_1px_var(--c-line2)]' : 'bg-transparent text-muted'
@@ -29,10 +38,10 @@ export function CreateForm({ data, initialTab }: { data: CreateData; initialTab:
       <div className="flex flex-col gap-3.5 px-5 pt-[max(24px,env(safe-area-inset-top))]">
         <PageHeader title={closed ? 'Sửa hóa đơn' : 'Tạo hóa đơn'} backHref={closed ? `/phieu/${data.period.id}` : '/'} />
         <div className="grid grid-cols-2 gap-1 rounded-[16px] border border-line bg-[var(--c-create-seg-bg)] p-1">
-          <button type="button" aria-pressed={tab === 'bill'} onClick={() => setTab('bill')} className={tabClass(tab === 'bill')}>
+          <button type="button" aria-pressed={tab === 'bill'} onClick={() => chooseTab('bill')} className={tabClass(tab === 'bill')}>
             Hóa đơn tháng {data.period.month}
           </button>
-          <button type="button" aria-pressed={tab === 'expense'} onClick={() => setTab('expense')} className={tabClass(tab === 'expense')}>
+          <button type="button" aria-pressed={tab === 'expense'} onClick={() => chooseTab('expense')} className={tabClass(tab === 'expense')}>
             Khoản chi lẻ
           </button>
         </div>

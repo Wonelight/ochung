@@ -193,7 +193,7 @@ export function computePeriod(input: PeriodInput): PeriodResult {
           key,
           group: 'utility',
           label,
-          detail: `${formatVnd(result.total)} ÷ ${sumDays} ngày-người × ${m.days}`,
+          detail: `${formatVnd(result.total)} ÷ ${sumDays} ngày ở × ${m.days}`,
           amount: parts[i],
         }),
       )

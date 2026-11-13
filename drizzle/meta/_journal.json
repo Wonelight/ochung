@@ -15,6 +15,13 @@
       "when": 1794457918795,
       "tag": "0001_brainy_sandman",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794470524549,
+      "tag": "0002_secret_timeslip",
+      "breakpoints": true
     }
   ]
 }

@@ -7,6 +7,7 @@ import { formatVnd } from '@/lib/money'
 // 12px tối đa 2 dòng nằm ngay trên hàng đó. Thẻ nổi bo 24, viền line, nền panel và bóng như các thẻ khác của app, đặt trên lớp mờ dần để nội dung cuộn phía sau không bị cắt cứng.
 export function SheetFooter({
   label,
+  saving = false,
   total,
   rightLabel,
   rightValue,
@@ -18,6 +19,8 @@ export function SheetFooter({
   onCta,
 }: {
   label: string
+  /** Đang lưu tự động: chấm nhấp nháy cạnh nhãn (chữ "Đang lưu…" dài bị cắt trên màn hẹp). */
+  saving?: boolean
   total: number | null
   rightLabel: string | null
   rightValue: number | null
@@ -42,7 +45,15 @@ export function SheetFooter({
         )}
         <div className="flex items-center gap-3">
           <div className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-[12px] leading-tight text-muted">{label}</span>
+            <span className="flex items-center gap-1.5 truncate text-[12px] leading-tight text-muted">
+              {label}
+              {saving && (
+                <>
+                  <span aria-hidden="true" className="size-1.5 shrink-0 animate-pulse rounded-full bg-accent" />
+                  <span className="sr-only">Đang lưu</span>
+                </>
+              )}
+            </span>
             <span className="whitespace-nowrap font-numeric text-[18px] font-semibold leading-tight tracking-[-0.04em] tabular-nums">
               {total === null ? '—' : `${formatVnd(total)} đ`}
             </span>

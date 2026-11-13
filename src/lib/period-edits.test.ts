@@ -90,3 +90,23 @@ describe('inputWithState', () => {
     expect(input.electricity).toBeNull()
   })
 })
+
+describe('chọn cách nhập điện/nước theo tháng', () => {
+  const tiered: EditorSnapshot = {
+    ...snapshot,
+    utilities: {
+      ...snapshot.utilities,
+      electricity: { mode: 'tiered', prev: 1000, curr: 1100, total: 500_000, tariff: TARIFF },
+    },
+  }
+
+  it('đổi cách nhập thành "nhập tổng" chỉ gửi trường mode và tính theo tổng tiền đã nhập; đổi lại thì tính theo chỉ số', () => {
+    const base = editorStateOf(tiered)
+    expect(base.utilities.electricity.mode).toBe('tiered')
+    const asTotal = { ...base, utilities: { ...base.utilities, electricity: { ...base.utilities.electricity, mode: 'total' as const } } }
+    expect(diffEdits(base, asTotal)).toEqual({ utilities: { electricity: { mode: 'total' } } })
+    expect(inputWithState(tiered, asTotal).electricity).toEqual({ mode: 'total', total: 500_000 })
+    expect(inputWithState(tiered, base).electricity).toEqual({ mode: 'tiered', prev: 1000, curr: 1100, tariff: TARIFF })
+    expect(diffEdits(asTotal, base)).toEqual({ utilities: { electricity: { mode: 'tiered' } } })
+  })
+})

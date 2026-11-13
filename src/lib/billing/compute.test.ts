@@ -107,8 +107,8 @@ describe('computePeriod: ví dụ chuẩn spec 5.4', () => {
     const line = (k: string) => by.chi.lines.find((l) => l.key === k)!
     expect(line('item:nha').detail).toBe('8.000.000 ÷ 4')
     expect(line('item:xe').detail).toBe('1 × 120.000')
-    expect(line('electricity').detail).toBe('1.260.000 ÷ 105 ngày-người × 15')
-    expect(line('water').detail).toBe('315.000 ÷ 105 ngày-người × 15')
+    expect(line('electricity').detail).toBe('1.260.000 ÷ 105 ngày ở × 15')
+    expect(line('water').detail).toBe('315.000 ÷ 105 ngày ở × 15')
     expect(line('expense:e1').detail).toBe('An trả 200.000 · 20/11')
     expect(line('expense:e2').detail).toBe('Linh trả 120.000 · 5/11')
     expect(line('expense:e1').amount).toBe(50_000)
@@ -299,7 +299,7 @@ describe('computePeriod: trường hợp biên', () => {
     expect(r.payslips.map((p) => p.memberId)).toEqual(['a', 'b', 'c'])
     expect(r.payslips[0].lines.find((l) => l.key === 'item:nha')!.detail).toBe('1.000 ÷ 2')
     expect(r.payslips[0].lines.find((l) => l.key === 'electricity')!.detail).toBe(
-      '600 ÷ 60 ngày-người × 30',
+      '600 ÷ 60 ngày ở × 30',
     )
     expect(r.payslips[1]).toMatchObject({ share: 0, advanced: 100, due: -100, lines: [] })
   })

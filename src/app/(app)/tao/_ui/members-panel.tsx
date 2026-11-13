@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Avatar } from '@/components/Avatar'
 import type { PeriodMember, Payslip } from '@/lib/billing/types'
 import { formatVnd } from '@/lib/money'
@@ -8,7 +8,7 @@ import { Switch } from '../../nha/_ui/settings-parts'
 import { DaysInput } from './days-input'
 
 // Số ngày ở và "Tính tháng này" của từng người (spec §5.3, §10; mockup không có khối này nên dùng lại thẻ panel và
-// công tắc của màn Tạo, ô nhập số ngày của DaysInput: thanh kéo, ô gõ số và nút −/+). Dưới tên là số tiền của người đó theo lần tính gần nhất.
+// công tắc của màn Tạo, ô nhập số ngày của DaysInput: chọn "Số ngày" (ô gõ + nút −/+) hoặc "Từ – đến ngày"). Dưới tên là số tiền của người đó theo lần tính gần nhất.
 // Người đã rời nhà (vẫn còn trong tháng nháp) được ghi "đã rời" để chủ nhà tự quyết có tính hay không.
 
 function amountNote(slip: Payslip | undefined, on: boolean): string {
@@ -26,8 +26,10 @@ export function MembersPanel({
   payslips,
   leftIds,
   daysInMonth,
+  year,
   month,
   onChange,
+  onInvalidRanges,
 }: {
   members: PeriodMember[]
   /** Hạt giống ảnh đại diện theo id thành viên. */
@@ -36,8 +38,11 @@ export function MembersPanel({
   payslips: Payslip[] | null
   leftIds: Set<string>
   daysInMonth: number
+  year: number
   month: number
   onChange: (memberId: string, patch: { days?: number; included?: boolean }) => void
+  /** Tên những người đang có khoảng "Từ – đến ngày" sai (rỗng khi không có). */
+  onInvalidRanges?: (names: string[]) => void
 }) {
   // Gần như tháng nào cả nhà cũng ở đủ: khi đó chỉ hiện một dòng tóm tắt, mở ra khi cần chỉnh. Có người vắng hoặc không tính thì mở sẵn.
   const rest = members.filter((m) => {
@@ -45,6 +50,14 @@ export function MembersPanel({
     return !v.included || v.days < daysInMonth
   })
   const [open, setOpen] = useState(rest.length > 0)
+  const [bad, setBad] = useState<Record<string, boolean>>({})
+  const reportRef = useRef(onInvalidRanges)
+  useEffect(() => {
+    reportRef.current = onInvalidRanges
+  })
+  useEffect(() => {
+    reportRef.current?.(members.filter((m) => bad[m.memberId]).map((m) => m.name))
+  }, [bad, members])
   const summary = rest.length === 0 ? `Cả ${members.length} người ở đủ ${daysInMonth} ngày` : `${rest.length} người vắng hoặc không tính`
 
   return (
@@ -85,7 +98,7 @@ export function MembersPanel({
             </div>
             {v.included && (
               <div className="pl-[46px]">
-                <DaysInput value={v.days} max={daysInMonth} name={m.name} onChange={(days) => onChange(m.memberId, { days })} />
+                <DaysInput value={v.days} max={daysInMonth} name={m.name} year={year} month={month} onChange={(days) => onChange(m.memberId, { days })} onInvalid={(isBad) => setBad((prev) => (prev[m.memberId] === isBad ? prev : { ...prev, [m.memberId]: isBad }))} />
               </div>
             )}
           </div>

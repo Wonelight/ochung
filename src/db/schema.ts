@@ -350,6 +350,8 @@ export const periodUtilities = pgTable(
       .references(() => periods.id, { onDelete: 'cascade' }),
     utility: text('utility', { enum: ['electricity', 'water'] }).notNull(),
     mode: text('mode', { enum: ['tiered', 'total'] }).notNull(),
+    /** Cách nhập chủ nhà chọn riêng cho tháng này; null = theo cài đặt của nhà. Đồng bộ cài đặt không đè lên giá trị này. */
+    modeOverride: text('mode_override', { enum: ['tiered', 'total'] }),
     prev: integer('prev'),
     curr: integer('curr'),
     total: money('total'),
