@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ErrorText, Switch } from '@/app/(app)/nha/_ui/settings-parts'
+import { ErrorText, Switch } from '@/app/(app)/house/_ui/settings-parts'
 import { PUSH_API as API, claimPushSubscription } from '@/lib/push-client'
 import { canSubscribePush, urlBase64ToBytes } from '@/lib/pwa-env'
 

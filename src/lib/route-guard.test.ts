@@ -7,35 +7,37 @@ const admin = { loggedIn: true, mustChangePassword: false, role: 'admin' as cons
 const fresh = { loggedIn: true, mustChangePassword: true, role: 'user' as const }
 
 describe('routeGuard', () => {
-  it('chưa đăng nhập: về /login, riêng /moi/<token> giữ lại next', () => {
+  it('chưa đăng nhập: về /login, riêng /invite/<token> giữ lại next', () => {
     expect(routeGuard(anon, '/')).toEqual({ redirect: '/login' })
     expect(routeGuard(anon, '/admin')).toEqual({ redirect: '/login' })
-    expect(routeGuard(anon, '/doi-mat-khau')).toEqual({ redirect: '/login' })
-    expect(routeGuard(anon, '/moi/abc')).toEqual({ redirect: '/login?next=%2Fmoi%2Fabc' })
+    expect(routeGuard(anon, '/change-password')).toEqual({ redirect: '/login' })
+    expect(routeGuard(anon, '/invite/abc')).toEqual({ redirect: '/login?next=%2Finvite%2Fabc' })
   })
 
   it('đường dẫn công khai khi chưa đăng nhập', () => {
     expect(routeGuard(anon, '/login')).toBeNull()
+    expect(routeGuard(anon, '/forgot-password')).toBeNull()
+    expect(routeGuard(anon, '/forgot-password/x')).toEqual({ redirect: '/login' })
     expect(routeGuard(anon, '/api/auth/sign-in/username')).toBeNull()
     expect(routeGuard(anon, '/_next/static/chunks/a.js')).toBeNull()
     expect(routeGuard(anon, '/favicon.ico')).toBeNull()
     expect(routeGuard(anon, '/manifest.webmanifest')).toBeNull()
   })
 
-  it('phải đổi mật khẩu lần đầu: mọi trang khác bị chuyển sang /doi-mat-khau', () => {
-    expect(routeGuard(fresh, '/')).toEqual({ redirect: '/doi-mat-khau' })
-    expect(routeGuard(fresh, '/login')).toEqual({ redirect: '/doi-mat-khau' })
-    expect(routeGuard(fresh, '/doi-mat-khau')).toBeNull()
+  it('phải đổi mật khẩu lần đầu: mọi trang khác bị chuyển sang /change-password', () => {
+    expect(routeGuard(fresh, '/')).toEqual({ redirect: '/change-password' })
+    expect(routeGuard(fresh, '/login')).toEqual({ redirect: '/change-password' })
+    expect(routeGuard(fresh, '/change-password')).toBeNull()
     expect(routeGuard(fresh, '/api/auth/change-password')).toBeNull()
   })
 
-  it('phải đổi mật khẩu khi đang mở link mời: giữ link qua /doi-mat-khau?next=… để đổi xong vào nhà luôn', () => {
-    expect(routeGuard(fresh, '/moi/abc')).toEqual({ redirect: '/doi-mat-khau?next=%2Fmoi%2Fabc' })
-    expect(safeNext('/moi/abc')).toBe('/moi/abc')
+  it('phải đổi mật khẩu khi đang mở link mời: giữ link qua /change-password?next=… để đổi xong vào nhà luôn', () => {
+    expect(routeGuard(fresh, '/invite/abc')).toEqual({ redirect: '/change-password?next=%2Finvite%2Fabc' })
+    expect(safeNext('/invite/abc')).toBe('/invite/abc')
   })
 
   it('admin cần mustChangePassword xong mới vào /admin', () => {
-    expect(routeGuard({ ...admin, mustChangePassword: true }, '/admin')).toEqual({ redirect: '/doi-mat-khau' })
+    expect(routeGuard({ ...admin, mustChangePassword: true }, '/admin')).toEqual({ redirect: '/change-password' })
   })
 
   it('/admin chỉ dành cho quản trị viên', () => {
@@ -45,11 +47,11 @@ describe('routeGuard', () => {
     expect(routeGuard(admin, '/admin/nguoi-dung')).toBeNull()
   })
 
-  it('đuôi tệp không mở cổng: /admin/x.json, /moi/abc.def vẫn bị chặn (miễn trừ tệp tĩnh chỉ ở proxy)', () => {
+  it('đuôi tệp không mở cổng: /admin/x.json, /invite/abc.def vẫn bị chặn (miễn trừ tệp tĩnh chỉ ở proxy)', () => {
     expect(routeGuard(member, '/admin/x.json')).toEqual({ redirect: '/' })
     expect(routeGuard(anon, '/admin/x.json')).toEqual({ redirect: '/login' })
-    expect(routeGuard(anon, '/moi/abc.def')).toEqual({ redirect: '/login?next=%2Fmoi%2Fabc.def' })
-    expect(routeGuard(fresh, '/x.png')).toEqual({ redirect: '/doi-mat-khau' })
+    expect(routeGuard(anon, '/invite/abc.def')).toEqual({ redirect: '/login?next=%2Finvite%2Fabc.def' })
+    expect(routeGuard(fresh, '/x.png')).toEqual({ redirect: '/change-password' })
     expect(routeGuard(anon, '/favicon.ico')).toBeNull()
     expect(routeGuard(anon, '/manifest.webmanifest')).toBeNull()
   })
@@ -58,21 +60,21 @@ describe('routeGuard', () => {
     expect(routeGuard(member, '/administrator')).toBeNull()
   })
 
-  it('đã đăng nhập mà vào /login thì về /; /doi-mat-khau vẫn vào được để đổi mật khẩu từ Cài đặt', () => {
+  it('đã đăng nhập mà vào /login thì về /; /change-password vẫn vào được để đổi mật khẩu từ Cài đặt', () => {
     expect(routeGuard(member, '/login')).toEqual({ redirect: '/' })
-    expect(routeGuard(member, '/doi-mat-khau')).toBeNull()
+    expect(routeGuard(member, '/change-password')).toBeNull()
   })
 
   it('người dùng thường vào các trang ứng dụng', () => {
     expect(routeGuard(member, '/')).toBeNull()
-    expect(routeGuard(member, '/moi/abc')).toBeNull()
+    expect(routeGuard(member, '/invite/abc')).toBeNull()
   })
 })
 
 describe('safeNext', () => {
   it('chỉ nhận đường dẫn tương đối cùng gốc', () => {
-    expect(safeNext('/moi/abc')).toBe('/moi/abc')
-    expect(safeNext('/moi/abc?x=1')).toBe('/moi/abc?x=1')
+    expect(safeNext('/invite/abc')).toBe('/invite/abc')
+    expect(safeNext('/invite/abc?x=1')).toBe('/invite/abc?x=1')
   })
 
   it('từ chối URL tuyệt đối, protocol-relative và biến thể lách', () => {

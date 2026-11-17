@@ -36,7 +36,7 @@ npm run test:e2e       # luồng chính trên điện thoại 390×844: tự d�
 
 ## Tạo quản trị viên đầu tiên
 
-Không có đăng ký công khai; tài khoản đầu tiên (quản trị viên) tạo bằng CLI của Better Auth
+Ai cũng tự tạo được tài khoản ở `/login` (email + tên đăng nhập + mật khẩu, xác nhận bằng mã OTP; hoặc Google, xem các mục dưới); riêng tài khoản quản trị viên đầu tiên tạo bằng CLI của Better Auth
 (`npx auth@latest`, gói `@better-auth/cli` cũ đã bị bỏ). Lệnh nạp `src/lib/auth.ts`, nên cần
 `DATABASE_URL` (dev cục bộ: `pglite:./.data/dev`, đã chạy `npm run db:migrate`) và `BETTER_AUTH_SECRET`:
 
@@ -49,6 +49,36 @@ npx auth@latest create-admin \
 Lần đăng nhập đầu tiên (`/login`, tên đăng nhập `admin`) sẽ bị buộc đổi mật khẩu. Sau đó vào `/admin`
 (Cài đặt > Quản trị tài khoản) để tạo tài khoản thành viên (mật khẩu tạm hiện một lần), đặt lại mật khẩu, khóa/mở khóa.
 Nếu DB đã có người dùng, lệnh hỏi xác nhận trước khi tạo (bỏ qua bằng `--yes`).
+
+## Email: đăng ký bằng mã OTP và quên mật khẩu
+
+- **Đăng ký** (`/login` > Tạo tài khoản): nhập tên hiển thị, email thật, tên đăng nhập, mật khẩu. App gửi mã 6 số tới email, nhập đúng là vào luôn;
+  chưa nhập mã thì chưa đăng nhập được (đăng ký lại bằng cùng email hoặc cùng tên đăng nhập vẫn được).
+- **Quên mật khẩu** (`/forgot-password`): nhập email, nhận mã 6 số, đặt mật khẩu mới. Mọi phiên đang đăng nhập bị thu hồi.
+- **Tài khoản do quản trị viên cấp** (email giả `<tên>@nha.local`, không nhận được thư) vẫn đăng nhập bình thường. Muốn dùng "Quên mật khẩu",
+  người đó vào **Cài đặt > Email khôi phục**, thêm email thật và nhập mã xác nhận.
+- Mã có hiệu lực 10 phút, sai quá 5 lần thì mã bị hủy; gửi mã mới bằng "Gửi lại mã" (cách nhau 60 giây).
+
+Thư gửi qua Gmail SMTP bằng **App Password** (không dùng mật khẩu Gmail thật): bật xác minh 2 bước cho Gmail, vào
+[myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) tạo mật khẩu ứng dụng, rồi điền `SMTP_USER` (địa chỉ Gmail gửi) và
+`SMTP_PASS` (16 ký tự) vào `.env.local` và vào biến môi trường của Vercel. Gmail thường cho gửi khoảng 500 thư mỗi ngày. Chưa cấu hình thì ở dev
+thư (kèm mã) được in ra console, còn production báo lỗi. Muốn đổi sang dịch vụ khác (Resend, Brevo...) chỉ cần sửa `src/server/mailer.ts`.
+
+**Khi nâng cấp một DB đã có người dùng:** chạy `npm run db:migrate` (migration `0003`). Migration đánh dấu mọi tài khoản email giả là đã xác nhận;
+nếu quên, các tài khoản cũ (kể cả quản trị viên) sẽ không đăng nhập được cho tới khi chạy.
+
+## Đăng nhập bằng Google (tùy chọn)
+
+Chưa đặt khóa thì app chạy bình thường, chỉ ẩn nút Google. Để bật:
+
+1. [Google Cloud Console](https://console.cloud.google.com/apis/credentials) > **Create credentials > OAuth client ID** > loại **Web application**
+   (lần đầu phải cấu hình màn hình đồng ý OAuth, chọn External, thêm email của bạn làm Test user cho tới khi publish).
+2. **Authorized redirect URIs**: `<BETTER_AUTH_URL>/api/auth/callback/google`
+   (dev `http://localhost:3000/api/auth/callback/google`; production `https://<tên-miền>/api/auth/callback/google`).
+3. Điền `GOOGLE_CLIENT_ID` và `GOOGLE_CLIENT_SECRET` vào `.env.local` (và vào biến môi trường của Vercel), rồi khởi động lại.
+
+Người dùng Google mới được tạo tài khoản tự động (không cần đổi mật khẩu). Tài khoản cũ (tên đăng nhập + mật khẩu) liên kết Google
+ở **Cài đặt > Đăng nhập bằng Google**; app không tự gộp theo email vì tài khoản cũ dùng email giả `<tên>@nha.local`.
 
 ## Triển khai
 

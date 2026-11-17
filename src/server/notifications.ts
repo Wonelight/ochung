@@ -132,7 +132,7 @@ export async function notifyJoinRequested(db: Db, requestId: string): Promise<vo
       kind: 'join_request',
       title: `${row.name} xin vào nhà ${row.houseName}`,
       body: 'Mở Quản lý nhà để duyệt hoặc từ chối.',
-      url: '/nha',
+      url: '/house',
       push: false,
     },
   ])
@@ -205,7 +205,7 @@ export async function notifyTransferSubmitted(db: Db, paymentId: string): Promis
       kind: 'transfer_submitted',
       title: `${c.memberName} báo đã chuyển ${formatVnd(c.amount)}đ`,
       body: `Tháng ${c.month}: mở Hóa đơn để xác nhận hoặc từ chối.`,
-      url: `/hoa-don?ky=${c.periodId}`,
+      url: `/bills?period=${c.periodId}`,
       push: false,
     },
   ])
@@ -222,7 +222,7 @@ export async function notifyPaymentRejected(db: Db, paymentId: string): Promise<
       kind: 'payment_rejected',
       title: `Chủ nhà chưa xác nhận khoản chuyển tháng ${c.month}`,
       body: c.rejectReason ? `Lý do: ${c.rejectReason}` : 'Mở phiếu để xem chi tiết.',
-      url: `/phieu/${c.periodId}`,
+      url: `/payslip/${c.periodId}`,
       push: false,
     },
   ])
@@ -277,7 +277,7 @@ export async function sendHouseMessage(
     kind: 'owner_message',
     title: `Tin từ chủ nhà · ${house?.name ?? ''}`.trim(),
     body,
-    url: '/thong-bao',
+    url: '/notifications',
     push: true,
   })
   return { recipients: targets.length }
@@ -309,7 +309,7 @@ export async function remindMember(db: Db, send: PushSender, actor: Actor, perio
 
     const [target] = await tx.select({ userId: houseMembers.userId }).from(houseMembers).where(eq(houseMembers.id, memberId)).limit(1)
     if (!target) throw new AppError('NOT_FOUND', 'MEMBER_NOT_FOUND', 'Không tìm thấy thành viên này')
-    const url = `/phieu/${periodId}`
+    const url = `/payslip/${periodId}`
     const recent = await tx
       .select({ id: notifications.id })
       .from(notifications)

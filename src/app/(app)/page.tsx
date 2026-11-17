@@ -24,7 +24,7 @@ import { unreadCount } from '@/server/notifications'
 import { getStatuses } from '@/server/payments'
 import { listPeriods } from '@/server/periods'
 import { loadPayCta } from './_lib/pay-data'
-import { loadPeriodView, periodParam } from './_lib/period-data'
+import { legacyPeriod, loadPeriodView, periodParam } from './_lib/period-data'
 import { CollectProgress, MonthHero, primaryLinkClass, secondaryLinkClass } from './_ui/month-hero'
 import { MonthTiles } from './_ui/month-tiles'
 import { OwedCard } from './_ui/owed-card'
@@ -44,7 +44,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
   const showInstallGuide = !(await cookies()).get(INSTALL_GUIDE_COOKIE)
   const isOwner = current.role === 'owner'
   const canEdit = isOwner && !current.archived
-  const pick = pickPeriod(periods, periodParam((await searchParams).ky))
+  const pick = pickPeriod(periods, periodParam(await legacyPeriod(searchParams)))
   const { view, error } = pick ? await loadPeriodView(actor, pick.current.id) : { view: null, error: null }
   const statuses = view ? await getStatuses(db, view.period.id) : {}
   const myName = profile.name
@@ -77,7 +77,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
             </span>
           </div>
           {canEdit && (
-            <Link href="/tao" className={primaryLinkClass}>
+            <Link href="/create" className={primaryLinkClass}>
               Tạo hóa đơn
             </Link>
           )}
@@ -87,8 +87,8 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
   }
 
   const p = pick.current
-  const href = (id: string | null) => (id ? `/?ky=${id}` : null)
-  const payslipHref = `/phieu/${p.id}`
+  const href = (id: string | null) => (id ? `/?period=${id}` : null)
+  const payslipHref = `/payslip/${p.id}`
   const draft = p.status === 'draft'
   // thành viên đang xem tháng nháp: vẫn thấy ngay phần phải chuyển của tháng đã chốt gần nhất
   const lastClosed = !isOwner && draft ? periods.find((x) => x.status === 'closed') : undefined
@@ -115,7 +115,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
           <div className="flex flex-col gap-3">
             <StatusPill tone="draft" text="Tạm tính" className="self-start" />
             {canEdit && (
-              <Link href={`/tao?ky=${p.id}`} className={primaryLinkClass}>
+              <Link href={`/create?period=${p.id}`} className={primaryLinkClass}>
                 Tiếp tục nhập
               </Link>
             )}
@@ -216,7 +216,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
         {action}
         {!result && draft && <StatusPill tone="draft" text="Tạm tính" className="self-start" />}
         {!result && canEdit && (
-          <Link href={`/tao?ky=${p.id}`} className={primaryLinkClass}>
+          <Link href={`/create?period=${p.id}`} className={primaryLinkClass}>
             Tiếp tục nhập
           </Link>
         )}
@@ -226,7 +226,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
         <section className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
             <h2 className="m-0 text-[17px] font-semibold">Thanh toán tháng này</h2>
-            <Link href={`/hoa-don?ky=${p.id}`} className="flex min-h-11 items-center gap-0.5 text-[14px] font-medium text-accent-text no-underline">
+            <Link href={`/bills?period=${p.id}`} className="flex min-h-11 items-center gap-0.5 text-[14px] font-medium text-accent-text no-underline">
               Tất cả hóa đơn
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="m9 18 6-6-6-6" />
@@ -257,12 +257,12 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
       {view && (
         <section aria-label="Các khoản trong tháng" className="flex flex-col gap-1.5">
           <h2 className="m-0 text-[17px] font-semibold">Các khoản trong tháng</h2>
-          <MonthTiles tiles={homeTiles(view)} href={payslipHref} expensesHref={`/chi-tieu/${p.id}`} />
+          <MonthTiles tiles={homeTiles(view)} href={payslipHref} expensesHref={`/expenses/${p.id}`} />
         </section>
       )}
 
       {!current.former && (
-        <Link href="/chi-tieu" className="flex min-h-14 items-center gap-3 rounded-[20px] border border-line bg-surface px-4 text-text no-underline">
+        <Link href="/expenses" className="flex min-h-14 items-center gap-3 rounded-[20px] border border-line bg-surface px-4 text-text no-underline">
           <span className="flex min-w-0 flex-1 flex-col">
             <span className="text-[15px] font-semibold">Khoản chi của nhà</span>
             <span className="text-[12px] text-muted">Ai đã trả, chia cho ai. Cả nhà cùng xem</span>

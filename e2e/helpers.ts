@@ -15,9 +15,20 @@ export async function newUser(browser: Browser): Promise<{ context: BrowserConte
   return { context, page: await context.newPage() }
 }
 
+/**
+ * /login mở màn chào trước; chạm island "Đăng nhập" (một link) để ra form. Có `?next=` thì form mở sẵn, khi đó không làm gì.
+ * Island là link tới `/login?form`, nên chạm trước khi trang chạy JavaScript cũng mở được form.
+ */
+export async function openLoginForm(page: Page) {
+  const user = page.getByLabel('Tên đăng nhập')
+  if (!(await user.isVisible())) await page.getByRole('link', { name: 'Đăng nhập', exact: true }).click()
+  await expect(user).toBeVisible()
+}
+
 /** `fromCurrentPage`: đang ở màn đăng nhập sẵn (vd /login?next=…) thì không mở lại /login để giữ tham số next. */
 export async function login(page: Page, username: string, password: string, fromCurrentPage = false) {
   if (!fromCurrentPage) await page.goto('/login')
+  await openLoginForm(page)
   await page.getByLabel('Tên đăng nhập').fill(username)
   await page.getByLabel('Mật khẩu', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click()
@@ -38,12 +49,12 @@ export async function dismissFaceIdPrompt(page: Page) {
 
 /** Màn đổi mật khẩu bắt buộc ở lần đăng nhập đầu (có thể kèm `?next=` khi đang mở link mời). */
 export async function changeTempPassword(page: Page, tempPassword: string, newPassword: string) {
-  await expect(page).toHaveURL(/\/doi-mat-khau(\?|$)/)
+  await expect(page).toHaveURL(/\/change-password(\?|$)/)
   await page.getByLabel('Mật khẩu hiện tại (mật khẩu tạm)').fill(tempPassword)
   await page.getByLabel('Mật khẩu mới (ít nhất 8 ký tự)').fill(newPassword)
   await page.getByLabel('Nhập lại mật khẩu mới').fill(newPassword)
   await page.getByRole('button', { name: 'Đổi mật khẩu' }).click()
-  await expect(page).not.toHaveURL(/\/doi-mat-khau/)
+  await expect(page).not.toHaveURL(/\/change-password/)
 }
 
 /** Quản trị viên tạo tài khoản ở /admin; trả mật khẩu tạm hiện một lần. */

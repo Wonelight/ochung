@@ -5,7 +5,8 @@ export type GuardState = {
 }
 
 const LOGIN = '/login'
-const CHANGE_PASSWORD = '/doi-mat-khau'
+const FORGOT_PASSWORD = '/forgot-password'
+const CHANGE_PASSWORD = '/change-password'
 
 const PUBLIC_FILES = new Set(['/favicon.ico', '/manifest.webmanifest', '/sw.js', '/robots.txt'])
 
@@ -26,20 +27,20 @@ export function routeGuard(s: GuardState, path: string): { redirect: string } | 
   if (isAlwaysOpen(path)) return null
 
   if (!s.loggedIn) {
-    if (path === LOGIN) return null
+    if (path === LOGIN || path === FORGOT_PASSWORD) return null
     // Link mời vào nhà: đăng nhập xong quay lại đúng link.
-    if (isUnder(path, '/moi')) return { redirect: `${LOGIN}?next=${encodeURIComponent(path)}` }
+    if (isUnder(path, '/invite')) return { redirect: `${LOGIN}?next=${encodeURIComponent(path)}` }
     return { redirect: LOGIN }
   }
 
   if (s.mustChangePassword) {
     if (path === CHANGE_PASSWORD) return null
     // người mới mở link mời ở lần đăng nhập đầu: đổi mật khẩu xong quay lại đúng link để vào nhà
-    if (isUnder(path, '/moi')) return { redirect: `${CHANGE_PASSWORD}?next=${encodeURIComponent(path)}` }
+    if (isUnder(path, '/invite')) return { redirect: `${CHANGE_PASSWORD}?next=${encodeURIComponent(path)}` }
     return { redirect: CHANGE_PASSWORD }
   }
 
-  // /doi-mat-khau vẫn mở cho người đã đổi mật khẩu: Cài đặt > Đổi mật khẩu dùng chung trang này (không bắt buộc)
+  // /change-password vẫn mở cho người đã đổi mật khẩu: Cài đặt > Đổi mật khẩu dùng chung trang này (không bắt buộc)
   if (path === LOGIN) return { redirect: '/' }
   if (isUnder(path, '/admin') && s.role !== 'admin') return { redirect: '/' }
   return null

@@ -1,5 +1,5 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test'
-import { ADMIN, adminCreateUser, changeTempPassword, login, newUser } from './helpers'
+import { ADMIN, adminCreateUser, changeTempPassword, login, newUser, openLoginForm } from './helpers'
 
 // Cài đặt + Face ID (passkey) với bộ xác thực ảo của Chromium (WebAuthn qua CDP), trên cùng DB e2e với main-flow.
 const USER = { username: 'bao', name: 'Bảo', password: 'matkhau-rieng-3', password2: 'matkhau-rieng-4', temp: '' }
@@ -44,7 +44,7 @@ test('hồ sơ, giao diện và Face ID trong Cài đặt; đăng nhập bằng 
   })
 
   await test.step('Cài đặt: danh sách Face ID có khóa vừa thêm', async () => {
-    await page.goto('/cai-dat')
+    await page.goto('/settings')
     await expect(page.getByRole('heading', { name: 'Cài đặt' })).toBeVisible()
     const faceId = page.getByRole('region', { name: 'Face ID' })
     await expect(faceId.getByText(/Thêm ngày \d{2}\/\d{2}\/\d{4}/)).toBeVisible()
@@ -62,9 +62,9 @@ test('hồ sơ, giao diện và Face ID trong Cài đặt; đăng nhập bằng 
     await expect(faceId.getByRole('alert')).toContainText('Phiên đăng nhập đã lâu. Đăng xuất rồi đăng nhập lại để bật Face ID.')
     await page.unroute(route)
     await faceId.getByRole('button', { name: 'Đăng xuất để đăng nhập lại' }).click()
-    await expect(page).toHaveURL(/\/login\?next=%2Fcai-dat$/)
+    await expect(page).toHaveURL(/\/login\?next=%2Fsettings$/)
     await login(page, USER.username, USER.password, true)
-    await expect(page).toHaveURL(/\/cai-dat$/)
+    await expect(page).toHaveURL(/\/settings$/)
   })
 
   await test.step('sửa hồ sơ: tên, ngày sinh, "Tạo hình mới"', async () => {
@@ -107,9 +107,10 @@ test('hồ sơ, giao diện và Face ID trong Cài đặt; đăng nhập bằng 
   await test.step('đăng xuất rồi đăng nhập bằng nút Face ID', async () => {
     await page.getByRole('button', { name: 'Đăng xuất' }).click()
     await expect(page).toHaveURL(/\/login$/)
+    await openLoginForm(page)
     await page.getByRole('button', { name: 'Đăng nhập bằng Face ID' }).click()
     await expect(page).not.toHaveURL(/\/login/)
-    await expect(page).not.toHaveURL(/\/doi-mat-khau/)
+    await expect(page).not.toHaveURL(/\/change-password/)
   })
 
   await test.step('quản trị viên đặt lại mật khẩu: đăng nhập bằng Face ID vẫn bị buộc đổi mật khẩu', async () => {
@@ -125,13 +126,14 @@ test('hồ sơ, giao diện và Face ID trong Cài đặt; đăng nhập bằng 
 
     await user.context.clearCookies() // phiên cũ đã bị thu hồi
     await page.goto('/login')
+    await openLoginForm(page)
     await page.getByRole('button', { name: 'Đăng nhập bằng Face ID' }).click()
-    await expect(page).toHaveURL(/\/doi-mat-khau$/)
+    await expect(page).toHaveURL(/\/change-password$/)
     await changeTempPassword(page, temp, USER.password2)
   })
 
   await test.step('xóa Face ID: nút Face ID ở màn đăng nhập hết đăng nhập được', async () => {
-    await page.goto('/cai-dat')
+    await page.goto('/settings')
     const faceId = page.getByRole('region', { name: 'Face ID' })
     await faceId.getByRole('button', { name: 'Xóa' }).click()
     await page.getByRole('alertdialog').getByRole('button', { name: 'Xóa', exact: true }).click()
@@ -140,20 +142,21 @@ test('hồ sơ, giao diện và Face ID trong Cài đặt; đăng nhập bằng 
 
     await page.getByRole('button', { name: 'Đăng xuất' }).click()
     await expect(page).toHaveURL(/\/login$/)
+    await openLoginForm(page)
     await page.getByRole('button', { name: 'Đăng nhập bằng Face ID' }).click()
     await expect(page.getByRole('alert').filter({ hasText: 'Không đăng nhập được bằng Face ID' })).toBeVisible()
-    await expect(page).toHaveURL(/\/login$/)
+    await expect(page).toHaveURL(/\/login\?form=?$/) // mở form từ màn chào thì URL thêm `form` (để back của hệ thống quay về màn chào)
   })
 
   await test.step('đổi mật khẩu từ Cài đặt (không bắt buộc)', async () => {
     await login(page, USER.username, USER.password2)
-    await page.goto('/cai-dat')
+    await page.goto('/settings')
     await page.getByRole('link', { name: 'Đổi mật khẩu' }).click()
-    await expect(page).toHaveURL(/\/doi-mat-khau$/)
+    await expect(page).toHaveURL(/\/change-password$/)
     await page.getByLabel('Mật khẩu hiện tại', { exact: true }).fill(USER.password2)
     await page.getByLabel('Mật khẩu mới (ít nhất 8 ký tự)').fill(USER.password)
     await page.getByLabel('Nhập lại mật khẩu mới').fill(USER.password)
     await page.getByRole('button', { name: 'Đổi mật khẩu' }).click()
-    await expect(page).toHaveURL(/\/cai-dat$/)
+    await expect(page).toHaveURL(/\/settings$/)
   })
 })

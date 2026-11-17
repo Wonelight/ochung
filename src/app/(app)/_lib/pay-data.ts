@@ -33,6 +33,7 @@ export async function loadPayCta(a: {
   if (bank && house.bankAccountNo && house.bankAccountName) {
     try {
       const payload = buildVietQrPayload({ bankBin: bank.bin, accountNo: house.bankAccountNo, amount: status.balance, addInfo: note })
+      // impeccable-disable-next-line design-system-color: mã QR bắt buộc đen trắng để máy quét đọc được
       const svg = await QRCode.toString(payload, { type: 'svg', errorCorrectionLevel: 'M', margin: 0, color: { dark: '#000000', light: '#ffffff' } })
       qrImage = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
     } catch (e) {

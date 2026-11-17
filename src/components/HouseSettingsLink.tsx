@@ -4,7 +4,7 @@ import Link from 'next/link'
 export function HouseSettingsLink({ houseName }: { houseName: string }) {
   return (
     <Link
-      href="/nha"
+      href="/house"
       aria-label={`Cài đặt nhà ${houseName}`}
       className="flex size-11 shrink-0 items-center justify-center rounded-[22px] border border-line bg-surface p-0 text-text"
     >

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createPushSender, getPushSender, getVapidPublicKey } from './push'
 
 const sub = { endpoint: 'https://web.push.apple.com/x', p256dh: 'p', auth: 'a' }
-const payload = { title: 'T', body: 'B', url: '/phieu/1' }
+const payload = { title: 'T', body: 'B', url: '/payslip/1' }
 const vapid = { subject: 'mailto:a@b.c', publicKey: 'pub', privateKey: 'priv' }
 const isGone = (e: unknown) => (e as { statusCode?: number }).statusCode === 410
 

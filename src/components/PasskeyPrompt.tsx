@@ -23,7 +23,7 @@ import { ConfirmSheet } from './ConfirmSheet'
 export function PasskeyPrompt({ userId }: { userId: string }) {
   const path = usePathname()
   const [stale, setStale] = useState(false)
-  const inSettings = path === '/cai-dat'
+  const inSettings = path === '/settings'
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)

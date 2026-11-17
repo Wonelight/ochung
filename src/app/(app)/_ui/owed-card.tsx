@@ -46,7 +46,7 @@ export async function OwedCard({
         {bal.original !== null && <> · phiếu {formatVnd(bal.original)} đ</>}
       </span>
       <div className={`grid gap-2.5 ${cta ? 'grid-cols-2' : 'grid-cols-1'}`}>
-        <Link href={`/phieu/${period.id}`} className={secondaryLinkClass}>
+        <Link href={`/payslip/${period.id}`} className={secondaryLinkClass}>
           Xem phiếu
         </Link>
         {cta && (

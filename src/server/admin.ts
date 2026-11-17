@@ -3,15 +3,17 @@ import { and, asc, eq } from 'drizzle-orm'
 import type { Db } from '@/db'
 import { newId } from '@/db/ids'
 import { account, session, user } from '@/db/schema'
+import { generateAccountCode } from '@/lib/account-code'
+import { placeholderEmail, USERNAME_PATTERN, USERNAME_RULE_MESSAGE } from '@/lib/account-rules'
 import { auth as defaultAuth } from '@/lib/auth'
 import { AppError } from '@/lib/errors'
 import type { Actor } from './actor'
 
+export { generateAccountCode }
+
 /** Instance Better Auth dùng cho các hàm này; mặc định là `auth` thật, test truyền instance trên PGlite. */
 type AuthInstance = typeof defaultAuth
 
-const MAX_ACCOUNT_CODE_ATTEMPTS = 20
-const USERNAME_PATTERN = /^[a-z0-9_.]{2,30}$/
 const PASSWORD_MIN = 8
 const PASSWORD_MAX = 128
 // bỏ các ký tự dễ nhầm khi đọc/đọc cho người khác chép: I l 1 O 0
@@ -25,15 +27,6 @@ function checkPassword(password: string) {
   if (password.length < PASSWORD_MIN || password.length > PASSWORD_MAX) {
     throw new AppError('INVALID', 'PASSWORD_LENGTH', `Mật khẩu phải từ ${PASSWORD_MIN} đến ${PASSWORD_MAX} ký tự`)
   }
-}
-
-/** Mã tài khoản `U-` + 5 chữ số, thử lại khi trùng (tối đa 20 lần). */
-export async function generateAccountCode(exists: (code: string) => Promise<boolean>): Promise<string> {
-  for (let attempt = 0; attempt < MAX_ACCOUNT_CODE_ATTEMPTS; attempt++) {
-    const code = `U-${String(randomInt(1, 100_000)).padStart(5, '0')}`
-    if (!(await exists(code))) return code
-  }
-  throw new Error('Không sinh được mã tài khoản chưa dùng sau nhiều lần thử')
 }
 
 /** Mật khẩu tạm 10 ký tự ngẫu nhiên (CSPRNG) để quản trị viên đọc cho thành viên. */
@@ -53,7 +46,7 @@ export async function adminCreateUser(
   const username = input.username.trim().toLowerCase()
   const displayName = input.displayName.trim()
   if (!USERNAME_PATTERN.test(username)) {
-    throw new AppError('INVALID', 'USERNAME_FORMAT', 'Tên đăng nhập gồm 2–30 ký tự: chữ không dấu, số, dấu chấm hoặc gạch dưới')
+    throw new AppError('INVALID', 'USERNAME_FORMAT', USERNAME_RULE_MESSAGE)
   }
   if (displayName.length < 1 || displayName.length > 50) {
     throw new AppError('INVALID', 'DISPLAY_NAME', 'Tên hiển thị gồm 1–50 ký tự')
@@ -70,7 +63,7 @@ export async function adminCreateUser(
   try {
     const created = await authInstance.api.createUser({
       body: {
-        email: `${username}@nha.local`,
+        email: placeholderEmail(username),
         password: input.tempPassword,
         name: displayName,
         role: 'user',

@@ -73,7 +73,7 @@ describe('ba cách vào nhà', () => {
       const link = await createInviteLink(db, owner, houseId)
 
       expect(link.token).toMatch(/^[A-Za-z0-9]{32}$/)
-      expect(link.url).toBe(`https://nha.example/moi/${link.token}`)
+      expect(link.url).toBe(`https://nha.example/invite/${link.token}`)
       expect(link.expiresAt.getTime()).toBeGreaterThanOrEqual(before + 7 * DAY)
       expect(link.expiresAt.getTime()).toBeLessThan(Date.now() + 7 * DAY + 1000)
       const second = await createInviteLink(db, owner, houseId)

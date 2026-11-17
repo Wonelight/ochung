@@ -1,6 +1,7 @@
 import { eq, sql } from 'drizzle-orm'
 import type { Db } from '@/db'
-import { user } from '@/db/schema'
+import { account, user } from '@/db/schema'
+import { isPlaceholderEmail } from '@/lib/account-rules'
 import { auth as defaultAuth } from '@/lib/auth'
 import { AppError } from '@/lib/errors'
 import { todayVn } from '@/lib/vn-time'
@@ -65,6 +66,25 @@ export async function readOwnProfile(db: Db, actor: Actor): Promise<OwnProfile> 
     .limit(1)
   if (!row) throw new AppError('NOT_FOUND', 'NO_USER', 'Không tìm thấy tài khoản')
   return { ...row, dob: row.dob ? row.dob.toISOString().slice(0, 10) : null }
+}
+
+export type LoginMethods = {
+  /** Có mật khẩu (tài khoản đăng ký bằng tên đăng nhập hoặc do quản trị viên cấp). Tài khoản chỉ có Google thì không. */
+  hasPassword: boolean
+  googleLinked: boolean
+  /** Email thật dùng để khôi phục mật khẩu; null khi tài khoản chỉ có email giả của quản trị viên cấp. */
+  email: string | null
+}
+
+/** Cách đăng nhập của chính người dùng: Cài đặt dựa vào đây để ẩn "Đổi mật khẩu" và hiện "Liên kết Google". */
+export async function readLoginMethods(db: Db, actor: Actor): Promise<LoginMethods> {
+  const rows = await db.select({ providerId: account.providerId }).from(account).where(eq(account.userId, actor.userId))
+  const [owner] = await db.select({ email: user.email }).from(user).where(eq(user.id, actor.userId)).limit(1)
+  return {
+    hasPassword: rows.some((r) => r.providerId === 'credential'),
+    googleLinked: rows.some((r) => r.providerId === 'google'),
+    email: owner && !isPlaceholderEmail(owner.email) ? owner.email : null,
+  }
 }
 
 /** YYYY-MM-DD hợp lệ (ngày có thật trên lịch), từ 1900 đến hôm nay theo giờ Việt Nam. */

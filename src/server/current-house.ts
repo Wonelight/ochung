@@ -41,12 +41,12 @@ export async function clearCurrentHouseCookie() {
 }
 
 /**
- * Cho trang cần một nhà: chưa có nhà đang dùng thì chuyển sang /vao-nha (vào nhà bằng mã, link mời hoặc tạo nhà mới).
+ * Cho trang cần một nhà: chưa có nhà đang dùng thì chuyển sang /join (vào nhà bằng mã, link mời hoặc tạo nhà mới).
  * Gọi từ trang, không gọi từ layout: layout dùng chung giữa các trang và không dựng lại khi chuyển trang mềm.
- * /vao-nha và /nha/moi không được gọi hàm này (tránh vòng lặp).
+ * /join và /house/new không được gọi hàm này (tránh vòng lặp).
  */
 export async function requireCurrentHouse() {
   const ctx = await getHouseContext()
-  if (!ctx.current) redirect('/vao-nha')
+  if (!ctx.current) redirect('/join')
   return { ...ctx, current: ctx.current }
 }

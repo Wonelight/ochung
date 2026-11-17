@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { selectHouseAction } from '@/app/(app)/nha/actions'
+import { selectHouseAction } from '@/app/(app)/house/actions'
 import type { HouseSummary } from '@/server/houses'
 import { RoleChip } from './RoleChip'
 
@@ -115,7 +115,7 @@ export function HouseSwitcherMenu({
               </button>
             ))}
             <Link
-              href="/nha/moi"
+              href="/house/new"
               role="menuitem"
               onClick={() => setOpen(false)}
               className="flex min-h-[52px] items-center text-[15px] font-semibold text-accent-text no-underline"

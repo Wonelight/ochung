@@ -101,7 +101,7 @@ export function DioneBar({ active, showCreate }: { active: 'home' | 'settings'; 
 
       {showCreate && (
         <Link
-          href="/tao"
+          href="/create"
           aria-label="Tạo mới"
           style={{
             position: 'absolute',
@@ -135,7 +135,7 @@ export function DioneBar({ active, showCreate }: { active: 'home' | 'settings'; 
         </Link>
       )}
 
-      <Link href="/cai-dat" aria-label="Cài đặt" style={{ ...tabStyle(active === 'settings'), right: 54 }}>
+      <Link href="/settings" aria-label="Cài đặt" style={{ ...tabStyle(active === 'settings'), right: 54 }}>
         <svg
           width="23"
           height="23"

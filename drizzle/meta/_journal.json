@@ -22,6 +22,13 @@
       "when": 1794470524549,
       "tag": "0002_secret_timeslip",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794908665495,
+      "tag": "0003_verify_placeholder_emails",
+      "breakpoints": true
     }
   ]
 }

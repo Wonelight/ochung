@@ -49,3 +49,7 @@ design/screens/
 # playwright
 /test-results/
 /playwright-report/
+
+# khóa/mật khẩu ứng dụng để rời trong thư mục gốc: không bao giờ đưa vào git
+/key
+/client_secret_*.json

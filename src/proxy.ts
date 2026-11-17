@@ -10,8 +10,8 @@ import { routeGuard } from '@/lib/route-guard'
 export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname
   // Tệp tĩnh trong public/ (có đuôi tệp) không cần đăng nhập. Chỉ miễn ở đây: layout vẫn áp routeGuard
-  // đầy đủ, nên /admin/x.json hay /moi/abc.def không lọt qua nhờ đuôi tệp.
-  const isStaticFile = /\.[a-z0-9]+$/i.test(path) && !path.startsWith('/admin') && !path.startsWith('/moi')
+  // đầy đủ, nên /admin/x.json hay /invite/abc.def không lọt qua nhờ đuôi tệp.
+  const isStaticFile = /\.[a-z0-9]+$/i.test(path) && !path.startsWith('/admin') && !path.startsWith('/invite')
   if (!isStaticFile && !getSessionCookie(request)) {
     const decision = routeGuard({ loggedIn: false, mustChangePassword: false, role: 'user' }, path)
     if (decision) return NextResponse.redirect(new URL(decision.redirect, request.url))

@@ -2,10 +2,10 @@ import { eq } from 'drizzle-orm'
 import { beforeAll, describe, expect, it } from 'vitest'
 import type { Db } from '@/db'
 import { createTestDb } from '@/db/test-db'
-import { user } from '@/db/schema'
+import { account, user } from '@/db/schema'
 import { createAuth } from '@/lib/auth'
 import { AppError } from '@/lib/errors'
-import { changeOwnPassword, readOwnProfile, shuffleOwnAvatar, updateOwnProfile } from './account'
+import { changeOwnPassword, readLoginMethods, readOwnProfile, shuffleOwnAvatar, updateOwnProfile } from './account'
 import { adminCreateUser } from './admin'
 
 describe('changeOwnPassword (đổi mật khẩu lần đầu)', () => {
@@ -153,4 +153,32 @@ describe('hồ sơ cá nhân (Cài đặt)', () => {
     expect(rowAfter.name).toBe('Tên mới')
     expect((await readOwnProfile(db, other)).name).toBe('Hồ Sơ')
   })
+})
+
+describe('readLoginMethods', () => {
+  it('tài khoản đăng ký bằng mật khẩu: có mật khẩu, chưa liên kết Google; có liên kết Google thì báo đã liên kết', async () => {
+    const db = await createTestDb()
+    const auth = createAuth(db)
+    const res = await auth.api.signUpEmail({ body: { email: 'tudangky@example.com', password: 'matkhau-tu-dang-ky', name: 'Tự đăng ký', username: 'tudangky' } })
+    const actor = { userId: res.user.id, role: 'user' as const }
+    expect(await readLoginMethods(db, actor)).toEqual({ hasPassword: true, googleLinked: false, email: 'tudangky@example.com' })
+
+    await db.insert(account).values({ id: 'acc-g', accountId: 'google-sub-1', providerId: 'google', userId: actor.userId })
+    expect(await readLoginMethods(db, actor)).toEqual({ hasPassword: true, googleLinked: true, email: 'tudangky@example.com' })
+  }, 30_000)
+
+  it('tài khoản chỉ có Google (không có bản ghi credential): không có mật khẩu', async () => {
+    const db = await createTestDb()
+    await db.insert(user).values({ id: 'u-google', name: 'G', email: 'g@gmail.com', accountCode: 'U-00777' })
+    await db.insert(account).values({ id: 'acc-g2', accountId: 'google-sub-2', providerId: 'google', userId: 'u-google' })
+    expect(await readLoginMethods(db, { userId: 'u-google', role: 'user' })).toEqual({ hasPassword: false, googleLinked: true, email: 'g@gmail.com' })
+  }, 30_000)
+})
+
+describe('readLoginMethods: email khôi phục', () => {
+  it('email giả của tài khoản quản trị viên cấp được coi là chưa có email khôi phục', async () => {
+    const db = await createTestDb()
+    await db.insert(user).values({ id: 'u-fake', name: 'F', email: 'f@nha.local', accountCode: 'U-00888' })
+    expect((await readLoginMethods(db, { userId: 'u-fake', role: 'user' })).email).toBeNull()
+  }, 30_000)
 })

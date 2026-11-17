@@ -59,4 +59,4 @@ export function classifyAddPasskeyError(error: { code?: string; status?: number 
 export const SESSION_NOT_FRESH_MESSAGE = 'Phiên đăng nhập đã lâu. Đăng xuất rồi đăng nhập lại để bật Face ID.'
 
 /** Sau khi đăng xuất vì phiên cũ: về màn đăng nhập rồi quay lại Cài đặt (nơi có mục Face ID). */
-export const RELOGIN_FOR_PASSKEY_HREF = '/login?next=%2Fcai-dat'
+export const RELOGIN_FOR_PASSKEY_HREF = '/login?next=%2Fsettings'

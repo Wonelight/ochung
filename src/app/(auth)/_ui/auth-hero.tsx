@@ -1,5 +1,5 @@
 /** Phần đầu màn Đăng nhập (SVG hố đen + đồi cát + tiêu đề), chép từ mockup `Đăng nhập`. */
-export function AuthHero({ subtitle }: { subtitle: string }) {
+export function AuthHero({ subtitle }: { subtitle?: string }) {
   return (
     <div className="relative h-[340px] shrink-0">
       <svg
@@ -31,7 +31,7 @@ export function AuthHero({ subtitle }: { subtitle: string }) {
       </svg>
       <div className="absolute inset-x-0 bottom-[18px] flex flex-col items-center gap-1.5">
         <h1 className="m-0 font-numeric text-[22px] font-semibold uppercase tracking-[0.18em]">Chi tiêu nhà</h1>
-        <p className="m-0 px-6 text-center text-[14px] text-muted">{subtitle}</p>
+        {subtitle && <p className="m-0 px-6 text-center text-[14px] text-muted">{subtitle}</p>}
       </div>
     </div>
   )

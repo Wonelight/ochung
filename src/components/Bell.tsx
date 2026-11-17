@@ -4,7 +4,7 @@ import Link from 'next/link'
 export function Bell({ unread }: { unread: number }) {
   return (
     <Link
-      href="/thong-bao"
+      href="/notifications"
       aria-label={unread > 0 ? `Thông báo, ${unread} chưa đọc` : 'Thông báo'}
       className="relative flex size-11 shrink-0 items-center justify-center rounded-[22px] border border-line bg-surface p-0 text-text"
     >

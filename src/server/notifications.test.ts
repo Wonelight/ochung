@@ -135,12 +135,12 @@ describe('thông báo và web push', () => {
 
       const byEndpoint = new Map(fake.calls.map((c) => [c.endpoint, c]))
       expect(fake.calls).toHaveLength(4)
-      expect(byEndpoint.get(h.endpoints.an)).toMatchObject({ title: 'Tháng 11: bạn cần chuyển 2.600.000đ', url: `/phieu/${h.periodId}` })
+      expect(byEndpoint.get(h.endpoints.an)).toMatchObject({ title: 'Tháng 11: bạn cần chuyển 2.600.000đ', url: `/payslip/${h.periodId}` })
       expect(byEndpoint.get(h.endpoints.binh)?.title).toBe('Tháng 11: bạn cần chuyển 2.680.000đ')
       expect(byEndpoint.get(h.endpoints.chi)?.title).toBe('Tháng 11: bạn cần chuyển 2.575.000đ')
       expect(byEndpoint.get(h.endpoints.linh)?.title).toBe('Đã chốt sổ tháng 11')
       const [an] = await mine(h.an, 'period_closed')
-      expect(an).toMatchObject({ houseId: h.houseId, url: `/phieu/${h.periodId}`, readAt: null })
+      expect(an).toMatchObject({ houseId: h.houseId, url: `/payslip/${h.periodId}`, readAt: null })
     })
 
     it('người không được tính tháng này không nhận; người đã rời nhà trước khi chốt nhưng có phiếu vẫn nhận', async () => {
@@ -176,7 +176,7 @@ describe('thông báo và web push', () => {
       for (const who of [h.an, h.binh, h.chi]) expect(await mine(who, 'period_updated')).toHaveLength(1)
       expect(await mine(h.linh, 'period_updated')).toHaveLength(0)
       expect(fake.calls).toHaveLength(3)
-      expect(fake.calls.every((c) => c.title === 'Phiếu tháng 11 đã cập nhật' && c.url === `/phieu/${h.periodId}`)).toBe(true)
+      expect(fake.calls.every((c) => c.title === 'Phiếu tháng 11 đã cập nhật' && c.url === `/payslip/${h.periodId}`)).toBe(true)
     })
 
     it('chủ nhà phải trả lại: "chủ nhà cần trả lại bạn X"', async () => {
@@ -261,7 +261,7 @@ describe('thông báo và web push', () => {
       const alive = await subscribe(a)
       const other = await subscribe(b)
       const fake = fakeSender([dead])
-      await notify(db, fake.send, { userIds: [a.userId, b.userId], houseId: null, kind: 'owner_message', title: 't', body: 'b', url: '/thong-bao', push: true })
+      await notify(db, fake.send, { userIds: [a.userId, b.userId], houseId: null, kind: 'owner_message', title: 't', body: 'b', url: '/notifications', push: true })
       expect(fake.calls).toHaveLength(3)
       const left = (await db.select({ endpoint: pushSubscriptions.endpoint }).from(pushSubscriptions).where(eq(pushSubscriptions.userId, a.userId))).map((r) => r.endpoint)
       expect(left).toEqual([alive])
@@ -272,7 +272,7 @@ describe('thông báo và web push', () => {
       const a = await newUser('A')
       await subscribe(a)
       const fake = fakeSender()
-      await notify(db, fake.send, { userIds: [a.userId], houseId: null, kind: 'join_request', title: 't', body: 'b', url: '/nha', push: false })
+      await notify(db, fake.send, { userIds: [a.userId], houseId: null, kind: 'join_request', title: 't', body: 'b', url: '/house', push: false })
       expect(fake.calls).toHaveLength(0)
       expect(await mine(a, 'join_request')).toHaveLength(1)
       vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -339,7 +339,7 @@ describe('thông báo và web push', () => {
       const fake = fakeSender()
       await remindMember(db, fake.send, h.linh, h.periodId, h.anId)
       expect(fake.calls).toHaveLength(1)
-      expect(fake.calls[0]).toMatchObject({ endpoint: h.endpoints.an, title: 'Nhắc đóng tiền tháng 11: 2.600.000đ', url: `/phieu/${h.periodId}` })
+      expect(fake.calls[0]).toMatchObject({ endpoint: h.endpoints.an, title: 'Nhắc đóng tiền tháng 11: 2.600.000đ', url: `/payslip/${h.periodId}` })
       expect(await mine(h.an, 'reminder')).toHaveLength(1)
 
       await expectApp(remindMember(db, fake.send, h.linh, h.periodId, h.anId), 'CONFLICT', 'REMIND_TOO_SOON')
@@ -435,7 +435,7 @@ describe('thông báo và web push', () => {
       await subscribe(guest)
       const { requestId } = await requestJoinByCode(db, guest, h.code)
       const [req] = await mine(h.linh, 'join_request')
-      expect(req).toMatchObject({ houseId: h.houseId, url: '/nha' })
+      expect(req).toMatchObject({ houseId: h.houseId, url: '/house' })
       expect(req.title).toContain('Khách')
       await decideJoinRequest(db, h.linh, requestId, 'approve')
       expect((await mine(guest, 'join_approved'))[0]).toMatchObject({ houseId: h.houseId, url: '/' })
@@ -453,7 +453,7 @@ describe('thông báo và web push', () => {
       vi.spyOn(push, 'getPushSender').mockReturnValue(fake.send)
       const { paymentId } = await submitTransfer(db, h.an, h.periodId, {})
       const [t] = await mine(h.linh, 'transfer_submitted')
-      expect(t).toMatchObject({ houseId: h.houseId, url: `/hoa-don?ky=${h.periodId}` })
+      expect(t).toMatchObject({ houseId: h.houseId, url: `/bills?period=${h.periodId}` })
       expect(t.title).toContain('An')
       expect(t.title).toContain('2.600.000đ')
       // gọi lại khi đã có khoản chờ: không tạo thêm thông báo
@@ -462,7 +462,7 @@ describe('thông báo và web push', () => {
 
       await rejectPayment(db, h.linh, paymentId, 'Chưa thấy tiền về')
       const [rej] = await mine(h.an, 'payment_rejected')
-      expect(rej).toMatchObject({ url: `/phieu/${h.periodId}` })
+      expect(rej).toMatchObject({ url: `/payslip/${h.periodId}` })
       expect(rej.body).toContain('Chưa thấy tiền về')
       expect(fake.calls).toHaveLength(0)
     })

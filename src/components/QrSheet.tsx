@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
-import { submitTransferAction } from '@/app/(app)/hoa-don/actions'
+import { submitTransferAction } from '@/app/(app)/bills/actions'
 import { formatVnd } from '@/lib/money'
 import { ProofUpload } from './ProofUpload'
 import { Sheet, sheetCtaClass } from './Sheet'

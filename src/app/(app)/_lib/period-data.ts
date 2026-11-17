@@ -16,7 +16,13 @@ export async function loadPeriodView(actor: Actor, periodId: string): Promise<{ 
   }
 }
 
-/** `?ky=<id>` của URL (tháng đang xem). */
+/** `?period=<id>` của URL (tháng đang xem). */
 export function periodParam(v: string | string[] | undefined): string | undefined {
   return typeof v === 'string' && v.length > 0 && v.length <= 64 ? v : undefined
+}
+
+/** Giá trị của `?period=`, nhưng vẫn nhận `?ky=` của link và thông báo đẩy đã gửi trước khi địa chỉ đổi sang tiếng Anh. */
+export async function legacyPeriod(searchParams: Promise<Record<string, string | string[] | undefined>>) {
+  const sp = await searchParams
+  return sp.period ?? sp.ky
 }

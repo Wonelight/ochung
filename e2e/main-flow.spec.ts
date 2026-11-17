@@ -30,10 +30,10 @@ test('chủ nhà chốt sổ, thành viên chuyển tiền, chủ nhà xác nh�
     await changeTempPassword(page, OWNER.temp, OWNER.password)
     await dismissFaceIdPrompt(page)
 
-    await page.goto('/nha/moi')
+    await page.goto('/house/new')
     await page.getByLabel('Tên nhà').fill('Nhà Cầu Giấy')
     await page.getByRole('button', { name: 'Tạo nhà' }).click()
-    await expect(page).toHaveURL(/\/nha$/)
+    await expect(page).toHaveURL(/\/house$/)
     await expect(page.getByText('Bạn là chủ nhà')).toBeVisible()
   })
 
@@ -59,15 +59,15 @@ test('chủ nhà chốt sổ, thành viên chuyển tiền, chủ nhà xác nh�
     await page.getByRole('button', { name: 'Chia sẻ link mời' }).click()
     await expect(page.getByText('Đã sao chép link mời')).toBeVisible()
     inviteUrl = await page.evaluate(() => navigator.clipboard.readText())
-    expect(inviteUrl).toMatch(/\/moi\/[\w-]+$/)
+    expect(inviteUrl).toMatch(/\/invite\/[\w-]+$/)
   })
 
   await test.step('thành viên mở link mời TRƯỚC, đăng nhập, đổi mật khẩu tạm rồi vào thẳng nhà (không tự điều hướng)', async () => {
     const { page } = member
     await page.goto(new URL(inviteUrl).pathname)
-    await expect(page).toHaveURL(/\/login\?next=%2Fmoi%2F/)
+    await expect(page).toHaveURL(/\/login\?next=%2Finvite%2F/)
     await login(page, MEMBER.username, MEMBER.temp, true)
-    await expect(page).toHaveURL(/\/doi-mat-khau\?next=%2Fmoi%2F/)
+    await expect(page).toHaveURL(/\/change-password\?next=%2Finvite%2F/)
     await changeTempPassword(page, MEMBER.temp, MEMBER.password)
 
     await expect(page).toHaveURL(`${BASE_URL}/`)
@@ -78,7 +78,7 @@ test('chủ nhà chốt sổ, thành viên chuyển tiền, chủ nhà xác nh�
   let month = 0
   await test.step('chủ nhà nhập điện, nước và một khoản chi lẻ', async () => {
     const { page } = owner
-    await page.goto('/tao')
+    await page.goto('/create')
     const billTab = page.getByRole('button', { name: /^Hóa đơn tháng \d+$/ })
     await expect(billTab).toBeVisible()
     month = Number((await billTab.innerText()).replace(/\D/g, ''))
@@ -105,7 +105,7 @@ test('chủ nhà chốt sổ, thành viên chuyển tiền, chủ nhà xác nh�
     await expect(page.getByText('7.120.000 đ').first()).toBeVisible()
     await page.getByRole('button', { name: 'Tạo & gửi hóa đơn' }).click()
     await page.getByRole('alertdialog').getByRole('button', { name: 'Tạo & gửi' }).click()
-    await expect(page).toHaveURL(/\/hoa-don\?ky=/)
+    await expect(page).toHaveURL(/\/bills\?period=/)
     billsUrl = page.url() // màn Hóa đơn của đúng tháng vừa chốt
   })
 
@@ -139,15 +139,15 @@ test('chủ nhà chốt sổ, thành viên chuyển tiền, chủ nhà xác nh�
   })
 
   await test.step('responsive: không cuộn ngang ở 360 / 390 / 768 / 1280px', async () => {
-    await expectNoHorizontalScroll(owner.page, ['/', '/hoa-don', '/nha', '/cai-dat', '/vao-nha', '/thong-bao', '/tao'])
-    await expectNoHorizontalScroll(member.page, ['/', '/hoa-don', '/cai-dat'])
+    await expectNoHorizontalScroll(owner.page, ['/', '/bills', '/house', '/settings', '/join', '/notifications', '/create'])
+    await expectNoHorizontalScroll(member.page, ['/', '/bills', '/settings'])
     await expectNoHorizontalScroll(admin.page, ['/admin'])
   })
 
   await test.step('màn rộng: nội dung nằm trong cột giữa tối đa 560px, thanh Dione ở đáy cột', async () => {
     const { page } = member
     await page.setViewportSize({ width: 1280, height: 844 })
-    await page.goto('/cai-dat')
+    await page.goto('/settings')
     await page.waitForLoadState('networkidle')
     const column = await page.locator('main').boundingBox()
     expect(column!.width).toBeLessThanOrEqual(560)

@@ -22,7 +22,7 @@ function generateToken(): string {
 
 function inviteUrl(token: string): string {
   const base = (process.env.BETTER_AUTH_URL ?? 'http://localhost:3000').replace(/\/+$/, '')
-  return `${base}/moi/${token}`
+  return `${base}/invite/${token}`
 }
 
 /** Mã người dùng gõ: bỏ mọi khoảng trắng, viết hoa. */

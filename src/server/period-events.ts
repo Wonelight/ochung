@@ -80,7 +80,7 @@ async function announce(db: Db, periodId: string, kind: 'period_closed' | 'perio
           userId: r.userId,
           title: `Đã chốt sổ tháng ${month}`,
           body: `Tổng chi ${amountText(period.result.grandTotal)}. Cả nhà đã nhận phiếu, hạn đóng ${dayMonth(period.dueDate)}.`,
-          url: `/hoa-don?ky=${periodId}`,
+          url: `/bills?period=${periodId}`,
         })
       }
       continue
@@ -91,7 +91,7 @@ async function announce(db: Db, periodId: string, kind: 'period_closed' | 'perio
     const paidSome = confirmedIn > 0 || confirmedOut > 0
     const owes = balance < 0
     const amount = amountText(Math.abs(balance))
-    const url = `/phieu/${periodId}`
+    const url = `/payslip/${periodId}`
     if (kind === 'period_closed') {
       items.push({
         ...base,
