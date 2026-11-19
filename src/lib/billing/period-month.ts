@@ -14,6 +14,16 @@ function nextMonth(ym: YM): YM {
   return ym.month === 12 ? { year: ym.year + 1, month: 1 } : { year: ym.year, month: ym.month + 1 }
 }
 
+/** Tháng hiện tại của `now` tính theo giờ Việt Nam. */
+export function currentMonthVn(now: Date): YM {
+  const t = now.getTime()
+  if (Number.isNaN(t)) {
+    throw new AppError('INVALID', 'DATE_INVALID', 'Thời điểm không hợp lệ')
+  }
+  const vn = new Date(t + VN_OFFSET_MS)
+  return { year: vn.getUTCFullYear(), month: vn.getUTCMonth() + 1 }
+}
+
 /** Tháng tiêu thụ mặc định = tháng liền trước của `now` tính theo giờ Việt Nam. */
 export function consumptionMonthDefault(now: Date): YM {
   const t = now.getTime()

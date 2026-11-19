@@ -1,4 +1,4 @@
-import { consumptionMonthDefault } from './billing/period-month'
+import { consumptionMonthDefault, currentMonthVn } from './billing/period-month'
 import type { YM } from './billing/types'
 
 type PeriodRef = { id: string; year: number; month: number; status: 'draft' | 'closed' }
@@ -31,11 +31,44 @@ export function pickPeriod<T extends PeriodRef>(
  * `periodId` null = tháng đó chưa có trong sổ (trang tạo nháp khi mở).
  */
 export function pickCreateMonth(now: Date, periods: PeriodRef[]): { ym: YM; periodId: string | null } {
-  const def = index(consumptionMonthDefault(now))
+  // Nhà mà kỳ đầu tiên đã mới hơn tháng mặc định (chủ nhà chọn bắt đầu từ tháng đó, xem `parseStartMonth`) thì tháng
+  // mặc định không phải việc còn dở: coi kỳ đầu tiên là điểm xuất phát, không tự tạo lại tháng đã bỏ qua.
+  const earliest = periods.length > 0 ? Math.min(...periods.map(index)) : -Infinity
+  const def = Math.max(index(consumptionMonthDefault(now)), earliest)
   const oldDrafts = periods.filter((p) => p.status === 'draft' && index(p) <= def).sort((a, b) => index(a) - index(b))
   if (oldDrafts.length > 0) return { ym: { year: oldDrafts[0].year, month: oldDrafts[0].month }, periodId: oldDrafts[0].id }
   const byIndex = new Map(periods.map((p) => [index(p), p]))
   let i = def
   while (byIndex.get(i)?.status === 'closed') i++
   return { ym: ymOfIndex(i), periodId: byIndex.get(i)?.id ?? null }
+}
+
+// ───────────────────────── Nhà chưa có hóa đơn nào: chọn tháng bắt đầu ─────────────────────────
+// Kỳ tính theo tháng tiêu thụ (tháng liền trước), nên ngày 19/11 kỳ đầu tiên mặc định là tháng 10. Nhà mới có thể
+// bỏ qua nó và bắt đầu từ tháng hiện tại; chỉ hai lựa chọn đó (xa hơn là gõ nhầm). Chọn xong mới tạo kỳ nháp,
+// nên tháng bị bỏ không bao giờ được tạo ra.
+
+const START_RE = /^(\d{4})-(\d{2})$/
+
+/** `?start=YYYY-MM` của trang chủ / màn Tạo. */
+export function startMonthParam(ym: YM): string {
+  return `${String(ym.year).padStart(4, '0')}-${String(ym.month).padStart(2, '0')}`
+}
+
+/** Tháng bắt đầu hợp lệ: tháng tiêu thụ mặc định hoặc tháng hiện tại. Sai dạng hoặc ngoài khoảng → null. */
+export function parseStartMonth(raw: string | undefined, now: Date): YM | null {
+  const m = raw ? START_RE.exec(raw) : null
+  if (!m) return null
+  const ym = { year: Number(m[1]), month: Number(m[2]) }
+  const i = index(ym)
+  return ym.month >= 1 && ym.month <= 12 && i >= index(consumptionMonthDefault(now)) && i <= index(currentMonthVn(now)) ? ym : null
+}
+
+/** Mũi tên chuyển tháng bắt đầu: lùi tới tháng mặc định, tiến tới tháng hiện tại. */
+export function startNeighbors(ym: YM, now: Date): { older: YM | null; newer: YM | null } {
+  const i = index(ym)
+  return {
+    older: i > index(consumptionMonthDefault(now)) ? ymOfIndex(i - 1) : null,
+    newer: i < index(currentMonthVn(now)) ? ymOfIndex(i + 1) : null,
+  }
 }

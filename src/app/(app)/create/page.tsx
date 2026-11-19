@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation'
 import { db } from '@/db'
-import { daysInMonth } from '@/lib/billing/period-month'
+import { currentMonthVn, daysInMonth } from '@/lib/billing/period-month'
 import { AppError } from '@/lib/errors'
-import { pickCreateMonth } from '@/lib/period-pick'
+import { parseStartMonth, pickCreateMonth } from '@/lib/period-pick'
 import { todayVn } from '@/lib/vn-time'
 import { requireCurrentHouse } from '@/server/current-house'
 import { listMyExpenses } from '@/server/expenses'
@@ -59,8 +59,17 @@ export default async function CreatePage({ searchParams }: PageProps<'/create'>)
   const ky = periodParam(sp.period ?? sp.ky) // `ky`: tham số cũ, link/thông báo đã gửi trước đây vẫn mở được
   let periodId = ky && periods.some((p) => p.id === ky) ? ky : null
   if (!periodId) {
-    const pick = pickCreateMonth(now, periods)
-    periodId = pick.periodId ?? (await getOrCreateDraftPeriod(db, actor, current.houseId, pick.ym)).periodId
+    if (periods.length === 0) {
+      // Nhà chưa có hóa đơn nào: kỳ đầu tiên do chủ nhà chọn (`?start=`, chọn ở trang chủ). Không có lựa chọn thì về trang chủ
+      // để chọn, thay vì tự tạo nháp tháng liền trước rồi kẹt không bỏ được. Tab Khoản chi lẻ thì chi ghi vào tháng hiện tại.
+      const start = parseStartMonth(Array.isArray(sp.start) ? sp.start[0] : sp.start, now)
+      const ym = start ?? (sp.tab === 'expense' || sp.tab === 'chi-le' ? currentMonthVn(now) : null)
+      if (!ym) redirect('/')
+      periodId = (await getOrCreateDraftPeriod(db, actor, current.houseId, ym)).periodId
+    } else {
+      const pick = pickCreateMonth(now, periods)
+      periodId = pick.periodId ?? (await getOrCreateDraftPeriod(db, actor, current.houseId, pick.ym)).periodId
+    }
   }
 
   const [editor, members, seeds] = await Promise.all([

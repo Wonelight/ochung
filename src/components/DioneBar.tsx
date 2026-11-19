@@ -5,12 +5,15 @@ import Link from 'next/link'
 const LED = '#E8833A'
 const BAR_PATH = 'M46 20 H160 Q171.7 20 165.5 26 A38 38 0 0 0 165.5 74 Q171.7 80 160 80 H46 A30 30 0 0 1 46 20 Z'
 
-const tabStyle = (active: boolean) =>
+// Vùng bấm phủ cả thùy của thân thanh (x 16..164 bên trái, 226..374 bên phải, cao như thân thanh y 20..80), chừa chỗ cho
+// vòng tròn giữa. Icon vẫn nằm đúng tâm cũ (x=90 và x=300) vì vùng rộng 148 và nội dung căn giữa.
+const tabStyle = (active: boolean, side: 'left' | 'right') =>
   ({
     position: 'absolute',
-    top: 22,
-    width: 72,
-    height: 56,
+    top: 20,
+    [side]: 16,
+    width: 148,
+    height: 60,
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
@@ -18,7 +21,8 @@ const tabStyle = (active: boolean) =>
     gap: 5,
     color: active ? 'var(--c-text)' : 'var(--c-faint)',
     textDecoration: 'none',
-    borderRadius: 28,
+    borderRadius: 30,
+    WebkitTapHighlightColor: 'transparent',
   }) as const
 
 const dotStyle = (active: boolean) =>
@@ -80,7 +84,7 @@ export function DioneBar({ active, showCreate }: { active: 'home' | 'settings'; 
         )}
       </svg>
 
-      <Link href="/" aria-label="Trang chủ" style={{ ...tabStyle(active === 'home'), left: 54 }}>
+      <Link href="/" aria-label="Trang chủ" style={tabStyle(active === 'home', 'left')}>
         <svg
           width="23"
           height="23"
@@ -135,7 +139,7 @@ export function DioneBar({ active, showCreate }: { active: 'home' | 'settings'; 
         </Link>
       )}
 
-      <Link href="/settings" aria-label="Cài đặt" style={{ ...tabStyle(active === 'settings'), right: 54 }}>
+      <Link href="/settings" aria-label="Cài đặt" style={tabStyle(active === 'settings', 'right')}>
         <svg
           width="23"
           height="23"

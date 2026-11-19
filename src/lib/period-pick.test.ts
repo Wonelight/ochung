@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pickCreateMonth, pickPeriod } from './period-pick'
+import { parseStartMonth, pickCreateMonth, pickPeriod, startMonthParam, startNeighbors } from './period-pick'
 
 const p = (id: string, year: number, month: number, status: 'draft' | 'closed') => ({ id, year, month, status })
 
@@ -50,11 +50,49 @@ describe('pickCreateMonth (tháng của tab "Hóa đơn tháng N")', () => {
     expect(pickCreateMonth(now, list)).toEqual({ ym: { year: 2026, month: 8 }, periodId: 't8' })
   })
 
-  it('nháp mới hơn (do khoản chi lẻ tạo ra) không chen trước tháng mặc định', () => {
-    expect(pickCreateMonth(now, [p('t11', 2026, 11, 'draft')])).toEqual({ ym: { year: 2026, month: 10 }, periodId: null })
+  it('nhà chỉ có kỳ mới hơn tháng mặc định (chủ nhà đã chọn bắt đầu từ tháng đó) → không tự mở lại tháng mặc định', () => {
+    expect(pickCreateMonth(now, [p('t11', 2026, 11, 'draft')])).toEqual({ ym: { year: 2026, month: 11 }, periodId: 't11' })
+    expect(pickCreateMonth(now, [p('t11', 2026, 11, 'closed')])).toEqual({ ym: { year: 2026, month: 12 }, periodId: null })
+  })
+
+  it('nháp mới hơn không chen trước tháng mặc định khi nhà đã có kỳ từ trước đó', () => {
+    const list = [p('t11', 2026, 11, 'draft'), p('t9', 2026, 9, 'closed')]
+    expect(pickCreateMonth(now, list)).toEqual({ ym: { year: 2026, month: 10 }, periodId: null })
   })
 
   it('qua năm: tháng 1 → tháng 12 năm trước', () => {
     expect(pickCreateMonth(new Date('2027-01-05T03:00:00Z'), [])).toEqual({ ym: { year: 2026, month: 12 }, periodId: null })
+  })
+})
+
+describe('tháng bắt đầu của nhà chưa có hóa đơn nào', () => {
+  const now = new Date('2026-11-19T03:00:00Z') // tháng tiêu thụ mặc định 10/2026, tháng hiện tại 11/2026
+
+  it('parseStartMonth nhận tháng mặc định và tháng hiện tại', () => {
+    expect(parseStartMonth('2026-10', now)).toEqual({ year: 2026, month: 10 })
+    expect(parseStartMonth('2026-11', now)).toEqual({ year: 2026, month: 11 })
+  })
+
+  it('parseStartMonth từ chối tháng cũ hơn, tháng chưa tới, và chuỗi sai dạng', () => {
+    for (const raw of ['2026-09', '2026-12', '2026-13', '2026-1', 'abc', '', undefined]) {
+      expect(parseStartMonth(raw, now)).toBeNull()
+    }
+  })
+
+  it('parseStartMonth: qua năm (tháng 1 → bắt đầu được từ 12 năm trước hoặc 1 năm nay)', () => {
+    const jan = new Date('2027-01-05T03:00:00Z')
+    expect(parseStartMonth('2026-12', jan)).toEqual({ year: 2026, month: 12 })
+    expect(parseStartMonth('2027-01', jan)).toEqual({ year: 2027, month: 1 })
+    expect(parseStartMonth('2026-11', jan)).toBeNull()
+  })
+
+  it('startMonthLink dạng YYYY-MM, khớp parseStartMonth', () => {
+    expect(startMonthParam({ year: 2026, month: 11 })).toBe('2026-11')
+    expect(startMonthParam({ year: 2026, month: 5 })).toBe('2026-05')
+  })
+
+  it('startNeighbors: tháng mặc định chỉ đi tiếp được, tháng hiện tại chỉ lùi được', () => {
+    expect(startNeighbors({ year: 2026, month: 10 }, now)).toEqual({ older: null, newer: { year: 2026, month: 11 } })
+    expect(startNeighbors({ year: 2026, month: 11 }, now)).toEqual({ older: { year: 2026, month: 10 }, newer: null })
   })
 })

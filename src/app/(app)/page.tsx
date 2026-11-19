@@ -11,10 +11,11 @@ import { MonthHeader } from '@/components/MonthHeader'
 import { QrSheetButton } from '@/components/QrSheet'
 import { StatusPill } from '@/components/StatusPill'
 import { consumptionMonthDefault } from '@/lib/billing/period-month'
+import type { YM } from '@/lib/billing/types'
 import { homeTiles } from '@/lib/home-tiles'
 import { formatVnd } from '@/lib/money'
 import { collectionSummary, memberBalance, paymentRows, pillFor } from '@/lib/payments-view'
-import { pickPeriod } from '@/lib/period-pick'
+import { parseStartMonth, pickPeriod, startMonthParam, startNeighbors } from '@/lib/period-pick'
 import { INSTALL_GUIDE_COOKIE } from '@/lib/install-guide'
 import { greetingVi } from '@/lib/vn-time'
 import { readOwnProfile } from '@/server/account'
@@ -63,21 +64,29 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
   )
 
   if (!pick) {
-    const ym = consumptionMonthDefault(now)
+    // Nhà chưa có hóa đơn nào: chủ nhà chọn tháng bắt đầu (mặc định tháng liền trước, hoặc tháng hiện tại) bằng mũi tên.
+    // Chỉ khi bấm "Tạo hóa đơn" kỳ nháp mới được tạo, nên tháng bỏ qua không bao giờ có trong sổ.
+    const sp = await searchParams
+    const startRaw = Array.isArray(sp.start) ? sp.start[0] : sp.start
+    const ym = (canEdit && parseStartMonth(startRaw, now)) || consumptionMonthDefault(now)
+    const nav = canEdit ? startNeighbors(ym, now) : { older: null, newer: null }
+    const startHref = (m: YM | null) => (m ? `/?start=${startMonthParam(m)}` : null)
     return (
       <main className="flex flex-col gap-[18px] px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]">
         {header}
         {showInstallGuide && <InstallGuide dismissible />}
         <MonthHero year={ym.year} month={ym.month}>
-          <MonthHeader year={ym.year} month={ym.month} olderHref={null} newerHref={null} />
+          <MonthHeader year={ym.year} month={ym.month} olderHref={startHref(nav.older)} newerHref={startHref(nav.newer)} />
           <div className="relative mt-2 flex flex-col gap-1">
             <span className="text-[17px] font-semibold">Chưa có hóa đơn nào</span>
             <span className="text-[13px] text-muted">
-              {canEdit ? 'Nhập điện nước và các khoản của tháng để tạo hóa đơn đầu tiên.' : 'Chủ nhà chưa gửi hóa đơn tháng nào.'}
+              {canEdit
+                ? `Hóa đơn đầu tiên sẽ là tháng ${ym.month}. Muốn bắt đầu từ tháng khác thì bấm mũi tên để chọn trước khi tạo.`
+                : 'Chủ nhà chưa gửi hóa đơn tháng nào.'}
             </span>
           </div>
           {canEdit && (
-            <Link href="/create" className={primaryLinkClass}>
+            <Link href={`/create?start=${startMonthParam(ym)}`} className={primaryLinkClass}>
               Tạo hóa đơn
             </Link>
           )}
@@ -265,7 +274,6 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
         <Link href="/expenses" className="flex min-h-14 items-center gap-3 rounded-[20px] border border-line bg-surface px-4 text-text no-underline">
           <span className="flex min-w-0 flex-1 flex-col">
             <span className="text-[15px] font-semibold">Khoản chi của nhà</span>
-            <span className="text-[12px] text-muted">Ai đã trả, chia cho ai. Cả nhà cùng xem</span>
           </span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0 text-faint">
             <path d="m9 18 6-6-6-6" />

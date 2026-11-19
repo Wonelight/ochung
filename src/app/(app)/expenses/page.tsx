@@ -22,7 +22,6 @@ export default async function LedgerPage() {
   return (
     <main className="flex flex-col gap-4 px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]">
       <PageHeader title="Khoản chi của nhà" backHref="/" />
-      <p className="m-0 text-[13px] leading-snug text-muted">Chi lẻ từng tháng, không gồm tiền nhà, điện, nước. Ai trong nhà cũng xem được.</p>
       {canAdd && (
         <Link href="/create?tab=expense" className={`${btnPrimary} no-underline`}>
           <PlusIcon />
