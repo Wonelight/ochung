@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { formatVnd } from '@/lib/money'
 import { deleteChargeItemAction, reorderChargeItemsAction, saveChargeItemAction } from '../actions'
+import { PctField, pctText, readPct } from './utility-settings'
 import {
   ErrorText,
   FieldLabel,
@@ -19,9 +20,9 @@ import {
   useSave,
 } from './settings-parts'
 
-export type ChargeItemData = { id: string; name: string; kind: 'equal' | 'per_unit'; amount: number }
+export type ChargeItemData = { id: string; name: string; kind: 'equal' | 'per_unit'; amount: number; vatPct: number }
 
-type Draft = { id?: string; name: string; kind: 'equal' | 'per_unit'; amount: number | null }
+type Draft = { id?: string; name: string; kind: 'equal' | 'per_unit'; amount: number | null; vat: string }
 
 const KIND_OPTIONS = [
   { value: 'equal' as const, label: 'Chia đều' },
@@ -29,7 +30,8 @@ const KIND_OPTIONS = [
 ]
 
 const describe = (i: ChargeItemData) =>
-  i.kind === 'equal' ? `Chia đều · ${formatVnd(i.amount)}đ / tháng` : `Theo người · ${formatVnd(i.amount)}đ / đơn vị`
+  (i.kind === 'equal' ? `Chia đều · ${formatVnd(i.amount)}đ / tháng` : `Theo người · ${formatVnd(i.amount)}đ / đơn vị`) +
+  (i.vatPct > 0 ? ` · VAT ${pctText(i.vatPct)}%` : '')
 
 /**
  * "Khoản cố định": thêm, sửa, xóa, đổi thứ tự. "Chia đều" = tổng cả tháng chia cho mọi người;
@@ -50,8 +52,10 @@ export function FixedCharges({ houseId, items }: { houseId: string; items: Charg
     e.preventDefault()
     if (!draft) return
     if (draft.amount === null) return save.setError('Hãy nhập số tiền')
+    const vatPct = readPct(draft.vat)
+    if (vatPct === null) return save.setError('VAT phải là số, ví dụ 8 hoặc 7,5')
     const res = await save.run(() =>
-      saveChargeItemAction(houseId, { id: draft.id, name: draft.name, kind: draft.kind, amount: draft.amount ?? 0, active: true }),
+      saveChargeItemAction(houseId, { id: draft.id, name: draft.name, kind: draft.kind, amount: draft.amount ?? 0, vatPct, active: true }),
     )
     if (res) setDraft(null)
   }
@@ -83,7 +87,7 @@ export function FixedCharges({ houseId, items }: { houseId: string; items: Charg
             >
               <button
                 type="button"
-                onClick={() => open({ id: item.id, name: item.name, kind: item.kind, amount: item.amount })}
+                onClick={() => open({ id: item.id, name: item.name, kind: item.kind, amount: item.amount, vat: item.vatPct > 0 ? pctText(item.vatPct) : '' })}
                 aria-label={`Sửa khoản ${item.name}`}
                 className="flex min-h-[60px] min-w-0 flex-1 cursor-pointer flex-col justify-center gap-0.5 border-0 bg-transparent p-0 text-left font-[inherit] text-text"
               >
@@ -137,6 +141,15 @@ export function FixedCharges({ houseId, items }: { houseId: string; items: Charg
               <MoneyInput id="item-amount" value={draft.amount} onChange={(amount) => setDraft({ ...draft, amount })} placeholder="0" />
             </div>
           </div>
+          <div className="flex flex-col gap-2">
+            <FieldLabel htmlFor="item-vat">VAT (không bắt buộc)</FieldLabel>
+            <div className="flex">
+              <PctField id="item-vat" value={draft.vat} onChange={(vat) => setDraft({ ...draft, vat })} label="VAT (%)" />
+            </div>
+            <span className="text-[12px] leading-snug text-muted">
+              Để trống nếu khoản không có VAT. Có VAT thì app cộng thêm vào số tiền ở trên rồi mới chia, và phiếu ghi rõ phần VAT.
+            </span>
+          </div>
           <ErrorText>{save.error}</ErrorText>
           <div className="flex flex-wrap gap-2">
             <button type="submit" disabled={save.busy} className={primaryButtonClass}>
@@ -167,7 +180,7 @@ export function FixedCharges({ houseId, items }: { houseId: string; items: Charg
       ) : (
         <>
           <ErrorText>{save.error}</ErrorText>
-          <button type="button" onClick={() => open({ name: '', kind: 'equal', amount: null })} className={`${btnAddLg} w-full`}>
+          <button type="button" onClick={() => open({ name: '', kind: 'equal', amount: null, vat: '' })} className={`${btnAddLg} w-full`}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M12 5v14M5 12h14" />
             </svg>

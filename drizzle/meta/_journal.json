@@ -29,6 +29,13 @@
       "when": 1794908665495,
       "tag": "0003_verify_placeholder_emails",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795083020963,
+      "tag": "0004_item_vat",
+      "breakpoints": true
     }
   ]
 }

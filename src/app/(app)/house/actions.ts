@@ -90,7 +90,7 @@ export async function archiveHouseAction(houseId: string, force = false) {
 
 export async function saveChargeItemAction(
   houseId: string,
-  input: { id?: string; name: string; kind: 'equal' | 'per_unit'; amount: number; active: boolean },
+  input: { id?: string; name: string; kind: 'equal' | 'per_unit'; amount: number; vatPct?: number; active: boolean },
 ) {
   return runAction(async () => {
     const actor = await getActor()

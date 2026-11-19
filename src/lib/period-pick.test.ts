@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseStartMonth, pickCreateMonth, pickPeriod, startMonthParam, startNeighbors } from './period-pick'
+import { createMonthNav, parseMonthParam, parseStartMonth, pickCreateMonth, pickPeriod, startMonthParam, startNeighbors } from './period-pick'
 
 const p = (id: string, year: number, month: number, status: 'draft' | 'closed') => ({ id, year, month, status })
 
@@ -62,6 +62,35 @@ describe('pickCreateMonth (tháng của tab "Hóa đơn tháng N")', () => {
 
   it('qua năm: tháng 1 → tháng 12 năm trước', () => {
     expect(pickCreateMonth(new Date('2027-01-05T03:00:00Z'), [])).toEqual({ ym: { year: 2026, month: 12 }, periodId: null })
+  })
+})
+
+describe('chọn tháng ở màn Tạo (?month=)', () => {
+  const now = new Date('2026-11-19T03:00:00Z') // mặc định 10/2026, hiện tại 11/2026
+  const oct = p('t10', 2026, 10, 'draft')
+
+  it('chọn được tháng mặc định, tháng hiện tại và mọi kỳ đã có', () => {
+    expect(parseMonthParam('2026-10', now, [])).toEqual({ year: 2026, month: 10 })
+    expect(parseMonthParam('2026-11', now, [oct])).toEqual({ year: 2026, month: 11 })
+    expect(parseMonthParam('2026-06', now, [p('t6', 2026, 6, 'closed')])).toEqual({ year: 2026, month: 6 })
+  })
+
+  it('từ chối tháng ngoài khoảng, chưa có kỳ, hoặc sai dạng', () => {
+    for (const raw of ['2026-09', '2026-12', '2026-13', 'abc', '', undefined]) {
+      expect(parseMonthParam(raw, now, [oct])).toBeNull()
+    }
+  })
+
+  it('mũi tên: từ tháng mặc định tiến tới tháng hiện tại và ngược lại', () => {
+    expect(createMonthNav({ year: 2026, month: 10 }, now, [oct])).toEqual({ older: null, newer: { year: 2026, month: 11 } })
+    expect(createMonthNav({ year: 2026, month: 11 }, now, [oct])).toEqual({ older: { year: 2026, month: 10 }, newer: null })
+  })
+
+  it('mũi tên mở rộng theo kỳ cũ hơn / mới hơn đã có trong sổ', () => {
+    const list = [p('t12', 2026, 12, 'draft'), p('t8', 2026, 8, 'closed')]
+    expect(createMonthNav({ year: 2026, month: 10 }, now, list)).toEqual({ older: { year: 2026, month: 9 }, newer: { year: 2026, month: 11 } })
+    expect(createMonthNav({ year: 2026, month: 8 }, now, list).older).toBeNull()
+    expect(createMonthNav({ year: 2026, month: 12 }, now, list).newer).toBeNull()
   })
 })
 

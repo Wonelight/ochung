@@ -2,6 +2,7 @@
 
 import type { FixedItem, PeriodMember } from '@/lib/billing/types'
 import { formatVnd } from '@/lib/money'
+import { formatPct, withVat } from '@/lib/billing/tariff'
 import { Switch } from '../../house/_ui/settings-parts'
 
 // Danh sách công tắc khoản cố định của mockup `Tạo hóa đơn tháng`: hàng cao 52, số tiền mờ (faint) khi tắt.
@@ -25,12 +26,17 @@ export function ItemsPanel({
       {items.map((item, i) => {
         const on = enabled[item.id] ?? item.enabled
         const qty = item.kind === 'per_unit' ? members.filter((m) => included[m.memberId]).reduce((s, m) => s + (m.qty[item.id] ?? 0), 0) : 0
-        const amount = item.kind === 'per_unit' ? qty * item.amount : item.amount
+        // số tiền gồm VAT như phép tính thật: khoản theo người tính VAT trên phần của từng người
+        const amount =
+          item.kind === 'per_unit'
+            ? members.filter((m) => included[m.memberId]).reduce((s, m) => s + withVat((m.qty[item.id] ?? 0) * item.amount, item.vatPct), 0)
+            : withVat(item.amount, item.vatPct)
         return (
           <div key={item.id} className={`flex min-h-[52px] items-center gap-2.5 ${i < items.length - 1 ? 'border-b border-line' : ''}`}>
             <span className="min-w-0 flex-1 text-[15px]">
               {item.name}
               {item.kind === 'per_unit' && <span className="text-muted"> · {qty} × {formatVnd(item.amount)}</span>}
+              {item.vatPct ? <span className="text-muted"> · VAT {formatPct(item.vatPct)}%</span> : null}
             </span>
             <span className={`text-[14px] font-semibold tabular-nums ${on ? 'text-text' : 'text-faint'}`}>{formatVnd(amount)} đ</span>
             <Switch checked={on} onChange={(v) => onToggle(item.id, v)} label={`Tính ${item.name} vào hóa đơn`} />

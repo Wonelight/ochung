@@ -118,7 +118,7 @@ export default async function HouseManagePage() {
           <SettingsSection title="Khoản cố định" hint="Các khoản thu mỗi tháng như tiền nhà, internet, rác, tiền xe. Chạm vào một khoản để sửa.">
             <FixedCharges
               houseId={house.id}
-              items={settings.items.map((i) => ({ id: i.id, name: i.name, kind: i.kind, amount: i.amount }))}
+              items={settings.items.map((i) => ({ id: i.id, name: i.name, kind: i.kind, amount: i.amount, vatPct: i.vatPct }))}
             />
           </SettingsSection>
 

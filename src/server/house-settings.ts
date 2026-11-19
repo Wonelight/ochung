@@ -21,6 +21,7 @@ export type ChargeItemRow = {
   kind: 'equal' | 'per_unit'
   /** equal: tổng cả tháng; per_unit: đơn giá. */
   amount: number
+  vatPct: number
   sortOrder: number
   active: boolean
 }
@@ -43,7 +44,7 @@ export async function upsertChargeItem(
   db: Db,
   actor: Actor,
   houseId: string,
-  input: { id?: string; name: string; kind: 'equal' | 'per_unit'; amount: number; active: boolean },
+  input: { id?: string; name: string; kind: 'equal' | 'per_unit'; amount: number; vatPct?: number; active: boolean },
 ): Promise<string> {
   return db.transaction(async (tx) => {
     await requireOwner(tx, actor, houseId)

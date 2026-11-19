@@ -103,7 +103,7 @@ type HouseConfig = {
   houseId: string
   dueDay: number
   /** Khoản đang dùng, theo thứ tự trong cài đặt. */
-  items: { id: string; name: string; kind: 'equal' | 'per_unit'; amount: number; sortOrder: number }[]
+  items: { id: string; name: string; kind: 'equal' | 'per_unit'; amount: number; vatPct: number; sortOrder: number }[]
   tariffs: Map<Utility, { mode: 'tiered' | 'total'; tariff: Tariff }>
   /** Mọi thành viên từng ở nhà (kể cả đã rời: họ vẫn có thể nằm trong tháng nháp). */
   members: Map<string, { name: string; role: 'owner' | 'member'; sortOrder: number; active: boolean }>
@@ -116,7 +116,7 @@ async function lockHouseConfig(tx: Tx, houseId: string): Promise<HouseConfig> {
   const [house] = await tx.select({ dueDay: houses.dueDay }).from(houses).where(eq(houses.id, houseId)).for('no key update').limit(1)
   if (!house) throw new AppError('NOT_FOUND', 'HOUSE_NOT_FOUND', 'Không tìm thấy nhà')
   const items = await tx
-    .select({ id: chargeItems.id, name: chargeItems.name, kind: chargeItems.kind, amount: chargeItems.amount, sortOrder: chargeItems.sortOrder })
+    .select({ id: chargeItems.id, name: chargeItems.name, kind: chargeItems.kind, amount: chargeItems.amount, vatPct: chargeItems.vatPct, sortOrder: chargeItems.sortOrder })
     .from(chargeItems)
     .where(and(eq(chargeItems.houseId, houseId), eq(chargeItems.active, true)))
     .orderBy(asc(chargeItems.sortOrder), asc(chargeItems.id))
@@ -184,7 +184,7 @@ async function applyConfig(tx: Tx, cfg: HouseConfig, period: { id: string; year:
     pending.delete(src.id)
     await tx
       .update(periodItems)
-      .set({ name: src.name, kind: src.kind, amount: src.amount, sortOrder: src.sortOrder })
+      .set({ name: src.name, kind: src.kind, amount: src.amount, vatPct: src.vatPct, sortOrder: src.sortOrder })
       .where(eq(periodItems.id, row.id))
     if (src.kind === 'per_unit') perUnit.push({ periodItemId: row.id, sourceItemId: src.id })
   }
@@ -197,6 +197,7 @@ async function applyConfig(tx: Tx, cfg: HouseConfig, period: { id: string; year:
       name: src.name,
       kind: src.kind,
       amount: src.amount,
+      vatPct: src.vatPct,
       enabled: true,
       sortOrder: src.sortOrder,
     })
@@ -408,7 +409,7 @@ async function loadSnapshot(db: Db, period: PeriodRow) {
     days: m.days,
     qty: m.qty,
   }))
-  const items: FixedItem[] = itemRows.map((i) => ({ id: i.id, name: i.name, kind: i.kind, amount: i.amount, enabled: i.enabled }))
+  const items: FixedItem[] = itemRows.map((i) => ({ id: i.id, name: i.name, kind: i.kind, amount: i.amount, vatPct: i.vatPct, enabled: i.enabled }))
   const ym = ymOf(period)
   const input: PeriodInput = {
     year: ym.year,

@@ -4,6 +4,7 @@ import {
   boolean,
   date,
   index,
+  doublePrecision,
   integer,
   jsonb,
   pgTable,
@@ -246,6 +247,8 @@ export const chargeItems = pgTable(
     kind: text('kind', { enum: ['equal', 'per_unit'] }).notNull(),
     /** equal: tổng cả tháng; per_unit: đơn giá. */
     amount: money('amount').notNull(),
+    /** VAT (%) cộng vào số tiền trước khi chia; 0..100, tối đa 1 chữ số thập phân. */
+    vatPct: doublePrecision('vat_pct').notNull().default(0),
     sortOrder: integer('sort_order').notNull().default(0),
     active: boolean('active').notNull().default(true),
   },
@@ -336,6 +339,7 @@ export const periodItems = pgTable(
     name: text('name').notNull(),
     kind: text('kind', { enum: ['equal', 'per_unit'] }).notNull(),
     amount: money('amount').notNull(),
+    vatPct: doublePrecision('vat_pct').notNull().default(0),
     enabled: boolean('enabled').notNull().default(true),
     sortOrder: integer('sort_order').notNull().default(0),
   },

@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation'
 import { db } from '@/db'
 import { currentMonthVn, daysInMonth } from '@/lib/billing/period-month'
 import { AppError } from '@/lib/errors'
-import { parseStartMonth, pickCreateMonth } from '@/lib/period-pick'
+import type { YM } from '@/lib/billing/types'
+import { createMonthNav, parseMonthParam, parseStartMonth, pickCreateMonth, startMonthParam } from '@/lib/period-pick'
 import { todayVn } from '@/lib/vn-time'
 import { requireCurrentHouse } from '@/server/current-house'
 import { listMyExpenses } from '@/server/expenses'
@@ -58,6 +59,12 @@ export default async function CreatePage({ searchParams }: PageProps<'/create'>)
   const periods = await listPeriods(db, actor, current.houseId)
   const ky = periodParam(sp.period ?? sp.ky) // `ky`: tham số cũ, link/thông báo đã gửi trước đây vẫn mở được
   let periodId = ky && periods.some((p) => p.id === ky) ? ky : null
+  // `?month=YYYY-MM`: chủ nhà tự chọn tháng bằng mũi tên ở đầu màn. Có kỳ rồi (nháp hay đã chốt) thì mở kỳ đó, chưa có thì tạo nháp.
+  const picked = periodId ? null : parseMonthParam(Array.isArray(sp.month) ? sp.month[0] : sp.month, now, periods)
+  if (picked) {
+    const existing = periods.find((p) => p.year === picked.year && p.month === picked.month)
+    periodId = existing?.id ?? (await getOrCreateDraftPeriod(db, actor, current.houseId, picked)).periodId
+  }
   if (!periodId) {
     if (periods.length === 0) {
       // Nhà chưa có hóa đơn nào: kỳ đầu tiên do chủ nhà chọn (`?start=`, chọn ở trang chủ). Không có lựa chọn thì về trang chủ
@@ -92,6 +99,8 @@ export default async function CreatePage({ searchParams }: PageProps<'/create'>)
     }
   }
   const next = period.month === 12 ? { year: period.year + 1, month: 1 } : { year: period.year, month: period.month + 1 }
+  const nav = createMonthNav({ year: period.year, month: period.month }, now, periods)
+  const monthHref = (ym: YM | null) => (ym ? `/create?month=${startMonthParam(ym)}` : null)
 
   return (
     <CreateForm
@@ -120,6 +129,7 @@ export default async function CreatePage({ searchParams }: PageProps<'/create'>)
         seeds,
         meId: me.id,
         today: todayVn(now),
+        monthNav: { olderHref: monthHref(nav.older), newerHref: monthHref(nav.newer) },
         nextClosed: periods.some((p) => p.year === next.year && p.month === next.month && p.status === 'closed'),
       }}
     />

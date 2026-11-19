@@ -64,6 +64,35 @@ export function parseStartMonth(raw: string | undefined, now: Date): YM | null {
   return ym.month >= 1 && ym.month <= 12 && i >= index(consumptionMonthDefault(now)) && i <= index(currentMonthVn(now)) ? ym : null
 }
 
+// ───────────────────────── Màn Tạo: chủ nhà tự chọn tháng làm hóa đơn ─────────────────────────
+// Khoảng chọn được: từ tháng tiêu thụ mặc định tới tháng hiện tại, mở rộng ra theo các kỳ đã có trong sổ (cũ hơn / mới hơn).
+// Chọn một tháng chưa có kỳ thì màn Tạo tạo nháp cho tháng đó (chỉ khi chủ nhà chủ động chuyển tới).
+
+function createMonthRange(now: Date, periods: { year: number; month: number }[]): { lo: number; hi: number } {
+  const idx = periods.map(index)
+  return {
+    lo: Math.min(index(consumptionMonthDefault(now)), ...idx),
+    hi: Math.max(index(currentMonthVn(now)), ...idx),
+  }
+}
+
+/** `?month=YYYY-MM` của màn Tạo. Sai dạng hoặc ngoài khoảng chọn được → null. */
+export function parseMonthParam(raw: string | undefined, now: Date, periods: { year: number; month: number }[]): YM | null {
+  const m = raw ? START_RE.exec(raw) : null
+  if (!m) return null
+  const ym = { year: Number(m[1]), month: Number(m[2]) }
+  const { lo, hi } = createMonthRange(now, periods)
+  const i = index(ym)
+  return ym.month >= 1 && ym.month <= 12 && i >= lo && i <= hi ? ym : null
+}
+
+/** Mũi tên chuyển tháng ở màn Tạo. */
+export function createMonthNav(ym: YM, now: Date, periods: { year: number; month: number }[]): { older: YM | null; newer: YM | null } {
+  const { lo, hi } = createMonthRange(now, periods)
+  const i = index(ym)
+  return { older: i > lo ? ymOfIndex(i - 1) : null, newer: i < hi ? ymOfIndex(i + 1) : null }
+}
+
 /** Mũi tên chuyển tháng bắt đầu: lùi tới tháng mặc định, tiến tới tháng hiện tại. */
 export function startNeighbors(ym: YM, now: Date): { older: YM | null; newer: YM | null } {
   const i = index(ym)

@@ -29,10 +29,10 @@ const MODE_OPTIONS = [
   { value: 'total' as const, label: 'Nhập tổng' },
 ]
 
-const pctText = (n: number) => String(n).replace('.', ',')
+export const pctText = (n: number) => String(n).replace('.', ',')
 
 /** Số phần trăm người gõ ("7,5" hoặc "7.5") -> number; rỗng = 0; không phải số -> null. */
-function readPct(s: string): number | null {
+export function readPct(s: string): number | null {
   const t = s.trim().replace(',', '.')
   if (t === '') return 0
   if (!/^\d+(\.\d+)?$/.test(t)) return null
@@ -268,7 +268,7 @@ export function UtilitySettings({
   )
 }
 
-function PctField({ id, value, onChange, label }: { id?: string; value: string; onChange: (v: string) => void; label: string }) {
+export function PctField({ id, value, onChange, label }: { id?: string; value: string; onChange: (v: string) => void; label: string }) {
   return (
     <div className="relative min-w-0 flex-1">
       <input

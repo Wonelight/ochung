@@ -37,6 +37,8 @@ export type FixedItem = {
   kind: 'equal' | 'per_unit'
   /** equal: tổng cả tháng; per_unit: đơn giá. */
   amount: number
+  /** VAT (%) cộng vào số tiền trước khi chia: 0..100, tối đa 1 chữ số thập phân. Thiếu = 0. */
+  vatPct?: number
   enabled: boolean
 }
 

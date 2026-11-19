@@ -21,9 +21,24 @@ export function usageFromReadings(prev: number, curr: number): number {
  * base × pct / 100 làm tròn nửa lên, tính bằng số nguyên: pct có tối đa 1 chữ số thập phân nên đổi ra phần mười
  * (t = pct × 10) rồi round(base × t / 1000) = floor((2 × base × t + 1000) / 2000). Không dùng float để 0,7% × 5.500 = 38,5 không bị lệch xuống 38.
  */
-function percentOf(base: number, pct: number): number {
+export function percentOf(base: number, pct: number): number {
   const tenths = Math.round(pct * 10)
   return Math.floor((2 * base * tenths + 1000) / 2000)
+}
+
+/** VAT hợp lệ cho khoản cố định: số từ 0 đến 100, tối đa 1 chữ số thập phân (như bảng giá điện nước). */
+export function isValidPct(pct: number): boolean {
+  return Number.isFinite(pct) && pct >= 0 && pct <= 100 && Math.abs(pct * 10 - Math.round(pct * 10)) < 1e-9
+}
+
+/** Số tiền gồm VAT: base + round(base × pct / 100). pct thiếu hoặc 0 thì không đổi. */
+export function withVat(base: number, pct: number | undefined): number {
+  return pct ? base + percentOf(base, pct) : base
+}
+
+/** 10 → "10", 8.5 → "8,5" (dấu phẩy kiểu Việt Nam). */
+export function formatPct(pct: number): string {
+  return String(pct).replace('.', ',')
 }
 
 /**

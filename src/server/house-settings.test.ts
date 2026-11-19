@@ -116,6 +116,19 @@ describe('cài đặt nhà', () => {
       ])
     })
 
+    it('VAT: lưu cùng khoản, mặc định 0, sửa được; ngoài 0..100 hoặc quá một chữ số thập phân → INVALID', async () => {
+      const { owner, houseId } = await setup()
+      const base = { name: 'Tiền nhà', kind: 'equal' as const, amount: 1_000_000, active: true }
+      const a = await upsertChargeItem(db, owner, houseId, base)
+      expect((await getHouseSettings(db, owner, houseId)).items[0].vatPct).toBe(0)
+      await upsertChargeItem(db, owner, houseId, { ...base, id: a, vatPct: 8.5 })
+      expect((await getHouseSettings(db, owner, houseId)).items[0].vatPct).toBe(8.5)
+      for (const vatPct of [-1, 101, 8.55, Number.NaN]) {
+        await expectApp(upsertChargeItem(db, owner, houseId, { ...base, id: a, vatPct }), 'INVALID')
+      }
+      expect((await getHouseSettings(db, owner, houseId)).items[0].vatPct).toBe(8.5)
+    })
+
     it('amount âm, lẻ, NaN, tên rỗng hoặc kind lạ → INVALID', async () => {
       const { owner, houseId } = await setup()
       const base = { name: 'X', kind: 'equal' as const, amount: 1000, active: true }

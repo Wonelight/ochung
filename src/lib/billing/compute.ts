@@ -1,7 +1,7 @@
 import { AppError } from '@/lib/errors'
 import { formatVnd } from '@/lib/money'
 import { allocate } from './allocate'
-import { calcTieredAmount, usageFromReadings } from './tariff'
+import { calcTieredAmount, formatPct, isValidPct, usageFromReadings, withVat } from './tariff'
 import type {
   PayslipLine,
   Payslip,
@@ -63,6 +63,10 @@ function validate(input: PeriodInput): void {
     itemIds.add(item.id)
     if (!item.enabled) continue
     assertMoney(item.amount, `Số tiền của khoản "${item.name}"`)
+    if (item.vatPct !== undefined && !isValidPct(item.vatPct)) {
+      invalid('VAT_INVALID', `VAT của khoản "${item.name}" phải từ 0 đến 100, tối đa 1 chữ số thập phân`)
+    }
+    assertMoney(withVat(item.amount, item.vatPct), `Số tiền của khoản "${item.name}"`)
     if (item.kind === 'per_unit') {
       for (const m of input.members) {
         if (!m.included) continue
@@ -70,7 +74,7 @@ function validate(input: PeriodInput): void {
         if (!Number.isSafeInteger(q) || q < 0) {
           invalid('QTY_INVALID', `Số lượng "${item.name}" của ${m.name} phải là số nguyên không âm`)
         }
-        assertMoney(q * item.amount, `Số tiền của khoản "${item.name}"`)
+        assertMoney(withVat(q * item.amount, item.vatPct), `Số tiền của khoản "${item.name}"`)
       }
     }
   }
@@ -104,6 +108,11 @@ function utilityResult(u: UtilityInput | null, what: string): UtilityResult | nu
   return { total: tariff.total, tariff, usage }
 }
 
+/** " + VAT 10%" cho khoản có VAT, rỗng khi không có. */
+function vatNote(pct: number | undefined): string {
+  return pct ? ` + VAT ${formatPct(pct)}%` : ''
+}
+
 /** "2026-11-20" -> "20/11" */
 function dayMonth(spentOn: string): string {
   return `${Number(spentOn.slice(8, 10))}/${Number(spentOn.slice(5, 7))}`
@@ -128,10 +137,10 @@ export function computePeriod(input: PeriodInput): PeriodResult {
 
   // grandTotal tính độc lập với phép chia, để làm vế đối chứng cho Σ share.
   const items = input.items.filter((i) => i.enabled)
-  const equalTotal = items.filter((i) => i.kind === 'equal').reduce((s, i) => s + i.amount, 0)
+  const equalTotal = items.filter((i) => i.kind === 'equal').reduce((s, i) => s + withVat(i.amount, i.vatPct), 0)
   const perUnitTotal = items
     .filter((i) => i.kind === 'per_unit')
-    .reduce((s, i) => s + active.reduce((q, m) => q + (m.qty[i.id] ?? 0), 0) * i.amount, 0)
+    .reduce((s, i) => s + active.reduce((q, m) => q + withVat((m.qty[i.id] ?? 0) * i.amount, i.vatPct), 0), 0)
   const grandTotal =
     equalTotal +
     perUnitTotal +
@@ -156,8 +165,8 @@ export function computePeriod(input: PeriodInput): PeriodResult {
   // 1. Khoản cố định
   for (const item of items) {
     if (item.kind === 'equal') {
-      const parts = allocate(item.amount, ones)
-      const detail = `${formatVnd(item.amount)} ÷ ${M}`
+      const parts = allocate(withVat(item.amount, item.vatPct), ones)
+      const detail = `${formatVnd(item.amount)}${vatNote(item.vatPct)} ÷ ${M}`
       active.forEach((_, i) =>
         lines[i].push({
           key: `item:${item.id}`,
@@ -175,8 +184,8 @@ export function computePeriod(input: PeriodInput): PeriodResult {
           key: `item:${item.id}`,
           group: 'fixed',
           label: item.name,
-          detail: `${qty} × ${formatVnd(item.amount)}`,
-          amount: qty * item.amount,
+          detail: `${qty} × ${formatVnd(item.amount)}${vatNote(item.vatPct)}`,
+          amount: withVat(qty * item.amount, item.vatPct),
         })
       })
     }

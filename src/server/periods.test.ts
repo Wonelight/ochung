@@ -174,6 +174,15 @@ describe('vòng đời tháng', () => {
       expect(slipOf(preview, h.binhId).due).toBe(2_930_000)
     })
 
+    it('VAT của khoản: tháng nháp theo cài đặt mới, tháng đã chốt giữ nguyên số cũ', async () => {
+      const h = await draft54()
+      await upsertChargeItem(db, h.linh, h.houseId, { id: h.items.nha, name: 'Tiền nhà', kind: 'equal', amount: 8_000_000, vatPct: 10, active: true })
+      expect((await previewPeriod(db, h.linh, h.periodId)).grandTotal).toBe(10_855_000 + 800_000)
+      await closePeriod(db, h.linh, h.periodId)
+      await upsertChargeItem(db, h.linh, h.houseId, { id: h.items.nha, name: 'Tiền nhà', kind: 'equal', amount: 8_000_000, vatPct: 0, active: true })
+      expect((await getPeriodView(db, h.linh, h.periodId)).result.grandTotal).toBe(10_855_000 + 800_000)
+    })
+
     it('tháng nháp: đồng bộ giữ nguyên số đã nhập (ngày ở, tính tháng này, công tắc khoản, số điện nước)', async () => {
       const h = await draft54()
       const dvRow = (await db.select().from(periodItems).where(eq(periodItems.periodId, h.periodId))).find((i) => i.sourceItemId === h.items.dv)!

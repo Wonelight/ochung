@@ -18,6 +18,8 @@ export type CreateData = {
   meId: string
   /** Hôm nay ở Việt Nam, YYYY-MM-DD. */
   today: string
+  /** Mũi tên chọn tháng ở đầu màn (null = hết khoảng chọn được). */
+  monthNav: { olderHref: string | null; newerHref: string | null }
   /** Tháng sau của tháng đang sửa đã chốt: sửa chỉ số mới không tự sửa chỉ số cũ của tháng đó. */
   nextClosed: boolean
 }

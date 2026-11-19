@@ -88,6 +88,7 @@ export const chargeItemSchema = z.object({
   name: z.string({ error: 'Tên khoản không hợp lệ' }).trim().min(1, 'Tên khoản không được để trống').max(NAME_MAX, `Tên khoản tối đa ${NAME_MAX} ký tự`),
   kind: z.enum(['equal', 'per_unit'], { error: 'Cách chia không hợp lệ' }),
   amount: money('Số tiền'),
+  vatPct: pct('VAT').default(0),
   active: z.boolean({ error: 'Trạng thái khoản không hợp lệ' }),
 })
 

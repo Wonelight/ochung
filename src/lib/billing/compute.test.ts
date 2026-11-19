@@ -702,3 +702,71 @@ describe('computePeriod: khoản chi chia cho một số người', () => {
     expect([r.an.share, r.chi.share]).toEqual([50_001, 50_000])
   })
 })
+
+describe('computePeriod: VAT của khoản cố định', () => {
+  it('chia đều: cộng VAT vào tổng rồi mới chia; dòng ghi rõ VAT', () => {
+    const r = computePeriod(
+      input({
+        members: [member('a'), member('b'), member('c'), member('d')],
+        items: [{ id: 'nha', name: 'Tiền nhà', kind: 'equal', amount: 1_000_000, vatPct: 10, enabled: true }],
+      }),
+    )
+    expect(r.grandTotal).toBe(1_100_000)
+    for (const p of r.payslips) expect(p.lines[0]).toMatchObject({ amount: 275_000, detail: '1.000.000 + VAT 10% ÷ 4' })
+  })
+
+  it('theo người: VAT tính trên số tiền của từng người', () => {
+    const r = computePeriod(
+      input({
+        members: [member('a', { qty: { xe: 2 } }), member('b', { qty: { xe: 1 } })],
+        items: [{ id: 'xe', name: 'Xe', kind: 'per_unit', amount: 100_000, vatPct: 8, enabled: true }],
+      }),
+    )
+    const by = byId(r)
+    expect(by.a.lines[0]).toMatchObject({ amount: 216_000, detail: '2 × 100.000 + VAT 8%' })
+    expect(by.b.lines[0]).toMatchObject({ amount: 108_000, detail: '1 × 100.000 + VAT 8%' })
+    expect(r.grandTotal).toBe(324_000)
+  })
+
+  it('VAT có một chữ số thập phân: hiện dấu phẩy, làm tròn nửa lên', () => {
+    const r = computePeriod(
+      input({ members: [member('a')], items: [{ id: 'x', name: 'X', kind: 'equal', amount: 1005, vatPct: 10, enabled: true }] }),
+    )
+    expect(r.grandTotal).toBe(1106) // 1005 + round(100,5) = 1005 + 101
+    const r2 = computePeriod(
+      input({ members: [member('a')], items: [{ id: 'x', name: 'X', kind: 'equal', amount: 1_000_000, vatPct: 8.5, enabled: true }] }),
+    )
+    expect(r2.payslips[0].lines[0].detail).toBe('1.000.000 + VAT 8,5% ÷ 1')
+    expect(r2.grandTotal).toBe(1_085_000)
+  })
+
+  it('không VAT (0 hoặc thiếu) thì giữ nguyên cách tính và chữ cũ', () => {
+    const base = { id: 'nha', name: 'Tiền nhà', kind: 'equal' as const, amount: 900, enabled: true }
+    const none = computePeriod(input({ members: [member('a'), member('b')], items: [base] }))
+    const zero = computePeriod(input({ members: [member('a'), member('b')], items: [{ ...base, vatPct: 0 }] }))
+    expect(zero).toEqual(none)
+    expect(none.payslips[0].lines[0].detail).toBe('900 ÷ 2')
+  })
+
+  it('khoản đang tắt không tính VAT; Σ phiếu luôn bằng tổng khi có VAT và dư đồng', () => {
+    const r = computePeriod(
+      input({
+        members: [member('a'), member('b'), member('c')],
+        items: [
+          { id: 'x', name: 'X', kind: 'equal', amount: 1_000_001, vatPct: 10, enabled: true },
+          { id: 'y', name: 'Y', kind: 'equal', amount: 5_000_000, vatPct: 10, enabled: false },
+        ],
+      }),
+    )
+    expect(r.grandTotal).toBe(1_000_001 + 100_000)
+    expect(r.payslips.reduce((s, p) => s + p.share, 0)).toBe(r.grandTotal)
+  })
+
+  it('VAT ngoài 0..100 hoặc quá một chữ số thập phân bị từ chối', () => {
+    for (const vatPct of [-1, 100.5, 8.55, Number.NaN]) {
+      expect(() =>
+        computePeriod(input({ members: [member('a')], items: [{ id: 'x', name: 'X', kind: 'equal', amount: 100, vatPct, enabled: true }] })),
+      ).toThrow(AppError)
+    }
+  })
+})
