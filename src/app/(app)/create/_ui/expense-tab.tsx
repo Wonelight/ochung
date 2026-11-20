@@ -163,11 +163,24 @@ function ParticipantsRow({
   )
 }
 
-export function ExpenseTab({ data, onChanged }: { data: ExpenseTabData; onChanged: () => void }) {
+const formOf = (e: ExpenseInput): Form => ({
+  amount: e.amount,
+  description: e.description,
+  spentOn: e.spentOn,
+  payer: e.paidByMemberId,
+  participants: e.participantIds ?? null,
+})
+
+/**
+ * `initialEditId`: mở thẳng form sửa khoản chi đó (link "sửa" từ bảng Chi tiêu tháng, `?expense=<id>`). Không có trong
+ * danh sách (đã bị xóa, hoặc không còn sửa được) thì mở form thêm như thường.
+ */
+export function ExpenseTab({ data, onChanged, initialEditId = null }: { data: ExpenseTabData; onChanged: () => void; initialEditId?: string | null }) {
   const router = useRouter()
   const blank: Form = { amount: null, description: '', spentOn: data.today, payer: data.meId, participants: null }
-  const [form, setForm] = useState<Form>(blank)
-  const [editing, setEditing] = useState<ExpenseInput | null>(null)
+  const initialEdit = initialEditId ? (data.expenses.find((e) => e.id === initialEditId) ?? null) : null
+  const [form, setForm] = useState<Form>(() => (initialEdit ? formOf(initialEdit) : blank))
+  const [editing, setEditing] = useState<ExpenseInput | null>(initialEdit)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -180,7 +193,7 @@ export function ExpenseTab({ data, onChanged }: { data: ExpenseTabData; onChange
 
   function startEdit(e: ExpenseInput) {
     setEditing(e)
-    setForm({ amount: e.amount, description: e.description, spentOn: e.spentOn, payer: e.paidByMemberId, participants: e.participantIds ?? null })
+    setForm(formOf(e))
     setError(null)
     setNotice(null)
   }
@@ -189,6 +202,13 @@ export function ExpenseTab({ data, onChanged }: { data: ExpenseTabData; onChange
     setEditing(null)
     setForm(blank)
     setError(null)
+    // bỏ ?expense= khỏi địa chỉ, không thì tải lại trang lại mở form sửa
+    const q = new URLSearchParams(window.location.search)
+    if (q.has('expense')) {
+      q.delete('expense')
+      const qs = q.toString()
+      router.replace(qs ? `${window.location.pathname}?${qs}` : window.location.pathname, { scroll: false })
+    }
   }
 
   async function run<T>(fn: () => Promise<{ ok: true; data: T } | { ok: false; message: string }>): Promise<T | null> {

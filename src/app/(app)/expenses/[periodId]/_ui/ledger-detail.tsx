@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { formatVnd } from '@/lib/money'
 import type { LedgerExpense } from '@/server/expenses'
@@ -27,7 +28,8 @@ const plain = (s: string) =>
     .replace(/đ/gi, 'd')
     .toLowerCase()
 
-export function LedgerDetail({ expenses, total }: { expenses: LedgerExpense[]; total: number }) {
+/** `editHrefs`: id khoản chi → link mở form sửa; khoản không có trong đây chỉ để đọc. */
+export function LedgerDetail({ expenses, total, editHrefs }: { expenses: LedgerExpense[]; total: number; editHrefs: Record<string, string> }) {
   const [payer, setPayer] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [limit, setLimit] = useState(PAGE)
@@ -138,19 +140,38 @@ export function LedgerDetail({ expenses, total }: { expenses: LedgerExpense[]; t
               </span>
             </div>
             <div className="flex flex-col rounded-[18px] border border-line bg-surface px-3.5 py-0.5">
-              {g.items.map((e, i) => (
-                <div key={e.id} className={`flex items-start gap-3 py-2.5 ${i < g.items.length - 1 ? 'border-b border-line' : ''}`}>
-                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="text-[15px] font-medium leading-snug">{e.description}</span>
-                    <span className="text-[12px] leading-snug text-muted">
-                      {e.paidByName} trả
-                      {e.createdByName !== e.paidByName && (e.mine ? ' · bạn nhập' : ` · ${e.createdByName} nhập`)}
-                      {e.participants && ` · chia cho ${e.participants.map((p) => p.name).join(', ')}`}
-                    </span>
+              {g.items.map((e, i) => {
+                const href = editHrefs[e.id]
+                const cls = `flex items-start gap-3 py-2.5 ${i < g.items.length - 1 ? 'border-b border-line' : ''}`
+                const body = (
+                  <>
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="text-[15px] font-medium leading-snug">{e.description}</span>
+                      <span className="text-[12px] leading-snug text-muted">
+                        {e.paidByName} trả
+                        {e.createdByName !== e.paidByName && (e.mine ? ' · bạn nhập' : ` · ${e.createdByName} nhập`)}
+                        {e.participants && ` · chia cho ${e.participants.map((p) => p.name).join(', ')}`}
+                      </span>
+                    </div>
+                    <span className="shrink-0 font-numeric text-[14px] font-semibold tracking-[-0.03em] tabular-nums">{formatVnd(e.amount)} đ</span>
+                    {href && (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="mt-0.5 shrink-0 self-center text-faint">
+                        <path d="m9 18 6-6-6-6" />
+                      </svg>
+                    )}
+                  </>
+                )
+                return href ? (
+                  // sửa được: cả hàng là link mở form sửa (tên link lấy từ nội dung hàng)
+                  <Link key={e.id} href={href} className={`${cls} min-h-11 text-text no-underline transition-transform active:scale-[.97]`}>
+                    {body}
+                  </Link>
+                ) : (
+                  <div key={e.id} className={cls}>
+                    {body}
                   </div>
-                  <span className="shrink-0 font-numeric text-[14px] font-semibold tracking-[-0.03em] tabular-nums">{formatVnd(e.amount)} đ</span>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </section>
         ))

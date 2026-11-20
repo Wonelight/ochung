@@ -55,7 +55,7 @@ function MonthSwitcher({
 
 // Trang Tạo hóa đơn: trang thường (không phải tấm nổi) với nút quay lại + tiêu đề như các trang con, ô chọn 2 tab trên nền
 // segBg, nội dung cuộn cùng trang. Chân trang (tổng tháng + nút chính) dính đáy màn hình; thanh điều hướng dưới được ẩn ở đây.
-export function CreateForm({ data, initialTab }: { data: CreateData; initialTab: 'bill' | 'expense' }) {
+export function CreateForm({ data, initialTab, initialEditId = null }: { data: CreateData; initialTab: 'bill' | 'expense'; initialEditId?: string | null }) {
   const [tab, setTab] = useState(initialTab)
   const closed = data.period.status === 'closed'
   const editor = usePeriodEditor({
@@ -103,7 +103,9 @@ export function CreateForm({ data, initialTab }: { data: CreateData; initialTab:
               .filter(([, m]) => !m.included)
               .map(([id]) => id),
           )}
-          onChanged={() => (closed ? undefined : void editor.save(true))} />
+          onChanged={() => (closed ? undefined : void editor.save(true))}
+          initialEditId={initialEditId}
+        />
       )}
     </main>
   )

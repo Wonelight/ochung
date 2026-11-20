@@ -3,6 +3,7 @@ import { db } from '@/db'
 import { currentMonthVn, daysInMonth } from '@/lib/billing/period-month'
 import { AppError } from '@/lib/errors'
 import type { YM } from '@/lib/billing/types'
+import { expenseParam } from '@/lib/ledger-edit'
 import { createMonthNav, parseMonthParam, parseStartMonth, pickCreateMonth, startMonthParam } from '@/lib/period-pick'
 import { todayVn } from '@/lib/vn-time'
 import { requireCurrentHouse } from '@/server/current-house'
@@ -19,12 +20,13 @@ export const metadata = { title: 'Tạo mới' }
 // Màn Tạo (nút "+"). Chủ nhà: hóa đơn tháng và khoản chi lẻ. Thành viên: chỉ khoản chi lẻ của chính mình (xem `MemberExpenseForm`).
 // Nhà đã lưu trữ hoặc đã rời thì không có gì để tạo. Tháng của tab hóa đơn: `?period=<id>` (sửa một tháng, kể cả đã chốt),
 // không thì tháng tiêu thụ mặc định / nháp đang dở (`pickCreateMonth`); tháng đó chưa có thì tạo nháp khi mở.
-// `?tab=expense` mở thẳng tab Khoản chi lẻ.
+// `?tab=expense` mở thẳng tab Khoản chi lẻ; `?expense=<id>` mở thẳng form sửa khoản chi đó (link từ bảng Chi tiêu tháng).
 export default async function CreatePage({ searchParams }: PageProps<'/create'>) {
   const { actor, current } = await requireCurrentHouse()
   if (current.archived || current.former) redirect('/')
   const sp = await searchParams
   const now = new Date()
+  const editId = expenseParam(sp.expense)
 
   if (current.role !== 'owner') {
     const [members, seeds, mine] = await Promise.all([
@@ -52,6 +54,7 @@ export default async function CreatePage({ searchParams }: PageProps<'/create'>)
           uncountedIds: [],
           selfOnly: true,
         }}
+        initialEditId={editId}
       />
     )
   }
@@ -105,7 +108,8 @@ export default async function CreatePage({ searchParams }: PageProps<'/create'>)
   return (
     <CreateForm
       key={period.id}
-      initialTab={sp.tab === 'expense' || sp.tab === 'chi-le' ? 'expense' : 'bill'}
+      initialTab={editId || sp.tab === 'expense' || sp.tab === 'chi-le' ? 'expense' : 'bill'}
+      initialEditId={editId}
       data={{
         houseId: current.houseId,
         period: {
