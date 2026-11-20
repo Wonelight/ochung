@@ -5,9 +5,20 @@ import { groupLines, lineDetail } from '@/lib/payslip-view'
 /** Từ số khoản chi lẻ này trở lên thì gập lại (phiếu của nhà nhiều chi lẻ không bị dài hàng chục màn hình). */
 const COLLAPSE_OVER = 5
 
-// Các dòng của một phiếu, theo nhóm Khoản cố định / Điện nước theo ngày ở / Chi phát sinh. Không có mockup riêng:
+// Các dòng của một phiếu, theo nhóm Khoản cố định / Điện nước theo ngày ở / Chi lẻ. Không có mockup riêng:
 // tiêu đề nhóm như "Các tháng trước" (12px, in hoa, giãn chữ), thẻ danh sách như màn Hóa đơn (surface, bo 20).
-export function PayslipLines({ lines, ym, spentOnById }: { lines: PayslipLine[]; ym: YM; spentOnById: Map<string, string> }) {
+export function PayslipLines({
+  lines,
+  ym,
+  spentOnById,
+  emptyText = 'Phiếu này chưa có khoản nào.',
+}: {
+  lines: PayslipLine[]
+  ym: YM
+  spentOnById: Map<string, string>
+  /** Câu hiện khi phiếu không có dòng nào. */
+  emptyText?: string
+}) {
   const groups = groupLines(lines)
   const lineRow = (l: PayslipLine, i: number, n: number) => (
     <div key={l.key} className={`flex min-h-[56px] items-center gap-3 py-2 ${i < n - 1 ? 'border-b border-line' : ''}`}>
@@ -18,7 +29,7 @@ export function PayslipLines({ lines, ym, spentOnById }: { lines: PayslipLine[];
       <span className="shrink-0 text-[14px] font-semibold tabular-nums">{formatVnd(l.amount)} đ</span>
     </div>
   )
-  if (groups.length === 0) return <p className="m-0 text-[14px] text-muted">Phiếu này chưa có khoản nào.</p>
+  if (groups.length === 0) return <p className="m-0 text-[14px] text-muted">{emptyText}</p>
   return (
     <>
       {groups.map((g) => (

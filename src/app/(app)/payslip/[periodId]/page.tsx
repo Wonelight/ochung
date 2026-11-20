@@ -8,7 +8,7 @@ import { StatusPill } from '@/components/StatusPill'
 import { UtilityCard } from '@/components/UtilityCard'
 import { formatVnd } from '@/lib/money'
 import { pillFor } from '@/lib/payments-view'
-import { settlement } from '@/lib/payslip-view'
+import { advancedItems, settlement, visibleLines } from '@/lib/payslip-view'
 import { dateVn } from '@/lib/vn-time'
 import { readOwnProfile } from '@/server/account'
 import { getHouseContext } from '@/server/current-house'
@@ -16,15 +16,16 @@ import { listAvatarSeeds } from '@/server/houses'
 import { getStatuses } from '@/server/payments'
 import { loadPayCta } from '../../_lib/pay-data'
 import { loadPeriodView } from '../../_lib/period-data'
-import { primaryLinkClass } from '../../_ui/month-hero'
+import { primaryLinkClass, secondaryLinkClass } from '../../_ui/month-hero'
 import { MonthItems } from './_ui/month-items'
 import { SubjectPicker } from './_ui/subject-picker'
 
-export const metadata = { title: 'Biểu phí tháng' }
+export const metadata = { title: 'Phiếu tháng' }
 
-// Phiếu thanh toán. Thẻ tháng chép từ mockup `Biểu phí tháng 11` (điện, nước, khoản cố định, tổng tháng); phần dưới là
-// phiếu riêng của người đang xem (spec §10): từng dòng kèm cách tính, khối "Tổng phần / Trừ tiền đã ứng / Cần chuyển".
-// Chủ nhà chọn được người để xem phiếu (?member=<memberId>) và có nút "Sửa".
+// Phiếu thanh toán. Thẻ tháng chép từ mockup `Biểu phí tháng 11` (điện, nước, khoản cố định, tổng tháng), có tiêu đề
+// "Cả nhà tháng …" để không bị đọc nhầm là phần của một người; phía trên là phiếu riêng của một người (spec §10): từng dòng
+// kèm cách tính, khối "Tổng phần / Trừ tiền đã ứng / Đã chuyển / số còn lại".
+// Chủ nhà chọn được người để xem phiếu (?member=<memberId>), có nút "Sửa" và lối sang màn Hóa đơn để xử lý thanh toán.
 // Không đòi "nhà đang chọn": link trong thông báo mở thẳng phiếu, kể cả với người đã rời nhà (xem lại, trả nốt phần còn nợ);
 // quyền xem do getPeriodView kiểm.
 export default async function PayslipPage({ params, searchParams }: PageProps<'/payslip/[periodId]'>) {
@@ -63,8 +64,17 @@ export default async function PayslipPage({ params, searchParams }: PageProps<'/
     self && !isOwner && slip && period.status === 'closed'
       ? await loadPayCta({ actor, houseId: period.houseId, period, memberName: profile.name, status })
       : null
-  const s = slip ? settlement(slip, { self, name: names.get(subjectId) ?? '', ownerName }) : null
+  const draft = period.status === 'draft'
+  const s = slip
+    ? settlement(slip, { self, name: names.get(subjectId) ?? '', ownerName }, { status, draft, advanced: advancedItems(slip.memberId, view.expenses) })
+    : null
   const ym = { year: period.year, month: period.month }
+  // chủ nhà đang xem phiếu chưa xong của người khác: lối sang màn Hóa đơn (xác nhận, ghi tiền mặt, đã trả lại)
+  const billsLink =
+    isOwner && !self && period.status === 'closed' && status && status.kind !== 'paid'
+      ? { href: `/bills?period=${period.id}`, label: status.kind === 'pending' ? 'Xác nhận ở Hóa đơn' : 'Ghi thanh toán ở Hóa đơn' }
+      : null
+  const onlyAdvanced = !!slip && visibleLines(slip.lines).length === 0 && slip.advanced > 0
 
   return (
     <main className="flex flex-col gap-4 px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]">
@@ -78,7 +88,9 @@ export default async function PayslipPage({ params, searchParams }: PageProps<'/
             <path d="m15 18-6-6 6-6" />
           </svg>
         </Link>
-        <h1 className="m-0 flex-1 text-center text-[17px] font-semibold">Biểu phí tháng</h1>
+        <h1 className="m-0 flex-1 text-center text-[17px] font-semibold">
+          Phiếu tháng {period.month}/{period.year}
+        </h1>
         {canEdit ? (
           <Link
             href={`/create?period=${period.id}`}
@@ -95,7 +107,11 @@ export default async function PayslipPage({ params, searchParams }: PageProps<'/
         <SubjectPicker
           periodId={period.id}
           selectedId={subjectId}
-          people={result.payslips.map((p) => ({ id: p.memberId, name: names.get(p.memberId) ?? '—', seed: seeds[p.memberId] ?? names.get(p.memberId) ?? '' }))}
+          people={result.payslips.map((p) => ({
+            id: p.memberId,
+            name: p.memberId === viewer.memberId ? 'Bạn' : (names.get(p.memberId) ?? '—'),
+            seed: seeds[p.memberId] ?? names.get(p.memberId) ?? '',
+          }))}
         />
       )}
 
@@ -112,19 +128,44 @@ export default async function PayslipPage({ params, searchParams }: PageProps<'/
         <>
           <section aria-label="Tổng kết phiếu" className="flex flex-col gap-2.5 rounded-[22px] border border-line bg-card p-4">
             {s.rows.map((r) => (
-              <div key={r.label} className="flex items-baseline justify-between gap-3 text-[14px]">
-                <span className="text-muted">{r.label}</span>
-                <span className="font-semibold tabular-nums">{r.amount < 0 ? `− ${formatVnd(-r.amount)}` : formatVnd(r.amount)} đ</span>
+              <div key={r.label} className="flex flex-col gap-1">
+                <div className="flex items-baseline justify-between gap-3 text-[14px]">
+                  <span className="text-muted">{r.label}</span>
+                  <span className="shrink-0 whitespace-nowrap font-semibold tabular-nums">
+                    {r.amount < 0 ? `− ${formatVnd(-r.amount)}` : formatVnd(r.amount)} đ
+                  </span>
+                </div>
+                {r.items?.map((it) => (
+                  <div key={it.key} className="flex items-baseline justify-between gap-3 pl-3 text-[12px] text-muted">
+                    <span className="min-w-0">{it.label}</span>
+                    <span className="shrink-0 whitespace-nowrap tabular-nums">{formatVnd(it.amount)} đ</span>
+                  </div>
+                ))}
               </div>
             ))}
             {s.rows.length > 0 && <div className="h-px bg-line2" />}
-            <div className="flex items-end justify-between gap-3">
-              <span className="text-[13px] text-muted">{s.final.label}</span>
-              <span className="font-numeric text-[24px] font-semibold tracking-[-0.04em] text-accent-text tabular-nums">
-                {formatVnd(s.final.amount)} đ
-              </span>
-            </div>
+            {s.final.amount === null ? (
+              <span className="text-[15px] font-semibold">{s.final.label}</span>
+            ) : (
+              <div className="flex items-end justify-between gap-3">
+                <span className="text-[13px] text-muted">{s.final.label}</span>
+                <span
+                  className={`shrink-0 whitespace-nowrap font-numeric text-[24px] font-semibold tracking-[-0.04em] tabular-nums ${
+                    s.final.muted ? 'text-text' : 'text-accent-text'
+                  }`}
+                >
+                  {formatVnd(s.final.amount)} đ
+                </span>
+              </div>
+            )}
+            {draft && slip.due !== null && <p className="m-0 text-[13px] text-muted">Chủ nhà chưa chốt sổ, số có thể còn đổi.</p>}
           </section>
+
+          {billsLink && (
+            <Link href={billsLink.href} className={secondaryLinkClass}>
+              {billsLink.label}
+            </Link>
+          )}
 
           {cta && (
             <QrSheetButton cta={cta} className={`${primaryLinkClass} h-[54px] cursor-pointer rounded-[27px] font-[inherit] text-[17px]`}>
@@ -132,12 +173,18 @@ export default async function PayslipPage({ params, searchParams }: PageProps<'/
             </QrSheetButton>
           )}
 
-          <PayslipLines lines={slip.lines} ym={ym} spentOnById={new Map(view.expenses.map((e) => [e.id, e.spentOn]))} />
+          <PayslipLines
+            lines={slip.lines}
+            ym={ym}
+            spentOnById={new Map(view.expenses.map((e) => [e.id, e.spentOn]))}
+            emptyText={onlyAdvanced ? 'Không được tính tháng này, chỉ hoàn lại khoản đã ứng.' : undefined}
+          />
         </>
       )}
 
+      <h2 className="m-0 text-[17px] font-semibold">Cả nhà tháng {period.month}</h2>
       <section
-        aria-label={`Tháng ${period.month} năm ${period.year}`}
+        aria-label={`Cả nhà tháng ${period.month} năm ${period.year}`}
         className="relative flex flex-col gap-2.5 overflow-hidden rounded-[28px] border border-line bg-card p-4"
       >
         <svg width="100%" height="70" viewBox="0 0 350 70" preserveAspectRatio="none" aria-hidden="true" className="absolute left-0 top-0 block">
@@ -162,7 +209,7 @@ export default async function PayslipPage({ params, searchParams }: PageProps<'/
 
         <div className="flex items-end justify-between px-1 pb-0.5 pt-1.5">
           <div className="flex flex-col gap-0.5">
-            <span className="text-[12px] text-muted">Tổng tháng</span>
+            <span className="text-[12px] text-muted">Tổng cả nhà</span>
             <span className="font-numeric text-[22px] font-semibold tracking-[-0.04em] tabular-nums">{formatVnd(result.grandTotal)} đ</span>
           </div>
           {slip && (
