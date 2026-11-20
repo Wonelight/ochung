@@ -96,7 +96,7 @@ export function LedgerDetail({ expenses, total }: { expenses: LedgerExpense[]; t
             className="box-border h-11 w-full min-w-0 rounded-[14px] border border-line2 bg-input px-3.5 font-[inherit] text-[16px] text-text outline-none placeholder:text-faint focus:border-accent"
           />
         </div>
-        <div role="group" aria-label="Lọc theo người trả" className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div role="group" aria-label="Lọc theo người trả" className="flex gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <button
             type="button"
             aria-pressed={payer === null}

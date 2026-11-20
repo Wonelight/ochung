@@ -266,8 +266,9 @@ export function ExpenseTab({ data, onChanged }: { data: ExpenseTabData; onChange
       <div className="flex flex-1 flex-col gap-2.5 px-5 pb-6 pt-3.5">
         <section aria-label="Gợi ý nhanh" className="flex flex-col gap-1.5">
           <h2 className="m-0 text-[12px] font-semibold uppercase tracking-[0.12em] text-muted">Gợi ý nhanh</h2>
-          {/* pt-0.5 + -mt-0.5: chừa chỗ cho viền ngoài của ô đang chọn, vì overflow-x-auto cũng cắt luôn phần tràn theo chiều dọc */}
-          <div className="-mx-5 -mt-0.5 flex snap-x gap-2 overflow-x-auto px-5 pb-1 pt-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {/* Cuộn trong đúng cột nội dung. -m-0.5 + p-0.5: chừa 2px quanh cho viền ngoài 1.5px của ô đang chọn (overflow-x-auto
+              cắt cả hai chiều), ô vẫn thẳng mép với nội dung */}
+          <div className="-mx-0.5 -mt-0.5 flex snap-x scroll-px-0.5 gap-2 overflow-x-auto px-0.5 pb-1 pt-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {TILES.map((t) => {
               const on = form.description.trim() === t.label
               return (
