@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { HouseSummary } from './houses'
-import { resolveCurrentHouse } from './current-house'
+import { resolveCurrentHouse, visibleHouses } from './current-house'
 
 const h = (houseId: string, archived = false, former = false): HouseSummary => ({ houseId, name: houseId, role: 'member', archived, former })
 
@@ -10,8 +10,8 @@ describe('resolveCurrentHouse', () => {
   it('dùng nhà trong cookie nếu là thành viên', () => {
     expect(resolveCurrentHouse(list, 'b')?.houseId).toBe('b')
   })
-  it('cho phép chọn nhà đã lưu trữ để xem lịch sử', () => {
-    expect(resolveCurrentHouse(list, 'old')?.houseId).toBe('old')
+  it('nhà đã xóa (lưu trữ) không bao giờ là nhà đang chọn, kể cả còn trong cookie → nhà đang dùng đầu tiên', () => {
+    expect(resolveCurrentHouse(list, 'old')?.houseId).toBe('a')
   })
   it('cookie thiếu hoặc không hợp lệ → nhà đang dùng đầu tiên', () => {
     expect(resolveCurrentHouse(list, undefined)?.houseId).toBe('a')
@@ -28,5 +28,11 @@ describe('resolveCurrentHouse', () => {
   })
   it('không có nhà → null', () => {
     expect(resolveCurrentHouse([], 'x')).toBeNull()
+  })
+})
+
+describe('visibleHouses (danh sách nhà trên giao diện)', () => {
+  it('bỏ nhà đã xóa (lưu trữ); giữ nhà đang dùng và nhà đã rời, đúng thứ tự', () => {
+    expect(visibleHouses([h('a'), h('old', true), h('left', false, true), h('b')]).map((x) => x.houseId)).toEqual(['a', 'left', 'b'])
   })
 })

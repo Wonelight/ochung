@@ -7,7 +7,7 @@ import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { archiveHouseAction } from '../actions'
 
 /**
- * "Xóa nhà" thực chất là lưu trữ: nhà biến khỏi danh sách đang dùng, mọi người vẫn xem lại lịch sử.
+ * "Xóa nhà" thực chất là lưu trữ: nhà biến khỏi app của mọi người (`visibleHouses`), dữ liệu vẫn giữ trong sổ.
  * Bước 1 giải thích; nếu còn tháng đã chốt chưa thu đủ, server từ chối và bước 2 hỏi xác nhận lần nữa.
  */
 export function ArchiveHouseButton({ houseId, houseName }: { houseId: string; houseName: string }) {
@@ -52,7 +52,7 @@ export function ArchiveHouseButton({ houseId, houseName }: { houseId: string; ho
       {step === 1 && (
         <ConfirmSheet
           title={`Xóa ${houseName}?`}
-          body="Nhà sẽ được lưu trữ: biến khỏi danh sách nhà đang dùng, không ai sửa được nữa. Mọi người vẫn xem lại được lịch sử các tháng."
+          body="Nhà sẽ biến khỏi app của mọi người trong nhà, không ai xem hay sửa được nữa."
           confirmLabel="Xóa nhà"
           pending={busy}
           error={error}

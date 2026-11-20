@@ -9,18 +9,26 @@ export const HOUSE_COOKIE = 'house'
 const ONE_YEAR = 60 * 60 * 24 * 365
 
 /**
- * Nhà đang chọn: nhà trong cookie nếu có trong danh sách của người dùng (kể cả nhà đã lưu trữ hoặc đã rời, để xem lịch sử),
- * không thì nhà đang dùng đầu tiên (danh sách đã xếp nhà đang dùng trước), không có thì null.
+ * Nhà hiện trên giao diện: nhà đã xóa (lưu trữ) biến mất khỏi app của mọi người (menu đổi nhà, Quản lý nhà, màn Vào nhà),
+ * không còn hiện kèm nhãn "Đã lưu trữ". Nhà đã rời vẫn hiện để xem lại lịch sử. Dữ liệu không bị xóa khỏi sổ.
+ */
+export function visibleHouses(houses: HouseSummary[]): HouseSummary[] {
+  return houses.filter((h) => !h.archived)
+}
+
+/**
+ * Nhà đang chọn: nhà trong cookie nếu có trong danh sách của người dùng và chưa bị xóa (nhà đã rời vẫn chọn được, để xem
+ * lịch sử), không thì nhà đang dùng đầu tiên (danh sách đã xếp nhà đang dùng trước), không có thì null.
  */
 export function resolveCurrentHouse(houses: HouseSummary[], cookieValue: string | undefined): HouseSummary | null {
-  const chosen = cookieValue ? houses.find((h) => h.houseId === cookieValue) : undefined
+  const chosen = cookieValue ? houses.find((h) => h.houseId === cookieValue && !h.archived) : undefined
   return chosen ?? houses.find((h) => !h.archived && !h.former) ?? null
 }
 
-/** Actor, các nhà của người dùng và nhà đang chọn; gộp trong một request (layout và trang dùng chung kết quả). */
+/** Actor, các nhà của người dùng (trừ nhà đã xóa) và nhà đang chọn; gộp trong một request (layout và trang dùng chung kết quả). */
 export const getHouseContext = cache(async () => {
   const actor = await getActor()
-  const houses = await listMyHouses(db, actor)
+  const houses = visibleHouses(await listMyHouses(db, actor))
   const current = resolveCurrentHouse(houses, (await cookies()).get(HOUSE_COOKIE)?.value)
   return { actor, houses, current }
 })
