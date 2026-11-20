@@ -14,10 +14,13 @@ export function visibleLines(lines: PayslipLine[]): PayslipLine[] {
   return lines.filter((l) => l.amount !== 0 || l.group === 'utility')
 }
 
-/** Các nhóm của phiếu theo thứ tự cố định, chỉ nhóm còn dòng sau khi lọc. */
-export function groupLines(lines: PayslipLine[]): { group: PayslipLine['group']; title: string; lines: PayslipLine[] }[] {
+/** Các nhóm của phiếu theo thứ tự cố định, chỉ nhóm còn dòng sau khi lọc; `total` là tổng các dòng của nhóm. */
+export function groupLines(lines: PayslipLine[]): { group: PayslipLine['group']; title: string; lines: PayslipLine[]; total: number }[] {
   const shown = visibleLines(lines)
-  return LINE_GROUPS.map((g) => ({ ...g, lines: shown.filter((l) => l.group === g.group) })).filter((g) => g.lines.length > 0)
+  return LINE_GROUPS.map((g) => {
+    const own = shown.filter((l) => l.group === g.group)
+    return { ...g, lines: own, total: own.reduce((s, l) => s + l.amount, 0) }
+  }).filter((g) => g.lines.length > 0)
 }
 
 /**

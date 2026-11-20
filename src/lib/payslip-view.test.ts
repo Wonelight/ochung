@@ -30,6 +30,15 @@ describe('visibleLines / groupLines', () => {
     expect(groups[0].lines.map((l) => l.key)).toEqual(['item:nha'])
     expect(groupLines([line('item:nha', 'fixed', 5)]).map((g) => g.group)).toEqual(['fixed'])
   })
+
+  it('mỗi nhóm có tổng các dòng của nhóm (hiện cạnh tiêu đề nhóm)', () => {
+    const groups = groupLines([...lines, line('item:dv', 'fixed', 300_000), line('water', 'utility', 45_000)])
+    expect(groups.map((g) => [g.group, g.total])).toEqual([
+      ['fixed', 2_300_000],
+      ['utility', 45_000],
+      ['expense', 80_000],
+    ])
+  })
 })
 
 describe('lineDetail', () => {

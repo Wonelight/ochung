@@ -6,7 +6,8 @@ import { groupLines, lineDetail } from '@/lib/payslip-view'
 const COLLAPSE_OVER = 5
 
 // Các dòng của một phiếu, theo nhóm Khoản cố định / Điện nước theo ngày ở / Chi lẻ. Không có mockup riêng:
-// tiêu đề nhóm như "Các tháng trước" (12px, in hoa, giãn chữ), thẻ danh sách như màn Hóa đơn (surface, bo 20).
+// tiêu đề nhóm như "Các tháng trước" (12px, in hoa, giãn chữ) kèm tổng của nhóm căn phải cùng hàng, thẻ danh sách như màn
+// Hóa đơn (surface, bo 20).
 export function PayslipLines({
   lines,
   ym,
@@ -34,7 +35,10 @@ export function PayslipLines({
     <>
       {groups.map((g) => (
         <section key={g.group} className="flex flex-col gap-2">
-          <h3 className="m-0 text-[12px] font-semibold uppercase tracking-[0.12em] text-muted">{g.title}</h3>
+          <div className="flex items-baseline justify-between gap-3">
+            <h3 className="m-0 text-[12px] font-semibold uppercase tracking-[0.12em] text-muted">{g.title}</h3>
+            <span className="shrink-0 whitespace-nowrap text-[13px] font-semibold text-muted tabular-nums">{formatVnd(g.total)} đ</span>
+          </div>
           {g.group === 'expense' && g.lines.length > COLLAPSE_OVER ? (
             // nhiều khoản chi lẻ: gập lại thành một dòng tóm tắt, mở ra khi cần đối chiếu từng khoản
             <details className="rounded-[20px] border border-line bg-surface px-3.5 py-0.5">
@@ -42,7 +46,7 @@ export function PayslipLines({
                 <span className="min-w-0 flex-1 text-[15px] font-medium">
                   {g.lines.length} khoản chi <span className="text-[12px] font-normal text-muted">· chạm để xem</span>
                 </span>
-                <span className="shrink-0 text-[14px] font-semibold tabular-nums">{formatVnd(g.lines.reduce((s, l) => s + l.amount, 0))} đ</span>
+                <span className="shrink-0 text-[14px] font-semibold tabular-nums">{formatVnd(g.total)} đ</span>
               </summary>
               <div className="flex flex-col border-t border-line">{g.lines.map((l, i) => lineRow(l, i, g.lines.length))}</div>
             </details>
