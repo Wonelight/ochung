@@ -3,12 +3,12 @@ import type { ReactNode } from 'react'
 
 /**
  * Đầu trang con: nút quay lại 44px, tiêu đề giữa, bên phải là `action` (ví dụ nút "Sửa") hoặc ô trống đối xứng (chép từ
- * mockup `Quản lý nhà`). Đáy có đường kẻ phân tách đầu trang với nội dung, tràn hết chiều ngang màn: mọi trang dùng nó đều
- * có lề ngang 20px (`px-5`), nên `-mx-5 px-5` đưa đường kẻ ra tới mép.
+ * mockup `Quản lý nhà`). Đáy có đường kẻ phân tách đầu trang với nội dung, rộng đúng bằng cột nội dung (thẳng mép với các
+ * thẻ bên dưới), không tràn ra lề.
  */
 export function PageHeader({ title, backHref, action }: { title: ReactNode; backHref?: string; action?: ReactNode }) {
   return (
-    <header className="-mx-5 flex items-center gap-2 border-b border-line px-5 pb-3">
+    <header className="flex items-center gap-2 border-b border-line pb-3">
       {backHref ? (
         <Link
           href={backHref}
