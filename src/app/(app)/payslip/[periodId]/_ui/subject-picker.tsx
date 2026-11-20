@@ -4,36 +4,54 @@ import Link from 'next/link'
 import { useEffect, useRef } from 'react'
 import { Avatar } from '@/components/Avatar'
 
-// Chủ nhà chọn người để xem phiếu. Không có mockup: hàng chip cuộn ngang cao 44px; chip đang chọn nền inner, viền cam
-// trong 1.5px (như ô đang chọn của DESIGN.md), chip khác nền surface viền line. Mở từ Trang chủ bằng ?member= của người
-// đứng sau thì chip đó có thể nằm ngoài màn, nên hàng tự cuộn để chip đang chọn ra giữa.
-export function SubjectPicker({ periodId, selectedId, people }: { periodId: string; selectedId: string; people: { id: string; name: string; seed: string }[] }) {
+// Hàng chip chọn phiếu để xem, cao 44px, cuộn ngang. Chip đầu luôn là "Nhà" (thẻ tháng của cả nhà), sau đó là từng người
+// (chủ nhà thấy cả nhà, thành viên chỉ thấy mình). Chip đang chọn nền inner, viền cam trong 1.5px (ô đang chọn của
+// DESIGN.md); chip khác nền surface viền line. Mở bằng ?member= của người đứng sau thì chip đó có thể nằm ngoài màn, nên
+// hàng tự cuộn ngang để chip đang chọn ra giữa (chỉ cuộn hàng chip, không cuộn trang).
+export type PickerChip = { key: string; label: string; ariaLabel: string; href: string; seed: string | null; on: boolean }
+
+const chipBase = 'flex h-11 shrink-0 items-center gap-2 rounded-[22px] pl-1.5 pr-3.5 text-[14px] font-semibold no-underline'
+const chipOn = 'bg-inner text-text shadow-[inset_0_0_0_1.5px_var(--c-accent-line)]'
+const chipOff = 'border border-line bg-surface text-muted'
+
+function HouseIcon() {
+  return (
+    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-deep text-accent-text">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M3 10.5 12 3l9 7.5" />
+        <path d="M5 9.5V20h14V9.5" />
+        <path d="M10 20v-5h4v5" />
+      </svg>
+    </span>
+  )
+}
+
+export function SubjectPicker({ chips }: { chips: PickerChip[] }) {
   const ref = useRef<HTMLElement>(null)
+  const selected = chips.find((c) => c.on)?.key
   useEffect(() => {
-    ref.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ inline: 'center', block: 'nearest' })
-  }, [selectedId])
+    const nav = ref.current
+    const chip = nav?.querySelector<HTMLElement>('[aria-current="page"]')
+    if (!nav || !chip) return
+    nav.scrollTo({ left: chip.offsetLeft - (nav.clientWidth - chip.offsetWidth) / 2 })
+  }, [selected])
 
   return (
-    <nav ref={ref} aria-label="Xem phiếu của" className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-0.5 [scrollbar-width:none]">
-      {people.map((p) => {
-        const on = p.id === selectedId
-        return (
-          <Link
-            key={p.id}
-            href={`/payslip/${periodId}?member=${p.id}`}
-            replace
-            scroll={false}
-            aria-current={on ? 'page' : undefined}
-            aria-label={`Phiếu của ${p.name}`}
-            className={`flex h-11 shrink-0 items-center gap-2 rounded-[22px] pl-1.5 pr-3.5 text-[14px] font-semibold no-underline ${
-              on ? 'bg-inner text-text shadow-[inset_0_0_0_1.5px_var(--c-accent-line)]' : 'border border-line bg-surface text-muted'
-            }`}
-          >
-            <Avatar seed={p.seed} size={32} />
-            {p.name}
-          </Link>
-        )
-      })}
+    <nav ref={ref} aria-label="Xem phiếu" className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-0.5 [scrollbar-width:none]">
+      {chips.map((c) => (
+        <Link
+          key={c.key}
+          href={c.href}
+          replace
+          scroll={false}
+          aria-current={c.on ? 'page' : undefined}
+          aria-label={c.ariaLabel}
+          className={`${chipBase} ${c.on ? chipOn : chipOff}`}
+        >
+          {c.seed === null ? <HouseIcon /> : <Avatar seed={c.seed} size={32} decorative />}
+          {c.label}
+        </Link>
+      ))}
     </nav>
   )
 }

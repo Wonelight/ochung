@@ -18,8 +18,7 @@ import { loadPayCta } from '../../_lib/pay-data'
 import { loadPeriodView } from '../../_lib/period-data'
 import { primaryLinkClass, secondaryLinkClass } from '../../_ui/month-hero'
 import { MonthItems } from './_ui/month-items'
-import { PayslipTabs } from './_ui/payslip-tabs'
-import { SubjectPicker } from './_ui/subject-picker'
+import { type PickerChip, SubjectPicker } from './_ui/subject-picker'
 
 export const metadata = { title: 'Phiếu tháng' }
 
@@ -81,11 +80,23 @@ export default async function PayslipPage({ params, searchParams }: PageProps<'/
   })
   const onlyAdvanced = !!slip && visibleLines(slip.lines).length === 0 && slip.advanced > 0
   const tab = payslipTab(sp.tab)
-  // giữ ?member= khi đổi tab để quay lại đúng phiếu chủ nhà đang xem
+  // chip "Nhà" giữ ?member= để thẻ cả nhà vẫn ghi "Phần của <người đang xem>"
   const member = self ? undefined : subjectId
-  const tabs = [
-    { tab: 'person' as const, label: isOwner ? 'Từng người' : 'Phiếu của bạn', href: payslipHref(period.id, { member, tab: 'person' }) },
-    { tab: 'house' as const, label: 'Cả nhà', href: payslipHref(period.id, { member, tab: 'house' }) },
+  const peopleIds = isOwner ? result.payslips.map((p) => p.memberId) : [viewer.memberId]
+  const chips: PickerChip[] = [
+    { key: 'house', label: 'Nhà', ariaLabel: 'Cả nhà', href: payslipHref(period.id, { member, tab: 'house' }), seed: null, on: tab === 'house' },
+    ...peopleIds.map((id) => {
+      const me = id === viewer.memberId
+      const name = names.get(id) ?? '—'
+      return {
+        key: id,
+        label: me ? 'Bạn' : name,
+        ariaLabel: me ? 'Phiếu của bạn' : `Phiếu của ${name}`,
+        href: payslipHref(period.id, { member: me ? undefined : id, tab: 'person' }),
+        seed: seeds[id] ?? name,
+        on: tab === 'person' && id === subjectId,
+      }
+    }),
   ]
 
   return (
@@ -105,22 +116,10 @@ export default async function PayslipPage({ params, searchParams }: PageProps<'/
         }
       />
 
-      <PayslipTabs active={tab} items={tabs} />
+      <SubjectPicker chips={chips} />
 
       {tab === 'person' && (
         <>
-          {isOwner && result.payslips.length > 0 && (
-            <SubjectPicker
-              periodId={period.id}
-              selectedId={subjectId}
-              people={result.payslips.map((p) => ({
-                id: p.memberId,
-                name: p.memberId === viewer.memberId ? 'Bạn' : (names.get(p.memberId) ?? '—'),
-                seed: seeds[p.memberId] ?? names.get(p.memberId) ?? '',
-              }))}
-            />
-          )}
-
           <div className="flex items-center justify-between gap-3">
             <h2 className="m-0 text-[17px] font-semibold">{self ? 'Phiếu của bạn' : `Phiếu của ${subjectName}`}</h2>
             {pill ? <StatusPill tone={pill.tone} text={pill.text} /> : period.status === 'draft' ? <StatusPill tone="draft" text="Tạm tính" /> : null}
