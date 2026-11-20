@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { Payslip, PayslipLine } from './billing/types'
-import { groupLines, lineDetail, settlement, visibleLines } from './payslip-view'
+import type { PaymentStatus, Payslip, PayslipLine } from './billing/types'
+import { advancedItems, groupLines, lineDetail, settlement, visibleLines } from './payslip-view'
 
 const line = (key: string, group: PayslipLine['group'], amount: number, detail = ''): PayslipLine => ({
   key,
@@ -24,9 +24,9 @@ describe('visibleLines / groupLines', () => {
     expect(visibleLines(lines).map((l) => l.key)).toEqual(['item:nha', 'electricity', 'water', 'expense:b'])
   })
 
-  it('nhóm theo Khoản cố định / Điện nước theo ngày ở / Chi phát sinh, bỏ nhóm rỗng', () => {
+  it('nhóm theo Khoản cố định / Điện nước theo ngày ở / Chi lẻ, bỏ nhóm rỗng', () => {
     const groups = groupLines(lines)
-    expect(groups.map((g) => g.title)).toEqual(['Khoản cố định', 'Điện nước theo ngày ở', 'Chi phát sinh'])
+    expect(groups.map((g) => g.title)).toEqual(['Khoản cố định', 'Điện nước theo ngày ở', 'Chi lẻ'])
     expect(groups[0].lines.map((l) => l.key)).toEqual(['item:nha'])
     expect(groupLines([line('item:nha', 'fixed', 5)]).map((g) => g.group)).toEqual(['fixed'])
   })
@@ -51,40 +51,172 @@ describe('lineDetail', () => {
   })
 })
 
+describe('lineDetail: câu điện nước của tháng đã chốt được viết lại', () => {
+  const ym = { year: 2026, month: 10 }
+  const util = (detail: string) => lineDetail(line('electricity', 'utility', 1, detail), ym, new Map())
+
+  it('dạng "ngày-người" và "ngày ở" cũ → "Ở d/N ngày của cả nhà · tổng X"', () => {
+    expect(util('462.024 ÷ 113 ngày-người × 20')).toBe('Ở 20/113 ngày của cả nhà · tổng 462.024')
+    expect(util('111.564 ÷ 120 ngày ở × 30')).toBe('Ở 30/120 ngày của cả nhà · tổng 111.564')
+  })
+
+  it('dạng mới và chia đều (tổng ngày = 0) giữ nguyên', () => {
+    expect(util('Ở 30/120 ngày của cả nhà · tổng 111.564')).toBe('Ở 30/120 ngày của cả nhà · tổng 111.564')
+    expect(util('1.000.000 ÷ 4')).toBe('1.000.000 ÷ 4')
+  })
+})
+
+describe('advancedItems (các khoản người đó đã ứng)', () => {
+  const exp = (id: string, paidByMemberId: string, description: string, amount: number, spentOn: string) => ({
+    id,
+    paidByMemberId,
+    description,
+    amount,
+    spentOn,
+  })
+
+  it('chỉ lấy khoản người đó trả, theo thứ tự, ghi ngày/tháng', () => {
+    const list = [
+      exp('e1', 'dung', 'Máy lọc nước', 1_200_000, '2026-10-20'),
+      exp('e2', 'an', 'Nước giặt', 10_000, '2026-10-11'),
+      exp('e3', 'dung', 'Bóng đèn', 50_000, '2026-10-05'),
+    ]
+    expect(advancedItems('dung', list)).toEqual([
+      { key: 'e1', label: 'Máy lọc nước · 20/10', amount: 1_200_000 },
+      { key: 'e3', label: 'Bóng đèn · 5/10', amount: 50_000 },
+    ])
+    expect(advancedItems('chi', list)).toEqual([])
+  })
+})
+
 describe('settlement (khối cuối phiếu)', () => {
   const slip = (share: number, advanced: number, due: number | null): Payslip => ({ memberId: 'm', lines: [], share, advanced, due })
+  const closed = { draft: false }
+  const st = (kind: PaymentStatus['kind'], balance: number, confirmedIn: number, confirmedOut: number): PaymentStatus => ({
+    kind,
+    balance,
+    confirmedIn,
+    confirmedOut,
+  })
 
   it('thành viên tự xem: tổng phần, trừ tiền đã ứng, cần chuyển cho chủ nhà', () => {
-    expect(settlement(slip(2_800_000, 200_000, 2_600_000), { self: true, name: 'An', ownerName: 'Linh' })).toEqual({
+    expect(settlement(slip(2_800_000, 200_000, 2_600_000), { self: true, name: 'An', ownerName: 'Linh' }, closed)).toEqual({
       rows: [
         { label: 'Tổng phần của bạn', amount: 2_800_000 },
         { label: 'Trừ tiền đã ứng', amount: -200_000 },
       ],
-      final: { label: 'Cần chuyển cho Linh', amount: 2_600_000, refund: false },
+      final: { label: 'Cần chuyển cho Linh', amount: 2_600_000, muted: false },
     })
   })
 
   it('cần chuyển âm → "Chủ nhà cần trả lại bạn X đ"', () => {
-    expect(settlement(slip(0, 300_000, -300_000), { self: true, name: 'An', ownerName: 'Linh' }).final).toEqual({
+    expect(settlement(slip(0, 300_000, -300_000), { self: true, name: 'An', ownerName: 'Linh' }, closed).final).toEqual({
       label: 'Chủ nhà cần trả lại bạn',
       amount: 300_000,
-      refund: true,
+      muted: false,
     })
   })
 
   it('chủ nhà xem phiếu người khác: ghi theo tên người đó', () => {
-    const s = settlement(slip(2_680_000, 0, 2_680_000), { self: false, name: 'Bình', ownerName: 'Linh' })
+    const s = settlement(slip(2_680_000, 0, 2_680_000), { self: false, name: 'Bình', ownerName: 'Linh' }, closed)
     expect(s.rows[0].label).toBe('Tổng phần của Bình')
-    expect(s.final).toEqual({ label: 'Bình cần chuyển cho bạn', amount: 2_680_000, refund: false })
-    expect(settlement(slip(0, 50_000, -50_000), { self: false, name: 'Bình', ownerName: 'Linh' }).final.label).toBe(
+    expect(s.final).toEqual({ label: 'Bình cần chuyển cho bạn', amount: 2_680_000, muted: false })
+    expect(settlement(slip(0, 50_000, -50_000), { self: false, name: 'Bình', ownerName: 'Linh' }, closed).final.label).toBe(
       'Bạn cần trả lại Bình',
     )
   })
 
   it('phiếu chủ nhà: chỉ "Phần của bạn", không có dòng cần chuyển', () => {
-    expect(settlement(slip(2_800_000, 120_000, null), { self: true, name: 'Linh', ownerName: 'Linh' })).toEqual({
+    expect(settlement(slip(2_800_000, 120_000, null), { self: true, name: 'Linh', ownerName: 'Linh' }, closed)).toEqual({
       rows: [],
-      final: { label: 'Phần của bạn', amount: 2_800_000, refund: false },
+      final: { label: 'Phần của bạn', amount: 2_800_000, muted: false },
     })
+  })
+
+  it('không ứng tiền: không có dòng "Trừ tiền đã ứng"', () => {
+    expect(settlement(slip(2_680_000, 0, 2_680_000), { self: true, name: 'An', ownerName: 'Linh' }, closed).rows).toEqual([
+      { label: 'Tổng phần của bạn', amount: 2_680_000 },
+    ])
+  })
+
+  it('trả một phần: dòng "Đã chuyển", số chính là số còn thiếu', () => {
+    const s = settlement(slip(1_963_788, 0, 1_963_788), { self: false, name: 'Chi', ownerName: 'Linh' }, {
+      draft: false,
+      status: st('partial', 981_894, 981_894, 0),
+    })
+    expect(s).toEqual({
+      rows: [
+        { label: 'Tổng phần của Chi', amount: 1_963_788 },
+        { label: 'Đã chuyển', amount: -981_894 },
+      ],
+      final: { label: 'Chi còn thiếu', amount: 981_894, muted: false },
+    })
+    expect(
+      settlement(slip(1_963_788, 0, 1_963_788), { self: true, name: 'Chi', ownerName: 'Linh' }, { draft: false, status: st('partial', 981_894, 981_894, 0) })
+        .final.label,
+    ).toBe('Bạn còn thiếu')
+  })
+
+  it('chưa trả đồng nào: vẫn là "Cần chuyển cho …"', () => {
+    expect(
+      settlement(slip(2_000_000, 0, 2_000_000), { self: true, name: 'An', ownerName: 'Linh' }, { draft: false, status: st('unpaid', 2_000_000, 0, 0) }),
+    ).toEqual({ rows: [{ label: 'Tổng phần của bạn', amount: 2_000_000 }], final: { label: 'Cần chuyển cho Linh', amount: 2_000_000, muted: false } })
+  })
+
+  it('đã thanh toán đủ: không còn số phải chuyển', () => {
+    const s = settlement(slip(2_653_698, 0, 2_653_698), { self: false, name: 'An', ownerName: 'Linh' }, {
+      draft: false,
+      status: st('paid', 0, 2_653_698, 0),
+    })
+    expect(s.final).toEqual({ label: 'An đã thanh toán đủ', amount: null, muted: true })
+    expect(s.rows.at(-1)).toEqual({ label: 'Đã chuyển', amount: -2_653_698 })
+    expect(
+      settlement(slip(2_653_698, 0, 2_653_698), { self: true, name: 'An', ownerName: 'Linh' }, { draft: false, status: st('paid', 0, 2_653_698, 0) })
+        .final.label,
+    ).toBe('Bạn đã thanh toán đủ')
+  })
+
+  it('người rời nhà chỉ còn tiền đã ứng, chủ nhà trả lại một phần', () => {
+    const advanced = [{ key: 'e9', label: 'Máy lọc nước · 20/10', amount: 1_200_000 }]
+    const s = settlement(slip(0, 1_200_000, -1_200_000), { self: false, name: 'Dũng', ownerName: 'Linh' }, {
+      draft: false,
+      status: st('owner_owes', -700_000, 0, 500_000),
+      advanced,
+    })
+    expect(s).toEqual({
+      rows: [
+        { label: 'Tổng phần của Dũng', amount: 0 },
+        { label: 'Trừ tiền đã ứng', amount: -1_200_000, items: advanced },
+        { label: 'Chủ nhà đã trả lại', amount: 500_000 },
+      ],
+      final: { label: 'Bạn cần trả lại Dũng', amount: 700_000, muted: false },
+    })
+  })
+
+  it('trả dư: chủ nhà cần trả lại phần dư', () => {
+    const s = settlement(slip(2_500_000, 0, 2_500_000), { self: true, name: 'An', ownerName: 'Linh' }, {
+      draft: false,
+      status: st('owner_owes', -100_000, 2_600_000, 0),
+    })
+    expect(s.final).toEqual({ label: 'Chủ nhà cần trả lại bạn', amount: 100_000, muted: false })
+  })
+
+  it('tháng nháp: "Dự kiến…", không tô màu', () => {
+    expect(settlement(slip(2_233_016, 0, 2_233_016), { self: true, name: 'Chi', ownerName: 'Linh' }, { draft: true }).final).toEqual({
+      label: 'Dự kiến cần chuyển cho Linh',
+      amount: 2_233_016,
+      muted: true,
+    })
+    expect(settlement(slip(2_203_016, 0, 2_203_016), { self: false, name: 'An', ownerName: 'Linh' }, { draft: true }).final.label).toBe(
+      'An dự kiến cần chuyển cho bạn',
+    )
+    expect(settlement(slip(0, 50_000, -50_000), { self: false, name: 'Bình', ownerName: 'Linh' }, { draft: true }).final).toEqual({
+      label: 'Bạn dự kiến trả lại Bình',
+      amount: 50_000,
+      muted: true,
+    })
+    expect(settlement(slip(0, 50_000, -50_000), { self: true, name: 'Bình', ownerName: 'Linh' }, { draft: true }).final.label).toBe(
+      'Chủ nhà dự kiến trả lại bạn',
+    )
   })
 })
