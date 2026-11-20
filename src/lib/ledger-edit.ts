@@ -15,9 +15,16 @@ export function expenseEditHref(o: {
 }): string | null {
   if (!o.canWrite) return null
   const id = encodeURIComponent(o.expense.id)
-  if (o.isOwner) return `/create?period=${encodeURIComponent(o.periodId)}&tab=expense&expense=${id}`
-  if (o.expense.mine && o.expense.paidByMemberId === o.meId && o.status === 'draft') return `/create?expense=${id}`
+  // nút quay lại của trang Tạo về lại bảng này
+  const back = `&back=${encodeURIComponent(`/expenses/${o.periodId}`)}`
+  if (o.isOwner) return `/create?period=${encodeURIComponent(o.periodId)}&tab=expense&expense=${id}${back}`
+  if (o.expense.mine && o.expense.paidByMemberId === o.meId && o.status === 'draft') return `/create?expense=${id}${back}`
   return null
+}
+
+/** `?back=` của trang Tạo: chỉ nhận đường dẫn tới bảng Chi tiêu của một tháng, để không thành chỗ chuyển hướng ra ngoài. */
+export function backParam(v: string | string[] | undefined): string | null {
+  return typeof v === 'string' && /^\/expenses\/[A-Za-z0-9_-]{1,64}$/.test(v) ? v : null
 }
 
 /** `?expense=<id>` của trang Tạo: mở thẳng form sửa khoản chi đó. */

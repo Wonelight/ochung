@@ -3,7 +3,7 @@ import { db } from '@/db'
 import { currentMonthVn, daysInMonth } from '@/lib/billing/period-month'
 import { AppError } from '@/lib/errors'
 import type { YM } from '@/lib/billing/types'
-import { expenseParam } from '@/lib/ledger-edit'
+import { backParam, expenseParam } from '@/lib/ledger-edit'
 import { createMonthNav, parseMonthParam, parseStartMonth, pickCreateMonth, startMonthParam } from '@/lib/period-pick'
 import { todayVn } from '@/lib/vn-time'
 import { requireCurrentHouse } from '@/server/current-house'
@@ -27,6 +27,8 @@ export default async function CreatePage({ searchParams }: PageProps<'/create'>)
   const sp = await searchParams
   const now = new Date()
   const editId = expenseParam(sp.expense)
+  // mở từ bảng Chi tiêu tháng: nút quay lại về bảng đó
+  const backHref = backParam(sp.back)
 
   if (current.role !== 'owner') {
     const [members, seeds, mine] = await Promise.all([
@@ -55,6 +57,7 @@ export default async function CreatePage({ searchParams }: PageProps<'/create'>)
           selfOnly: true,
         }}
         initialEditId={editId}
+        backHref={backHref}
       />
     )
   }
@@ -110,6 +113,7 @@ export default async function CreatePage({ searchParams }: PageProps<'/create'>)
       key={period.id}
       initialTab={editId || sp.tab === 'expense' || sp.tab === 'chi-le' ? 'expense' : 'bill'}
       initialEditId={editId}
+      backHref={backHref}
       data={{
         houseId: current.houseId,
         period: {

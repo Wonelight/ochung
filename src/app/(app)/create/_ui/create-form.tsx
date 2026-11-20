@@ -55,7 +55,18 @@ function MonthSwitcher({
 
 // Trang Tạo hóa đơn: trang thường (không phải tấm nổi) với nút quay lại + tiêu đề như các trang con, ô chọn 2 tab trên nền
 // segBg, nội dung cuộn cùng trang. Chân trang (tổng tháng + nút chính) dính đáy màn hình; thanh điều hướng dưới được ẩn ở đây.
-export function CreateForm({ data, initialTab, initialEditId = null }: { data: CreateData; initialTab: 'bill' | 'expense'; initialEditId?: string | null }) {
+export function CreateForm({
+  data,
+  initialTab,
+  initialEditId = null,
+  backHref = null,
+}: {
+  data: CreateData
+  initialTab: 'bill' | 'expense'
+  initialEditId?: string | null
+  /** Mở từ bảng Chi tiêu tháng: nút quay lại về bảng đó. */
+  backHref?: string | null
+}) {
   const [tab, setTab] = useState(initialTab)
   const closed = data.period.status === 'closed'
   const editor = usePeriodEditor({
@@ -82,7 +93,7 @@ export function CreateForm({ data, initialTab, initialEditId = null }: { data: C
   return (
     <main className="flex min-h-dvh flex-col">
       <div className="flex flex-col gap-3.5 px-5 pt-[max(24px,env(safe-area-inset-top))]">
-        <PageHeader title={closed ? 'Sửa hóa đơn' : 'Tạo hóa đơn'} backHref={closed ? `/payslip/${data.period.id}` : '/'} />
+        <PageHeader title={closed ? 'Sửa hóa đơn' : 'Tạo hóa đơn'} backHref={backHref ?? (closed ? `/payslip/${data.period.id}` : '/')} />
         <MonthSwitcher year={data.period.year} month={data.period.month} nav={data.monthNav} tab={tab} />
         <div className="grid grid-cols-2 gap-1 rounded-[16px] border border-line bg-[var(--c-create-seg-bg)] p-1">
           <button type="button" aria-pressed={tab === 'bill'} onClick={() => chooseTab('bill')} className={tabClass(tab === 'bill')}>

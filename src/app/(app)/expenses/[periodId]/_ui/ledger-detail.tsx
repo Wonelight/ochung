@@ -142,7 +142,8 @@ export function LedgerDetail({ expenses, total, editHrefs }: { expenses: LedgerE
             <div className="flex flex-col rounded-[18px] border border-line bg-surface px-3.5 py-0.5">
               {g.items.map((e, i) => {
                 const href = editHrefs[e.id]
-                const cls = `flex items-start gap-3 py-2.5 ${i < g.items.length - 1 ? 'border-b border-line' : ''}`
+                // canh giữa theo chiều dọc: số tiền và mũi tên nằm giữa hàng (nội dung có thể hai dòng)
+                const cls = `flex items-center gap-3 py-2.5 ${i < g.items.length - 1 ? 'border-b border-line' : ''}`
                 const body = (
                   <>
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -155,7 +156,7 @@ export function LedgerDetail({ expenses, total, editHrefs }: { expenses: LedgerE
                     </div>
                     <span className="shrink-0 font-numeric text-[14px] font-semibold tracking-[-0.03em] tabular-nums">{formatVnd(e.amount)} đ</span>
                     {href && (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="mt-0.5 shrink-0 self-center text-faint">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0 text-faint">
                         <path d="m9 18 6-6-6-6" />
                       </svg>
                     )}
