@@ -62,22 +62,16 @@ export default async function BillsPage({ searchParams }: PageProps<'/bills'>) {
 
   return (
     <main className="flex flex-col gap-4 px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]">
-      <header className="flex items-center gap-2">
-        <Link
-          href={`/?period=${p.id}`}
-          aria-label="Quay lại"
-          className="flex size-11 shrink-0 items-center justify-center rounded-[22px] border border-line bg-surface text-text"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="m15 18-6-6 6-6" />
-          </svg>
-        </Link>
-        <h1 className="m-0 flex-1 text-center text-[17px] font-semibold">Hóa đơn</h1>
-        <MonthPicker
-          currentId={p.id}
-          months={periods.map((x) => ({ id: x.id, label: `T${x.month}/${x.year}`, draft: x.status === 'draft' }))}
-        />
-      </header>
+      <PageHeader
+        title="Hóa đơn"
+        backHref={`/?period=${p.id}`}
+        action={
+          <MonthPicker
+            currentId={p.id}
+            months={periods.map((x) => ({ id: x.id, label: `T${x.month}/${x.year}`, draft: x.status === 'draft' }))}
+          />
+        }
+      />
 
       {!view ? (
         <div className="flex flex-col gap-3 rounded-[22px] border border-line bg-card p-4">

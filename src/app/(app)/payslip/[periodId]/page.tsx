@@ -37,7 +37,7 @@ export default async function PayslipPage({ params, searchParams }: PageProps<'/
     if (!error) notFound()
     return (
       <main className="flex flex-col gap-4 px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]">
-        <PageHeader title="Biểu phí tháng" backHref="/" />
+        <PageHeader title="Phiếu tháng" backHref="/" />
         <p role="alert" className="m-0 rounded-[20px] border border-line bg-surface p-4 text-[14px] font-medium text-unpaid-fg">
           {error}
         </p>
@@ -90,36 +90,22 @@ export default async function PayslipPage({ params, searchParams }: PageProps<'/
 
   return (
     <main className="flex flex-col gap-4 px-5 pb-[calc(140px+env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]">
-      <div className="flex flex-col gap-3">
-        <header className="flex items-center gap-2">
-          <Link
-            href={`/?period=${period.id}`}
-            aria-label="Quay lại"
-            className="flex size-11 shrink-0 items-center justify-center rounded-[22px] border border-line bg-surface text-text"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="m15 18-6-6 6-6" />
-            </svg>
-          </Link>
-          <h1 className="m-0 flex-1 text-center text-[17px] font-semibold">
-            Phiếu tháng {period.month}/{period.year}
-          </h1>
-          {canEdit ? (
+      <PageHeader
+        title={`Phiếu tháng ${period.month}/${period.year}`}
+        backHref={`/?period=${period.id}`}
+        action={
+          canEdit ? (
             <Link
               href={`/create?period=${period.id}`}
               className="flex h-11 shrink-0 items-center rounded-[22px] border border-line bg-surface px-4 text-[15px] font-semibold text-accent-text no-underline"
             >
               Sửa
             </Link>
-          ) : (
-            <span className="w-11 shrink-0" />
-          )}
-        </header>
-        <PayslipTabs active={tab} items={tabs} />
-      </div>
+          ) : undefined
+        }
+      />
 
-      {/* phân tách phần đầu (tiêu đề, tab) với nội dung của tab */}
-      <hr className="m-0 h-px border-0 bg-line" />
+      <PayslipTabs active={tab} items={tabs} />
 
       {tab === 'person' && (
         <>
