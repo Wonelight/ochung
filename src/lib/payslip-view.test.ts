@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PaymentStatus, Payslip, PayslipLine } from './billing/types'
-import { advancedItems, billsLinkFor, groupLines, lineDetail, settlement, visibleLines } from './payslip-view'
+import { advancedItems, billsLinkFor, groupLines, lineDetail, payslipHref, payslipTab, settlement, visibleLines } from './payslip-view'
 
 const line = (key: string, group: PayslipLine['group'], amount: number, detail = ''): PayslipLine => ({
   key,
@@ -72,6 +72,20 @@ describe('lineDetail: câu điện nước của tháng đã chốt được vi�
   it('dạng mới và chia đều (tổng ngày = 0) giữ nguyên', () => {
     expect(util('Ở 30/120 ngày của cả nhà · tổng 111.564')).toBe('Ở 30/120 ngày của cả nhà · tổng 111.564')
     expect(util('1.000.000 ÷ 4')).toBe('1.000.000 ÷ 4')
+  })
+})
+
+describe('payslipTab / payslipHref (tab "Phiếu" và "Cả nhà")', () => {
+  it('chỉ "house" mới mở tab Cả nhà; thiếu hoặc lạ thì là tab phiếu', () => {
+    expect(payslipTab('house')).toBe('house')
+    expect([payslipTab(undefined), payslipTab('person'), payslipTab(['house']), payslipTab('HOUSE')]).toEqual(['person', 'person', 'person', 'person'])
+  })
+
+  it('link giữ người đang xem; tab phiếu là mặc định nên không ghi vào URL', () => {
+    expect(payslipHref('p1', { tab: 'person' })).toBe('/payslip/p1')
+    expect(payslipHref('p1', { member: 'an', tab: 'person' })).toBe('/payslip/p1?member=an')
+    expect(payslipHref('p1', { member: 'an', tab: 'house' })).toBe('/payslip/p1?member=an&tab=house')
+    expect(payslipHref('p1', { tab: 'house' })).toBe('/payslip/p1?tab=house')
   })
 })
 

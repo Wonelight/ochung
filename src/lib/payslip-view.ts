@@ -111,6 +111,23 @@ export function settlement(
   return { rows, final: { label, amount: null, muted: true } }
 }
 
+/** Hai tab của màn phiếu: phiếu của một người (mặc định) và thẻ tháng của cả nhà. */
+export type PayslipTab = 'person' | 'house'
+
+/** `?tab=` của URL: chỉ đúng "house" mới mở tab Cả nhà. */
+export function payslipTab(v: unknown): PayslipTab {
+  return v === 'house' ? 'house' : 'person'
+}
+
+/** Link tới màn phiếu, giữ người đang xem; tab phiếu là mặc định nên không ghi vào URL. */
+export function payslipHref(periodId: string, o: { member?: string; tab: PayslipTab }): string {
+  const q = new URLSearchParams()
+  if (o.member) q.set('member', o.member)
+  if (o.tab === 'house') q.set('tab', 'house')
+  const qs = q.toString()
+  return qs ? `/payslip/${periodId}?${qs}` : `/payslip/${periodId}`
+}
+
 /**
  * Lối sang màn Hóa đơn (xác nhận, ghi tiền mặt, đã trả lại) khi chủ nhà xem phiếu chưa xong của người khác. Không có khi
  * nhà đã lưu trữ (Hóa đơn không cho thao tác) hoặc tháng thuộc nhà khác nhà đang chọn (Hóa đơn mở theo nhà đang chọn).
