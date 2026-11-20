@@ -251,6 +251,10 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
                 avatarSeed={r.avatarSeed}
                 note={r.note}
                 last={i === rows.length - 1}
+                href={
+                  // chủ nhà mở được phiếu của mọi người; thành viên chỉ mở phiếu của mình
+                  isOwner ? `${payslipHref}?member=${r.memberId}` : r.memberId === view?.viewer.memberId ? payslipHref : undefined
+                }
                 aside={
                   <div className="flex shrink-0 flex-col items-end gap-1 py-2">
                     <span className="font-numeric text-[14px] font-semibold tracking-[-0.03em] tabular-nums">{formatVnd(r.amount)} đ</span>

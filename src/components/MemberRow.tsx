@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { Avatar } from './Avatar'
 
@@ -13,6 +14,7 @@ export function MemberRow({
   last,
   below,
   aside,
+  href,
 }: {
   name: string
   /** Hạt giống ảnh đại diện; thiếu thì dùng `name`. */
@@ -24,10 +26,13 @@ export function MemberRow({
   below?: ReactNode
   /** Cột phải: số tiền, nhãn, nút. */
   aside?: ReactNode
+  /** Có thì cả hàng là một liên kết (mở phiếu chi tiết của người đó) và hiện mũi tên ở cuối. */
+  href?: string
 }) {
   const home = variant === 'home'
-  return (
-    <div className={`flex items-center gap-3 ${home ? 'min-h-[60px]' : 'py-3.5'} ${last ? '' : 'border-b border-line'}`}>
+  const cls = `flex items-center gap-3 ${home ? 'min-h-[60px]' : 'py-3.5'} ${last ? '' : 'border-b border-line'}`
+  const body = (
+    <>
       <Avatar seed={avatarSeed ?? name} size={home ? 36 : 40} />
       <div className={`flex min-w-0 flex-1 flex-col ${home ? '' : 'gap-0.5'}`}>
         <span className="truncate text-[15px] font-semibold">{name}</span>
@@ -35,6 +40,17 @@ export function MemberRow({
         {below}
       </div>
       {aside}
-    </div>
+      {href && (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0 text-faint">
+          <path d="m9 18 6-6-6-6" />
+        </svg>
+      )}
+    </>
+  )
+  if (!href) return <div className={cls}>{body}</div>
+  return (
+    <Link href={href} aria-label={`Xem phiếu của ${name}`} className={`${cls} text-text no-underline`}>
+      {body}
+    </Link>
   )
 }
