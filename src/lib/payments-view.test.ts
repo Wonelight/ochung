@@ -90,7 +90,7 @@ describe('paymentRows', () => {
         name: 'Bình',
         avatarSeed: 'Bình',
         isOwner: false,
-        note: 'Chủ nhà cần trả lại',
+        note: 'Được trả lại',
         amount: 300_000,
         pill: { tone: 'unpaid', text: 'Chủ nhà nợ 300.000 đ' },
         filter: 'unpaid',
@@ -103,8 +103,30 @@ describe('paymentRows', () => {
     expect(rows.map((r) => [r.note, r.amount, r.pill, r.filter])).toEqual([
       ['Chủ nhà', 2_800_000, null, null],
       ['Đã ứng 200.000 đ', 2_600_000, null, null],
-      ['Chủ nhà cần trả lại', 300_000, null, null],
+      ['Được trả lại', 300_000, null, null],
     ])
+  })
+
+  const closedRows = (records: Parameters<typeof statusesFor>[1]) =>
+    paymentRows({ status: 'closed', dueDate: '2026-12-10', payslips: slips, names, statuses: statusesFor(slips, records), now })
+
+  it('tháng đã chốt: số tiền là số còn lại theo khoản đã trả', () => {
+    const rows = closedRows({
+      an: [{ direction: 'in', amount: 1_000_000, status: 'confirmed' }],
+      binh: [{ direction: 'out', amount: 100_000, status: 'confirmed' }],
+    })
+    expect(rows.find((r) => r.memberId === 'an')!.amount).toBe(1_600_000)
+    expect(rows.find((r) => r.memberId === 'binh')!.amount).toBe(200_000)
+  })
+
+  it('đã trả đủ: vẫn hiện số của phiếu, không phải 0', () => {
+    const an = closedRows({ an: [{ direction: 'in', amount: 2_600_000, status: 'confirmed' }] }).find((r) => r.memberId === 'an')!
+    expect([an.amount, an.note]).toEqual([2_600_000, 'Đã trả đủ'])
+  })
+
+  it('đã báo chuyển: ghi chú ngắn "Đã báo chuyển"', () => {
+    const an = closedRows({ an: [{ direction: 'in', amount: 2_600_000, status: 'pending' }] }).find((r) => r.memberId === 'an')!
+    expect(an.note).toBe('Đã báo chuyển')
   })
 })
 

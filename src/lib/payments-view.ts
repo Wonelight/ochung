@@ -94,7 +94,10 @@ export type PaymentRow = {
   avatarSeed: string
   isOwner: boolean
   note: string
-  /** Số tiền riêng của người đó: phần của chủ nhà; cần chuyển (hoặc được trả lại) của thành viên. */
+  /**
+   * Số tiền riêng của người đó: phần của chủ nhà; của thành viên là số còn phải chuyển (hoặc còn được trả lại) theo các
+   * khoản đã trả, đã xong thì là số của phiếu. Tháng nháp: số của phiếu.
+   */
   amount: number
   pill: { tone: PillTone; text: string } | null
   /** Nhóm lọc của màn Hóa đơn; null = chỉ hiện ở "Tất cả" (chủ nhà, tháng nháp). */
@@ -116,13 +119,14 @@ export function paymentRows(v: {
     const name = v.names.get(p.memberId) ?? '—'
     const avatarSeed = v.seeds?.[p.memberId] ?? name
     if (p.due === null) return { memberId: p.memberId, name, avatarSeed, isOwner: true, note: 'Chủ nhà', amount: p.share, pill: null, filter: null }
-    const amount = Math.abs(p.due)
     const s = v.status === 'closed' ? v.statuses[p.memberId] : undefined
+    // số còn lại theo khoản đã trả; đã xong (còn 0) thì hiện số của phiếu
+    const amount = s && s.balance !== 0 ? Math.abs(s.balance) : Math.abs(p.due)
     let note: string
-    if (p.due < 0) note = 'Chủ nhà cần trả lại'
+    if (p.due < 0) note = 'Được trả lại'
     else if (!s) note = p.advanced > 0 ? `Đã ứng ${formatVnd(p.advanced)} đ` : 'Tạm tính'
     else if (s.kind === 'paid') note = 'Đã trả đủ'
-    else if (s.kind === 'pending') note = 'Đã báo chuyển khoản'
+    else if (s.kind === 'pending') note = 'Đã báo chuyển'
     else note = dueNote(v.dueDate, v.now)
     return {
       memberId: p.memberId,
