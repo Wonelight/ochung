@@ -20,7 +20,8 @@ function hash(s: string): number {
   return h >>> 0
 }
 
-export function Avatar({ seed, size }: { seed: string; size: number }) {
+/** `decorative`: tên người đã hiện ngay cạnh ảnh (hàng danh sách), nên trình đọc màn hình bỏ qua ảnh, không đọc tên hai lần. */
+export function Avatar({ seed, size, decorative = false }: { seed: string; size: number; decorative?: boolean }) {
   const h = hash(seed)
   const p = P[h % P.length]
   const y1 = 58 + ((h >>> 17) % 16)
@@ -43,8 +44,7 @@ export function Avatar({ seed, size }: { seed: string; size: number }) {
         width="100%"
         height="100%"
         viewBox="0 0 100 100"
-        role="img"
-        aria-label={`Ảnh đại diện tự sinh của ${seed}`}
+        {...(decorative ? { 'aria-hidden': true } : { role: 'img', 'aria-label': `Ảnh đại diện tự sinh của ${seed}` })}
         style={{ display: 'block' }}
       >
         <circle cx={26 + ((h >>> 5) % 48)} cy={26 + ((h >>> 9) % 30)} r={16 + ((h >>> 13) % 16)} fill={p[1]} />

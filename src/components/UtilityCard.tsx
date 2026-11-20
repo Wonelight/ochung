@@ -12,9 +12,9 @@ const UNIT: Record<UtilityKey, string> = { electricity: 'kWh', water: 'm³' }
 
 const pct = (n: number) => `${String(n).replace('.', ',')}%`
 
-function Cell({ label, value }: { label: string; value: string }) {
+function Cell({ label, value, className = '' }: { label: string; value: string; className?: string }) {
   return (
-    <div className="flex min-w-0 flex-col gap-0.5 rounded-[12px] bg-deep p-2.5">
+    <div className={`flex min-w-0 flex-col gap-0.5 rounded-[12px] bg-deep p-2.5 ${className}`}>
       <span className="text-[11px] text-muted">{label}</span>
       <span className="break-words text-[13px] font-semibold tabular-nums">{value}</span>
     </div>
@@ -47,8 +47,9 @@ export function UtilityCard({ utility, snapshot, result }: { utility: UtilityKey
         )}
       </div>
       {t && result?.usage !== undefined && snapshot.prev !== null && snapshot.curr !== null && (
-        <div className="grid grid-cols-3 gap-2">
-          <Cell label="Chỉ số" value={`${formatVnd(snapshot.prev)} → ${formatVnd(snapshot.curr)}`} />
+        // "Chỉ số" chiếm cả hàng: hai số 4–5 chữ số không vừa một phần ba thẻ ở màn 390px
+        <div className="grid grid-cols-2 gap-2">
+          <Cell label="Chỉ số" value={`${formatVnd(snapshot.prev)} → ${formatVnd(snapshot.curr)}`} className="col-span-2" />
           <Cell label="Tiêu thụ" value={`${formatVnd(result.usage)} ${unit}`} />
           <Cell label="Đơn giá" value={single ? `${formatVnd(t.lines[0].price)} đ/${unit}` : 'Theo bậc'} />
         </div>

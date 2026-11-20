@@ -33,7 +33,7 @@ export function MemberRow({
   const cls = `flex items-center gap-3 ${home ? 'min-h-[60px]' : 'py-3.5'} ${last ? '' : 'border-b border-line'}`
   const body = (
     <>
-      <Avatar seed={avatarSeed ?? name} size={home ? 36 : 40} />
+      <Avatar seed={avatarSeed ?? name} size={home ? 36 : 40} decorative />
       <div className={`flex min-w-0 flex-1 flex-col ${home ? '' : 'gap-0.5'}`}>
         <span className="truncate text-[15px] font-semibold">{name}</span>
         {note && <span className="text-[12px] text-muted">{note}</span>}
@@ -49,7 +49,8 @@ export function MemberRow({
   )
   if (!href) return <div className={cls}>{body}</div>
   return (
-    <Link href={href} aria-label={`Xem phiếu của ${name}`} className={`${cls} text-text no-underline`}>
+    // tên link lấy từ nội dung hàng (tên, ghi chú, số tiền, trạng thái) để trình đọc màn hình đọc đủ
+    <Link href={href} className={`${cls} text-text no-underline transition-transform active:scale-[.97]`}>
       {body}
     </Link>
   )
