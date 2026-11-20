@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { useEffect, useRef } from 'react'
 import { Avatar } from '@/components/Avatar'
 
-// Hàng chip chọn phiếu để xem, cao 44px, cuộn ngang. Chip đầu luôn là "Nhà" (thẻ tháng của cả nhà), sau đó là từng người
+// Hàng chip chọn phiếu để xem, cao 44px, cuộn ngang trong đúng cột nội dung (thẳng mép với đường kẻ đầu trang và các thẻ,
+// không tràn ra lề). Chip đầu luôn là "Nhà" (thẻ tháng của cả nhà), sau đó là từng người
 // (chủ nhà thấy cả nhà, thành viên chỉ thấy mình). Chip đang chọn nền inner, viền cam trong 1.5px (ô đang chọn của
 // DESIGN.md); chip khác nền surface viền line. Mở bằng ?member= của người đứng sau thì chip đó có thể nằm ngoài màn, nên
 // hàng tự cuộn ngang để chip đang chọn ra giữa (chỉ cuộn hàng chip, không cuộn trang).
@@ -33,11 +34,12 @@ export function SubjectPicker({ chips }: { chips: PickerChip[] }) {
     const nav = ref.current
     const chip = nav?.querySelector<HTMLElement>('[aria-current="page"]')
     if (!nav || !chip) return
-    nav.scrollTo({ left: chip.offsetLeft - (nav.clientWidth - chip.offsetWidth) / 2 })
+    const offset = chip.getBoundingClientRect().left - nav.getBoundingClientRect().left + nav.scrollLeft
+    nav.scrollTo({ left: offset - (nav.clientWidth - chip.offsetWidth) / 2 })
   }, [selected])
 
   return (
-    <nav ref={ref} aria-label="Xem phiếu" className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-0.5 [scrollbar-width:none]">
+    <nav ref={ref} aria-label="Xem phiếu" className="flex gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none]">
       {chips.map((c) => (
         <Link
           key={c.key}
