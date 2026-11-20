@@ -107,10 +107,10 @@ describe('computePeriod: ví dụ chuẩn spec 5.4', () => {
     const line = (k: string) => by.chi.lines.find((l) => l.key === k)!
     expect(line('item:nha').detail).toBe('8.000.000 ÷ 4')
     expect(line('item:xe').detail).toBe('1 × 120.000')
-    expect(line('electricity').detail).toBe('1.260.000 ÷ 105 ngày ở × 15')
-    expect(line('water').detail).toBe('315.000 ÷ 105 ngày ở × 15')
-    expect(line('expense:e1').detail).toBe('An trả 200.000 · 20/11')
-    expect(line('expense:e2').detail).toBe('Linh trả 120.000 · 5/11')
+    expect(line('electricity').detail).toBe('Ở 15/105 ngày của cả nhà · tổng 1.260.000')
+    expect(line('water').detail).toBe('Ở 15/105 ngày của cả nhà · tổng 315.000')
+    expect(line('expense:e1').detail).toBe('An trả 200.000 · 20/11 · chia 4 người')
+    expect(line('expense:e2').detail).toBe('Linh trả 120.000 · 5/11 · chia 4 người')
     expect(line('expense:e1').amount).toBe(50_000)
   })
 
@@ -299,7 +299,7 @@ describe('computePeriod: trường hợp biên', () => {
     expect(r.payslips.map((p) => p.memberId)).toEqual(['a', 'b', 'c'])
     expect(r.payslips[0].lines.find((l) => l.key === 'item:nha')!.detail).toBe('1.000 ÷ 2')
     expect(r.payslips[0].lines.find((l) => l.key === 'electricity')!.detail).toBe(
-      '600 ÷ 60 ngày ở × 30',
+      'Ở 30/60 ngày của cả nhà · tổng 600',
     )
     expect(r.payslips[1]).toMatchObject({ share: 0, advanced: 100, due: -100, lines: [] })
   })
@@ -652,7 +652,7 @@ describe('computePeriod: khoản chi chia cho một số người', () => {
     expect([r.linh.share, r.an.share, r.binh.share, r.chi.share]).toEqual([0, 150_000, 150_000, 0])
     expect(r.linh.lines).toEqual([])
     expect(r.chi.lines).toEqual([])
-    expect(r.an.lines[0]).toMatchObject({ key: 'expense:e1', amount: 150_000, detail: 'An trả 300.000 · 20/11 · chia cho 2 người' })
+    expect(r.an.lines[0]).toMatchObject({ key: 'expense:e1', amount: 150_000, detail: 'An trả 300.000 · 20/11 · chia 2 người' })
     expect(r.an.due).toBe(150_000 - 300_000)
     expect(r.binh.due).toBe(150_000)
   })
@@ -692,7 +692,7 @@ describe('computePeriod: khoản chi chia cho một số người', () => {
     for (const r of [all, nul]) {
       expect(['linh', 'an', 'binh', 'chi'].map((id) => r[id].share)).toEqual(['linh', 'an', 'binh', 'chi'].map((id) => base[id].share))
     }
-    expect(all.an.lines[0].detail).toBe('An trả 300.000 · 20/11') // đủ cả nhà: không ghi "chia cho"
+    expect(all.an.lines[0].detail).toBe('An trả 300.000 · 20/11 · chia 4 người') // đủ cả nhà cũng ghi số người chia
     const dup = byId(computePeriod(input({ members: four(), expenses: [exp({ participantIds: ['an', 'an', 'binh'] })] })))
     expect([dup.an.share, dup.binh.share]).toEqual([150_000, 150_000])
   })
@@ -712,7 +712,7 @@ describe('computePeriod: VAT của khoản cố định', () => {
       }),
     )
     expect(r.grandTotal).toBe(1_100_000)
-    for (const p of r.payslips) expect(p.lines[0]).toMatchObject({ amount: 275_000, detail: '1.000.000 + VAT 10% ÷ 4' })
+    for (const p of r.payslips) expect(p.lines[0]).toMatchObject({ amount: 275_000, detail: '(1.000.000 + VAT 10%) ÷ 4' })
   })
 
   it('theo người: VAT tính trên số tiền của từng người', () => {
@@ -736,7 +736,7 @@ describe('computePeriod: VAT của khoản cố định', () => {
     const r2 = computePeriod(
       input({ members: [member('a')], items: [{ id: 'x', name: 'X', kind: 'equal', amount: 1_000_000, vatPct: 8.5, enabled: true }] }),
     )
-    expect(r2.payslips[0].lines[0].detail).toBe('1.000.000 + VAT 8,5% ÷ 1')
+    expect(r2.payslips[0].lines[0].detail).toBe('(1.000.000 + VAT 8,5%) ÷ 1')
     expect(r2.grandTotal).toBe(1_085_000)
   })
 

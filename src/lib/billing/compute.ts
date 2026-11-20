@@ -166,7 +166,9 @@ export function computePeriod(input: PeriodInput): PeriodResult {
   for (const item of items) {
     if (item.kind === 'equal') {
       const parts = allocate(withVat(item.amount, item.vatPct), ones)
-      const detail = `${formatVnd(item.amount)}${vatNote(item.vatPct)} ÷ ${M}`
+      // có VAT: ngoặc cho thấy cộng VAT trước rồi mới chia
+      const vat = vatNote(item.vatPct)
+      const detail = vat ? `(${formatVnd(item.amount)}${vat}) ÷ ${M}` : `${formatVnd(item.amount)} ÷ ${M}`
       active.forEach((_, i) =>
         lines[i].push({
           key: `item:${item.id}`,
@@ -202,7 +204,7 @@ export function computePeriod(input: PeriodInput): PeriodResult {
           key,
           group: 'utility',
           label,
-          detail: `${formatVnd(result.total)} ÷ ${sumDays} ngày ở × ${m.days}`,
+          detail: `Ở ${m.days}/${sumDays} ngày của cả nhà · tổng ${formatVnd(result.total)}`,
           amount: parts[i],
         }),
       )
@@ -227,8 +229,7 @@ export function computePeriod(input: PeriodInput): PeriodResult {
       invalid('EXPENSE_NO_PARTICIPANTS', `Khoản chi "${e.description}" không còn ai được tính để chia. Hãy chọn lại người chia`)
     }
     const parts = allocate(e.amount, takers.map(() => 1))
-    const who = takers.length < M ? ` · chia cho ${takers.length} người` : ''
-    const detail = `${nameOf.get(e.paidByMemberId)} trả ${formatVnd(e.amount)} · ${dayMonth(e.spentOn)}${who}`
+    const detail = `${nameOf.get(e.paidByMemberId)} trả ${formatVnd(e.amount)} · ${dayMonth(e.spentOn)} · chia ${takers.length} người`
     takers.forEach((memberIdx, k) =>
       lines[memberIdx].push({
         key: `expense:${e.id}`,
