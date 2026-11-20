@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PaymentStatus, Payslip, PayslipLine } from './billing/types'
-import { advancedItems, groupLines, lineDetail, settlement, visibleLines } from './payslip-view'
+import { advancedItems, billsLinkFor, groupLines, lineDetail, settlement, visibleLines } from './payslip-view'
 
 const line = (key: string, group: PayslipLine['group'], amount: number, detail = ''): PayslipLine => ({
   key,
@@ -63,6 +63,28 @@ describe('lineDetail: câu điện nước của tháng đã chốt được vi�
   it('dạng mới và chia đều (tổng ngày = 0) giữ nguyên', () => {
     expect(util('Ở 30/120 ngày của cả nhà · tổng 111.564')).toBe('Ở 30/120 ngày của cả nhà · tổng 111.564')
     expect(util('1.000.000 ÷ 4')).toBe('1.000.000 ÷ 4')
+  })
+})
+
+describe('billsLinkFor (lối sang màn Hóa đơn trên phiếu)', () => {
+  const base = { isOwner: true, self: false, closed: true, archived: false, inCurrentHouse: true, periodId: 'p1' }
+  const st = (kind: PaymentStatus['kind']): PaymentStatus => ({ kind, balance: 1, confirmedIn: 0, confirmedOut: 0 })
+
+  it('chủ nhà xem phiếu chưa xong của người khác: có nút, nhãn theo trạng thái', () => {
+    expect(billsLinkFor({ ...base, status: st('pending') })).toEqual({ href: '/bills?period=p1', label: 'Xác nhận ở Hóa đơn' })
+    expect(billsLinkFor({ ...base, status: st('partial') })).toEqual({ href: '/bills?period=p1', label: 'Ghi thanh toán ở Hóa đơn' })
+  })
+
+  it('không có nút khi đã trả, nháp, phiếu của mình, không phải chủ nhà', () => {
+    expect(billsLinkFor({ ...base, status: st('paid') })).toBeNull()
+    expect(billsLinkFor({ ...base, closed: false, status: undefined })).toBeNull()
+    expect(billsLinkFor({ ...base, self: true, status: st('unpaid') })).toBeNull()
+    expect(billsLinkFor({ ...base, isOwner: false, status: st('unpaid') })).toBeNull()
+  })
+
+  it('không có nút khi nhà đã lưu trữ hoặc tháng thuộc nhà khác nhà đang chọn (Hóa đơn sẽ mở sai nhà / không thao tác được)', () => {
+    expect(billsLinkFor({ ...base, archived: true, status: st('unpaid') })).toBeNull()
+    expect(billsLinkFor({ ...base, inCurrentHouse: false, status: st('unpaid') })).toBeNull()
   })
 })
 
@@ -174,6 +196,23 @@ describe('settlement (khối cuối phiếu)', () => {
       settlement(slip(2_653_698, 0, 2_653_698), { self: true, name: 'An', ownerName: 'Linh' }, { draft: false, status: st('paid', 0, 2_653_698, 0) })
         .final.label,
     ).toBe('Bạn đã thanh toán đủ')
+  })
+
+  it('còn 0 vì chủ nhà đã trả lại đủ: không ghi "đã thanh toán đủ"', () => {
+    const who = { self: false, name: 'Dũng', ownerName: 'Linh' }
+    const opts = { draft: false, status: st('paid', 0, 0, 1_200_000) }
+    expect(settlement(slip(0, 1_200_000, -1_200_000), who, opts).final).toEqual({ label: 'Bạn đã trả lại Dũng đủ', amount: null, muted: true })
+    expect(settlement(slip(0, 1_200_000, -1_200_000), { ...who, self: true }, opts).final.label).toBe('Chủ nhà đã trả lại bạn đủ')
+  })
+
+  it('phiếu 0 đ (phần bằng tiền đã ứng, không ai chuyển gì): "không cần chuyển khoản nào"', () => {
+    const opts = { draft: false, status: st('paid', 0, 0, 0) }
+    expect(settlement(slip(200_000, 200_000, 0), { self: true, name: 'An', ownerName: 'Linh' }, opts).final).toEqual({
+      label: 'Bạn không cần chuyển khoản nào',
+      amount: null,
+      muted: true,
+    })
+    expect(settlement(slip(200_000, 200_000, 0), { self: false, name: 'An', ownerName: 'Linh' }, opts).final.label).toBe('An không cần chuyển khoản nào')
   })
 
   it('người rời nhà chỉ còn tiền đã ứng, chủ nhà trả lại một phần', () => {

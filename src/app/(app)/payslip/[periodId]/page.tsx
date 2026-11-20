@@ -8,7 +8,7 @@ import { StatusPill } from '@/components/StatusPill'
 import { UtilityCard } from '@/components/UtilityCard'
 import { formatVnd } from '@/lib/money'
 import { pillFor } from '@/lib/payments-view'
-import { advancedItems, settlement, visibleLines } from '@/lib/payslip-view'
+import { advancedItems, billsLinkFor, settlement, visibleLines } from '@/lib/payslip-view'
 import { dateVn } from '@/lib/vn-time'
 import { readOwnProfile } from '@/server/account'
 import { getHouseContext } from '@/server/current-house'
@@ -29,7 +29,7 @@ export const metadata = { title: 'Phiếu tháng' }
 // Không đòi "nhà đang chọn": link trong thông báo mở thẳng phiếu, kể cả với người đã rời nhà (xem lại, trả nốt phần còn nợ);
 // quyền xem do getPeriodView kiểm.
 export default async function PayslipPage({ params, searchParams }: PageProps<'/payslip/[periodId]'>) {
-  const { actor, houses } = await getHouseContext()
+  const { actor, houses, current } = await getHouseContext()
   const { periodId } = await params
   const { view, error } = await loadPeriodView(actor, periodId)
   if (!view) {
@@ -69,11 +69,15 @@ export default async function PayslipPage({ params, searchParams }: PageProps<'/
     ? settlement(slip, { self, name: names.get(subjectId) ?? '', ownerName }, { status, draft, advanced: advancedItems(slip.memberId, view.expenses) })
     : null
   const ym = { year: period.year, month: period.month }
-  // chủ nhà đang xem phiếu chưa xong của người khác: lối sang màn Hóa đơn (xác nhận, ghi tiền mặt, đã trả lại)
-  const billsLink =
-    isOwner && !self && period.status === 'closed' && status && status.kind !== 'paid'
-      ? { href: `/bills?period=${period.id}`, label: status.kind === 'pending' ? 'Xác nhận ở Hóa đơn' : 'Ghi thanh toán ở Hóa đơn' }
-      : null
+  const billsLink = billsLinkFor({
+    isOwner,
+    self,
+    closed: period.status === 'closed',
+    archived,
+    inCurrentHouse: current?.houseId === period.houseId,
+    periodId: period.id,
+    status,
+  })
   const onlyAdvanced = !!slip && visibleLines(slip.lines).length === 0 && slip.advanced > 0
 
   return (

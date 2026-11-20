@@ -123,7 +123,8 @@ export function paymentRows(v: {
     // số còn lại theo khoản đã trả; đã xong (còn 0) thì hiện số của phiếu
     const amount = s && s.balance !== 0 ? Math.abs(s.balance) : Math.abs(p.due)
     let note: string
-    if (p.due < 0) note = 'Được trả lại'
+    // phiếu âm, hoặc đã trả dư / phiếu bị sửa giảm sau khi trả: chủ nhà nợ lại, không còn hạn trả nào
+    if (p.due < 0 || s?.kind === 'owner_owes') note = 'Được trả lại'
     else if (!s) note = p.advanced > 0 ? `Đã ứng ${formatVnd(p.advanced)} đ` : 'Tạm tính'
     else if (s.kind === 'paid') note = 'Đã trả đủ'
     else if (s.kind === 'pending') note = 'Đã báo chuyển'

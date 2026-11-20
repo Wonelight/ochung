@@ -97,5 +97,30 @@ export function settlement(
     // phòng hờ: tháng đã chốt nhưng không có trạng thái, phiếu 0 đ
     return { rows, final: { label: self ? `Cần chuyển cho ${ownerName}` : `${name} cần chuyển cho bạn`, amount: 0, muted: false } }
   }
-  return { rows, final: { label: self ? 'Bạn đã thanh toán đủ' : `${name} đã thanh toán đủ`, amount: null, muted: true } }
+  // còn 0: nói theo chiều tiền đã đi (như memberBalance ở Trang chủ), không phải lúc nào cũng là người đó đã trả
+  const net = s.confirmedIn - s.confirmedOut
+  const label =
+    net > 0
+      ? self ? 'Bạn đã thanh toán đủ' : `${name} đã thanh toán đủ`
+      : net < 0
+        ? self ? 'Chủ nhà đã trả lại bạn đủ' : `Bạn đã trả lại ${name} đủ`
+        : self ? 'Bạn không cần chuyển khoản nào' : `${name} không cần chuyển khoản nào`
+  return { rows, final: { label, amount: null, muted: true } }
+}
+
+/**
+ * Lối sang màn Hóa đơn (xác nhận, ghi tiền mặt, đã trả lại) khi chủ nhà xem phiếu chưa xong của người khác. Không có khi
+ * nhà đã lưu trữ (Hóa đơn không cho thao tác) hoặc tháng thuộc nhà khác nhà đang chọn (Hóa đơn mở theo nhà đang chọn).
+ */
+export function billsLinkFor(o: {
+  isOwner: boolean
+  self: boolean
+  closed: boolean
+  archived: boolean
+  inCurrentHouse: boolean
+  periodId: string
+  status: PaymentStatus | undefined
+}): { href: string; label: string } | null {
+  if (!o.isOwner || o.self || !o.closed || o.archived || !o.inCurrentHouse || !o.status || o.status.kind === 'paid') return null
+  return { href: `/bills?period=${o.periodId}`, label: o.status.kind === 'pending' ? 'Xác nhận ở Hóa đơn' : 'Ghi thanh toán ở Hóa đơn' }
 }

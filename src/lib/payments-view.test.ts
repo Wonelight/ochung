@@ -124,6 +124,11 @@ describe('paymentRows', () => {
     expect([an.amount, an.note]).toEqual([2_600_000, 'Đã trả đủ'])
   })
 
+  it('trả dư (phiếu dương, chủ nhà nợ lại): ghi chú "Được trả lại", không phải hạn trả', () => {
+    const an = closedRows({ an: [{ direction: 'in', amount: 2_700_000, status: 'confirmed' }] }).find((r) => r.memberId === 'an')!
+    expect([an.note, an.amount, an.pill]).toEqual(['Được trả lại', 100_000, { tone: 'unpaid', text: 'Chủ nhà nợ 100.000 đ' }])
+  })
+
   it('đã báo chuyển: ghi chú ngắn "Đã báo chuyển"', () => {
     const an = closedRows({ an: [{ direction: 'in', amount: 2_600_000, status: 'pending' }] }).find((r) => r.memberId === 'an')!
     expect(an.note).toBe('Đã báo chuyển')
